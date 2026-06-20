@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Dark theme (default) ─── */
+[data-theme="dark"] {
+  --bg-base: #1a1a2e;
+  --bg-panel: rgba(24, 24, 39, 0.3);
+  --bg-surface: #27272a;
+  --bg-surface-hover: #3f3f46;
+  --bg-input: #18181b;
+  --border: rgba(63, 63, 70, 0.5);
+  --text-primary: #d4d4d8;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-faint: #52525b;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-hover: #52525b;
+  --chart-bg: #1e1e32;
+  --grid-color: rgba(63, 63, 70, 0.5);
+  --axis-color: #52525b;
+  --axis-text: #71717a;
+  --scene-bg-from: #0f0f1a;
+  --scene-bg-to: #1a1a2e;
+}
+
+/* ─── Light theme ─── */
+[data-theme="light"] {
+  --bg-base: #f8fafc;
+  --bg-panel: rgba(241, 245, 249, 0.8);
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #e2e8f0;
+  --bg-input: #ffffff;
+  --border: rgba(203, 213, 225, 0.6);
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-hover: #94a3b8;
+  --chart-bg: #ffffff;
+  --grid-color: rgba(203, 213, 225, 0.5);
+  --axis-color: #94a3b8;
+  --axis-text: #64748b;
+  --scene-bg-from: #e2e8f0;
+  --scene-bg-to: #f1f5f9;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+
+/* Input number spinner hide */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@layer components {
+  .toolbar-btn {
+    @apply flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors;
+    color: var(--text-muted);
+  }
+  .toolbar-btn:hover {
+    color: var(--accent);
+  }
+
+  .sample-btn {
+    @apply flex items-center gap-1 px-2 py-0.5 text-[10px] rounded transition-colors;
+    color: var(--text-faint);
+    background: var(--bg-surface);
+  }
+  .sample-btn:hover {
+    color: var(--accent);
+    background: var(--bg-surface-hover);
+  }
+
+  .ribbon-btn {
+    @apply flex flex-col items-center gap-0.5 px-2.5 py-1 rounded transition-colors;
+    color: var(--text-muted);
+  }
+  .ribbon-btn:hover {
+    color: var(--accent);
+    background: var(--bg-surface-hover);
+  }
+}
