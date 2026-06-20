@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePlotStore } from '@/store/plotStore';
 import DataTable from '@/components/DataTable';
 import Chart2D from '@/components/Chart2D';
@@ -14,6 +14,11 @@ export default function Workspace() {
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const theme = usePlotStore((s) => s.theme);
+
+  // Sync theme to document root so CSS variables are available globally
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
 
