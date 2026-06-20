@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePlotStore } from '@/store/plotStore';
 import {
   FileUp, Download, Database, Sun, Droplets, Palette, RotateCcw, Eye,
@@ -7,7 +8,7 @@ import {
   Type, ArrowUpRight, Square, Sigma, Trash2, EyeOff, Plus,
   ChevronDown, ChevronRight,
   FunctionSquare, ArrowUpDown, Minimize2, Calculator, Hash, TrendingUp, Activity, Waves, Zap,
-  Moon, SunMoon, Circle,
+  Moon, SunMoon, Circle, Languages,
 } from 'lucide-react';
 import { getColorMapGradient } from '@/utils/colormaps';
 import type { ColorMapName, ChartType, AnnotationType, Annotation } from '@/types';
@@ -28,35 +29,35 @@ import type { AxisConfig } from '@/types';
 // ─── Ribbon Tab Types ───────────────────────────────────────────
 type RibbonTab = 'file' | 'generate' | 'transform' | 'chart' | 'annotation';
 
-const chartTypes: { type: ChartType; label: string; icon: React.ReactNode; group: '2d' | '3d' }[] = [
-  { type: 'line', label: '折线图', icon: <LineChart size={18} />, group: '2d' },
-  { type: 'scatter', label: '散点图', icon: <ScatterChart size={18} />, group: '2d' },
-  { type: 'bar', label: '柱状图', icon: <BarChart3 size={18} />, group: '2d' },
-  { type: 'area', label: '面积图', icon: <AreaChart size={18} />, group: '2d' },
-  { type: 'pie', label: '饼图', icon: <PieChart size={18} />, group: '2d' },
-  { type: 'polar', label: '极坐标', icon: <Compass size={18} />, group: '2d' },
-  { type: 'surface3d', label: '3D 曲面', icon: <Mountain size={18} />, group: '3d' },
-  { type: 'scatter3d', label: '3D 散点', icon: <Rotate3D size={18} />, group: '3d' },
-  { type: 'contour3d', label: '等高线', icon: <Binary size={18} />, group: '3d' },
-  { type: 'bar3d', label: '3D 柱状', icon: <Box size={18} />, group: '3d' },
+const getChartTypes = (t: (key: string) => string): { type: ChartType; label: string; icon: React.ReactNode; group: '2d' | '3d' }[] => [
+  { type: 'line', label: t('chartTypes.line'), icon: <LineChart size={18} />, group: '2d' },
+  { type: 'scatter', label: t('chartTypes.scatter'), icon: <ScatterChart size={18} />, group: '2d' },
+  { type: 'bar', label: t('chartTypes.bar'), icon: <BarChart3 size={18} />, group: '2d' },
+  { type: 'area', label: t('chartTypes.area'), icon: <AreaChart size={18} />, group: '2d' },
+  { type: 'pie', label: t('chartTypes.pie'), icon: <PieChart size={18} />, group: '2d' },
+  { type: 'polar', label: t('chartTypes.polar'), icon: <Compass size={18} />, group: '2d' },
+  { type: 'surface3d', label: t('chartTypes.surface3d'), icon: <Mountain size={18} />, group: '3d' },
+  { type: 'scatter3d', label: t('chartTypes.scatter3d'), icon: <Rotate3D size={18} />, group: '3d' },
+  { type: 'contour3d', label: t('chartTypes.contour3d'), icon: <Binary size={18} />, group: '3d' },
+  { type: 'bar3d', label: t('chartTypes.bar3d'), icon: <Box size={18} />, group: '3d' },
 ];
 
 const colorMapNames: ColorMapName[] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma'];
 
-const annotationTypes: { type: AnnotationType; label: string; icon: React.ReactNode }[] = [
-  { type: 'text', label: '文本', icon: <Type size={16} /> },
+const getAnnotationTypes = (t: (key: string) => string): { type: AnnotationType; label: string; icon: React.ReactNode }[] => [
+  { type: 'text', label: t('annotation.text'), icon: <Type size={16} /> },
   { type: 'latex', label: 'LaTeX', icon: <Sigma size={16} /> },
-  { type: 'arrow', label: '箭头', icon: <ArrowUpRight size={16} /> },
-  { type: 'rect', label: '矩形', icon: <Square size={16} /> },
+  { type: 'arrow', label: t('annotation.arrow'), icon: <ArrowUpRight size={16} /> },
+  { type: 'rect', label: t('annotation.rect'), icon: <Square size={16} /> },
 ];
 
-function createDefaultAnnotation(type: AnnotationType): Annotation {
+function createDefaultAnnotation(type: AnnotationType, t: (key: string) => string): Annotation {
   const base = {
     id: uid(),
     type,
     x: 50,
     y: 50,
-    content: type === 'latex' ? '$E = mc^2$' : type === 'text' ? '标注文本' : '',
+    content: type === 'latex' ? '$E = mc^2$' : type === 'text' ? t('annotation.defaultText') : '',
     fontSize: 14,
     color: '#e4e4e7',
     visible: true,
@@ -78,10 +79,13 @@ function RibbonGroup({ label, children }: { label: string; children: React.React
 
 // ─── File Tab ───────────────────────────────────────────────────
 function FileTab() {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addDataset = usePlotStore((s) => s.addDataset);
   const theme = usePlotStore((s) => s.theme);
   const toggleTheme = usePlotStore((s) => s.toggleTheme);
+  const lang = usePlotStore((s) => s.lang);
+  const setLang = usePlotStore((s) => s.setLang);
 
   const handleImport = () => fileInputRef.current?.click();
 
@@ -177,13 +181,13 @@ function FileTab() {
   return (
     <div className="flex items-stretch">
       <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" />
-      <RibbonGroup label="导入">
-        <button onClick={handleImport} className="ribbon-btn" title="导入 CSV / Excel">
+      <RibbonGroup label={t('file.import')}>
+        <button onClick={handleImport} className="ribbon-btn" title={t('file.importCsvExcel')}>
           <FileUp size={20} />
-          <span className="text-xs">导入数据</span>
+          <span className="text-xs">{t('file.importData')}</span>
         </button>
       </RibbonGroup>
-      <RibbonGroup label="导出">
+      <RibbonGroup label={t('file.export')}>
         <button onClick={handleExportPNG} className="ribbon-btn" title="导出 PNG">
           <Download size={18} />
           <span className="text-[10px]">PNG</span>
@@ -197,10 +201,21 @@ function FileTab() {
           <span className="text-[10px]">CSV</span>
         </button>
       </RibbonGroup>
-      <RibbonGroup label="主题">
-        <button onClick={toggleTheme} className="ribbon-btn" title={theme === 'dark' ? '切换浅色主题' : '切换深色主题'}>
+      <RibbonGroup label={t('file.theme')}>
+        <button onClick={toggleTheme} className="ribbon-btn" title={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}>
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          <span className="text-[10px]">{theme === 'dark' ? '浅色' : '深色'}</span>
+          <span className="text-[10px]">{theme === 'dark' ? t('file.light') : t('file.dark')}</span>
+        </button>
+        <button
+          onClick={() => {
+            const newLang = lang === 'zh' ? 'en' : 'zh';
+            setLang(newLang);
+          }}
+          className="ribbon-btn"
+          title={t('language.switch')}
+        >
+          <Languages size={20} />
+          <span className="text-[10px]">{lang === 'zh' ? 'EN' : '中'}</span>
         </button>
       </RibbonGroup>
     </div>
@@ -209,30 +224,31 @@ function FileTab() {
 
 // ─── Data Tab ───────────────────────────────────────────────────
 function GenerateTab() {
+  const { t } = useTranslation();
   const addDataset = usePlotStore((s) => s.addDataset);
 
   return (
     <div className="flex items-stretch">
-      <RibbonGroup label="函数曲线">
+      <RibbonGroup label={t('generate.functionCurve')}>
         <button onClick={() => addDataset(createSampleSineDataset())} className="ribbon-btn">
           <Waves size={18} />
-          <span className="text-xs">正弦</span>
+          <span className="text-xs">{t('generate.sine')}</span>
         </button>
         <button onClick={() => addDataset(createSampleSurfaceDataset())} className="ribbon-btn">
           <Mountain size={18} />
-          <span className="text-xs">Sinc 曲面</span>
+          <span className="text-xs">{t('generate.sincSurface')}</span>
         </button>
       </RibbonGroup>
-      <RibbonGroup label="3D 形状">
+      <RibbonGroup label={t('generate.shape3d')}>
         <button onClick={() => addDataset(createSampleScatter3DDataset())} className="ribbon-btn">
           <Circle size={18} />
-          <span className="text-xs">球体</span>
+          <span className="text-xs">{t('generate.sphere')}</span>
         </button>
       </RibbonGroup>
-      <RibbonGroup label="其他">
+      <RibbonGroup label={t('generate.other')}>
         <button onClick={() => addDataset(createSampleBarDataset())} className="ribbon-btn">
           <BarChart3 size={18} />
-          <span className="text-xs">柱状</span>
+          <span className="text-xs">{t('generate.bar')}</span>
         </button>
       </RibbonGroup>
     </div>
@@ -240,6 +256,7 @@ function GenerateTab() {
 }
 
 function TransformTab() {
+  const { t } = useTranslation();
   const datasets = usePlotStore((s) => s.datasets);
   const activeDatasetId = usePlotStore((s) => s.activeDatasetId);
   const transformColumn = usePlotStore((s) => s.transformColumn);
@@ -265,38 +282,38 @@ function TransformTab() {
 
   return (
     <div className="flex items-stretch">
-      <RibbonGroup label="数学变换（对 Y 列）">
+      <RibbonGroup label={t('transform.mathTransform')}>
         <button onClick={() => transform(Math.log)} className="ribbon-btn" title="ln(y)">
           <span className="text-sm font-mono">ln</span>
-          <span className="text-[10px]">对数</span>
+          <span className="text-[10px]">{t('transform.log')}</span>
         </button>
         <button onClick={() => transform(Math.log10)} className="ribbon-btn" title="log10(y)">
           <span className="text-sm font-mono">lg</span>
-          <span className="text-[10px]">常用对数</span>
+          <span className="text-[10px]">{t('transform.log10')}</span>
         </button>
         <button onClick={() => transform(Math.exp)} className="ribbon-btn" title="e^y">
           <span className="text-sm font-mono">eˣ</span>
-          <span className="text-[10px]">指数</span>
+          <span className="text-[10px]">{t('transform.exp')}</span>
         </button>
         <button onClick={() => transform(Math.sqrt)} className="ribbon-btn" title="√y">
           <span className="text-sm font-mono">√</span>
-          <span className="text-[10px]">平方根</span>
+          <span className="text-[10px]">{t('transform.sqrt')}</span>
         </button>
         <button onClick={() => transform((v) => v * v)} className="ribbon-btn" title="y²">
           <span className="text-sm font-mono">x²</span>
-          <span className="text-[10px]">平方</span>
+          <span className="text-[10px]">{t('transform.square')}</span>
         </button>
         <button onClick={() => transform((v) => 1 / v)} className="ribbon-btn" title="1/y">
           <span className="text-sm font-mono">1/x</span>
-          <span className="text-[10px]">倒数</span>
+          <span className="text-[10px]">{t('transform.reciprocal')}</span>
         </button>
         <button onClick={() => transform(Math.abs)} className="ribbon-btn" title="|y|">
           <span className="text-sm font-mono">|x|</span>
-          <span className="text-[10px]">绝对值</span>
+          <span className="text-[10px]">{t('transform.abs')}</span>
         </button>
       </RibbonGroup>
 
-      <RibbonGroup label="三角函数（对 Y 列）">
+      <RibbonGroup label={t('transform.trigTransform')}>
         <button onClick={() => transform(Math.sin)} className="ribbon-btn" title="sin(y)">
           <span className="text-sm font-mono">sin</span>
         </button>
@@ -308,60 +325,60 @@ function TransformTab() {
         </button>
         <button onClick={() => transform((v) => v * Math.PI / 180)} className="ribbon-btn" title="y° → rad">
           <span className="text-sm font-mono">°→r</span>
-          <span className="text-[10px]">度→弧度</span>
+          <span className="text-[10px]">{t('transform.degToRad')}</span>
         </button>
       </RibbonGroup>
 
-      <RibbonGroup label="计算列">
+      <RibbonGroup label={t('transform.computedCol')}>
         <button onClick={() => compute('x+y', (r) => (r[activeDs!.columns[0].name] ?? 0) + (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X + Y">
           <span className="text-sm font-mono">+</span>
-          <span className="text-[10px]">加</span>
+          <span className="text-[10px]">{t('transform.add')}</span>
         </button>
         <button onClick={() => compute('x-y', (r) => (r[activeDs!.columns[0].name] ?? 0) - (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X - Y">
           <span className="text-sm font-mono">−</span>
-          <span className="text-[10px]">减</span>
+          <span className="text-[10px]">{t('transform.sub')}</span>
         </button>
         <button onClick={() => compute('x*y', (r) => (r[activeDs!.columns[0].name] ?? 0) * (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X × Y">
           <span className="text-sm font-mono">×</span>
-          <span className="text-[10px]">乘</span>
+          <span className="text-[10px]">{t('transform.mul')}</span>
         </button>
         <button onClick={() => compute('x/y', (r) => { const d = r[activeDs!.columns[1].name]; return d ? r[activeDs!.columns[0].name] / d : NaN; })} className="ribbon-btn" title="X ÷ Y">
           <span className="text-sm font-mono">÷</span>
-          <span className="text-[10px]">除</span>
+          <span className="text-[10px]">{t('transform.div')}</span>
         </button>
       </RibbonGroup>
 
-      <RibbonGroup label="数据操作">
+      <RibbonGroup label={t('transform.dataOps')}>
         <button
           onClick={() => { if (activeDs && yCol) sortDataset(activeDs.id, yCol.id, true); }}
-          className="ribbon-btn" title="按 Y 列升序排列"
+          className="ribbon-btn" title={t('transform.sortAsc')}
         >
           <ArrowUpDown size={16} />
-          <span className="text-[10px]">升序</span>
+          <span className="text-[10px]">{t('transform.asc')}</span>
         </button>
         <button
           onClick={() => { if (activeDs && yCol) sortDataset(activeDs.id, yCol.id, false); }}
-          className="ribbon-btn" title="按 Y 列降序排列"
+          className="ribbon-btn" title={t('transform.sortDesc')}
         >
           <ArrowUpDown size={16} className="rotate-180" />
-          <span className="text-[10px]">降序</span>
+          <span className="text-[10px]">{t('transform.desc')}</span>
         </button>
         <button
           onClick={() => { if (activeDs && yCol) normalizeColumn(activeDs.id, yCol.id); }}
-          className="ribbon-btn" title="归一化 Y 列到 [0,1]"
+          className="ribbon-btn" title={t('transform.normalizeTip')}
         >
           <Minimize2 size={16} />
-          <span className="text-[10px]">归一化</span>
+          <span className="text-[10px]">{t('transform.normalize')}</span>
         </button>
         {activeDs && (
           <>
-            <button onClick={() => addColumn(activeDs.id)} className="ribbon-btn" title="添加列">
+            <button onClick={() => addColumn(activeDs.id)} className="ribbon-btn" title={t('transform.addColTip')}>
               <Plus size={16} />
-              <span className="text-[10px]">加列</span>
+              <span className="text-[10px]">{t('transform.addCol')}</span>
             </button>
-            <button onClick={() => addRow(activeDs.id)} className="ribbon-btn" title="添加行">
+            <button onClick={() => addRow(activeDs.id)} className="ribbon-btn" title={t('transform.addRowTip')}>
               <Plus size={16} />
-              <span className="text-[10px]">加行</span>
+              <span className="text-[10px]">{t('transform.addRow')}</span>
             </button>
           </>
         )}
@@ -372,6 +389,7 @@ function TransformTab() {
 
 // ─── Chart Tab ──────────────────────────────────────────────────
 function ChartTab() {
+  const { t } = useTranslation();
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const setChartType = usePlotStore((s) => s.setChartType);
   const scene3D = usePlotStore((s) => s.scene3D);
@@ -379,9 +397,11 @@ function ChartTab() {
   const setChartTitle = usePlotStore((s) => s.setChartTitle);
   const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
 
+  const chartTypes = getChartTypes(t);
+
   return (
     <div className="flex items-stretch">
-      <RibbonGroup label="图表类型">
+      <RibbonGroup label={t('chart.chartType')}>
         {chartTypes.map(({ type, label, icon, group }) => (
           <button
             key={type}
@@ -395,19 +415,19 @@ function ChartTab() {
         ))}
       </RibbonGroup>
 
-      <RibbonGroup label="标题">
+      <RibbonGroup label={t('chart.title')}>
         <input
           type="text"
           value={chartConfig.title}
           onChange={(e) => setChartTitle(e.target.value)}
           className="w-40 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none focus:border-sky-500/50"
-          placeholder="图表标题"
+          placeholder={t('chart.titlePlaceholder')}
         />
       </RibbonGroup>
 
       {is3D && (
         <>
-          <RibbonGroup label="光照">
+          <RibbonGroup label={t('chart.lighting')}>
             <div className="flex items-center gap-1">
               <Sun size={14} className="text-zinc-500" />
               <input
@@ -418,7 +438,7 @@ function ChartTab() {
               />
             </div>
           </RibbonGroup>
-          <RibbonGroup label="透明度">
+          <RibbonGroup label={t('chart.opacity')}>
             <div className="flex items-center gap-1">
               <Droplets size={14} className="text-zinc-500" />
               <input
@@ -429,7 +449,7 @@ function ChartTab() {
               />
             </div>
           </RibbonGroup>
-          <RibbonGroup label="颜色映射">
+          <RibbonGroup label={t('chart.colorMap')}>
             <div className="flex items-center gap-1">
               <Palette size={14} className="text-zinc-500" />
               <div className="flex gap-0.5">
@@ -447,18 +467,18 @@ function ChartTab() {
               </div>
             </div>
           </RibbonGroup>
-          <RibbonGroup label="视角">
-            <button onClick={() => setScene3D({ cameraPosition: [3, 3, 3] })} className="ribbon-btn" title="重置视角">
+          <RibbonGroup label={t('chart.viewpoint')}>
+            <button onClick={() => setScene3D({ cameraPosition: [3, 3, 3] })} className="ribbon-btn" title={t('chart.resetView')}>
               <RotateCcw size={16} />
-              <span className="text-[10px]">重置</span>
+              <span className="text-[10px]">{t('chart.reset')}</span>
             </button>
             <button
               onClick={() => setScene3D({ showAxes: !scene3D.showAxes })}
               className={`ribbon-btn ${scene3D.showAxes ? 'text-sky-400' : ''}`}
-              title="显示/隐藏坐标轴"
+              title={t('chart.toggleAxes')}
             >
               <Eye size={16} />
-              <span className="text-[10px]">坐标轴</span>
+              <span className="text-[10px]">{t('chart.axes')}</span>
             </button>
           </RibbonGroup>
         </>
@@ -469,18 +489,21 @@ function ChartTab() {
 
 // ─── Annotation Tab ─────────────────────────────────────────────
 function AnnotationTab() {
+  const { t } = useTranslation();
   const annotations = usePlotStore((s) => s.chartConfig.annotations);
   const addAnnotation = usePlotStore((s) => s.addAnnotation);
   const removeAnnotation = usePlotStore((s) => s.removeAnnotation);
   const updateAnnotation = usePlotStore((s) => s.updateAnnotation);
 
+  const annotationTypes = getAnnotationTypes(t);
+
   return (
     <div className="flex items-stretch">
-      <RibbonGroup label="添加标注">
+      <RibbonGroup label={t('annotation.addAnnotation')}>
         {annotationTypes.map(({ type, label, icon }) => (
           <button
             key={type}
-            onClick={() => addAnnotation(createDefaultAnnotation(type))}
+            onClick={() => addAnnotation(createDefaultAnnotation(type, t))}
             className="ribbon-btn"
           >
             {icon}
@@ -490,7 +513,7 @@ function AnnotationTab() {
       </RibbonGroup>
 
       {annotations.length > 0 && (
-        <RibbonGroup label="标注列表">
+        <RibbonGroup label={t('annotation.annotationList')}>
           <div className="flex items-center gap-2 max-w-[600px] overflow-x-auto">
             {annotations.map((ann) => (
               <div key={ann.id} className="flex items-center gap-1 shrink-0 bg-zinc-800/50 rounded px-1.5 py-1">
@@ -509,7 +532,7 @@ function AnnotationTab() {
                     value={ann.content}
                     onChange={(e) => updateAnnotation(ann.id, { content: e.target.value })}
                     className="w-24 bg-zinc-900 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 outline-none focus:border-sky-500/50"
-                    placeholder={ann.type === 'latex' ? '$E=mc^2$' : '文本'}
+                    placeholder={ann.type === 'latex' ? '$E=mc^2$' : t('annotation.textPlaceholder')}
                   />
                 )}
                 <input
@@ -534,16 +557,17 @@ function AnnotationTab() {
 }
 
 // ─── Main Ribbon Component ──────────────────────────────────────
-const tabs: { key: RibbonTab; label: string }[] = [
-  { key: 'file', label: '文件' },
-  { key: 'generate', label: '生成' },
-  { key: 'transform', label: '变换' },
-  { key: 'chart', label: '图' },
-  { key: 'annotation', label: '标注' },
-];
-
 export default function Ribbon() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<RibbonTab>('chart');
+
+  const tabs: { key: RibbonTab; label: string }[] = [
+    { key: 'file', label: t('ribbon.file') },
+    { key: 'generate', label: t('ribbon.generate') },
+    { key: 'transform', label: t('ribbon.transform') },
+    { key: 'chart', label: t('ribbon.chart') },
+    { key: 'annotation', label: t('ribbon.annotation') },
+  ];
 
   return (
     <div style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }} className="select-none">

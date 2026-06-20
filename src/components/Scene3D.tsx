@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Line } from '@react-three/drei';
 import { usePlotStore } from '@/store/plotStore';
 import { getColorFromMap, getColorMapGradient } from '@/utils/colormaps';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 
 interface DataRange {
@@ -389,6 +390,7 @@ function ColorbarOverlay() {
 }
 
 function LegendOverlay() {
+  const { t } = useTranslation();
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const datasets = usePlotStore((s) => s.datasets);
 
@@ -401,7 +403,7 @@ function LegendOverlay() {
         return (
           <div key={layer.id} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div className="w-3 h-1 rounded" style={{ backgroundColor: layer.color }} />
-            {ds?.name ?? '数据集'}
+            {ds?.name ?? t('data.noDataset')}
           </div>
         );
       })}
@@ -410,6 +412,7 @@ function LegendOverlay() {
 }
 
 export default function Scene3D() {
+  const { t } = useTranslation();
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const scene3D = usePlotStore((s) => s.scene3D);
   const theme = usePlotStore((s) => s.theme);
@@ -419,7 +422,7 @@ export default function Scene3D() {
   if (!is3D) {
     return (
       <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-muted)' }}>
-        请选择 3D 图表类型以启用 3D 可视化
+        {t('scene3dView.select3d')}
       </div>
     );
   }

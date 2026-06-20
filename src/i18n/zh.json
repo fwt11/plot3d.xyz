@@ -1,0 +1,165 @@
+{
+  "ribbon": {
+    "file": "文件",
+    "generate": "生成",
+    "transform": "变换",
+    "chart": "图",
+    "annotation": "标注"
+  },
+  "file": {
+    "import": "导入",
+    "importData": "导入数据",
+    "importCsvExcel": "导入 CSV / Excel",
+    "export": "导出",
+    "theme": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "switchLight": "切换浅色主题",
+    "switchDark": "切换深色主题"
+  },
+  "generate": {
+    "functionCurve": "函数曲线",
+    "sine": "正弦",
+    "sincSurface": "Sinc 曲面",
+    "shape3d": "3D 形状",
+    "sphere": "球体",
+    "other": "其他",
+    "bar": "柱状"
+  },
+  "transform": {
+    "mathTransform": "数学变换（对 Y 列）",
+    "trigTransform": "三角函数（对 Y 列）",
+    "computedCol": "计算列",
+    "dataOps": "数据操作",
+    "log": "对数",
+    "log10": "常用对数",
+    "exp": "指数",
+    "sqrt": "平方根",
+    "square": "平方",
+    "reciprocal": "倒数",
+    "abs": "绝对值",
+    "degToRad": "度→弧度",
+    "add": "加",
+    "sub": "减",
+    "mul": "乘",
+    "div": "除",
+    "asc": "升序",
+    "desc": "降序",
+    "normalize": "归一化",
+    "addCol": "加列",
+    "addRow": "加行",
+    "sortAsc": "按 Y 列升序排列",
+    "sortDesc": "按 Y 列降序排列",
+    "normalizeTip": "归一化 Y 列到 [0,1]",
+    "addColTip": "添加列",
+    "addRowTip": "添加行"
+  },
+  "chart": {
+    "chartType": "图表类型",
+    "title": "标题",
+    "titlePlaceholder": "图表标题",
+    "lighting": "光照",
+    "opacity": "透明度",
+    "colorMap": "颜色映射",
+    "viewpoint": "视角",
+    "reset": "重置",
+    "resetView": "重置视角",
+    "axes": "坐标轴",
+    "toggleAxes": "显示/隐藏坐标轴"
+  },
+  "chartTypes": {
+    "line": "折线图",
+    "scatter": "散点图",
+    "bar": "柱状图",
+    "area": "面积图",
+    "pie": "饼图",
+    "polar": "极坐标",
+    "surface3d": "3D 曲面",
+    "scatter3d": "3D 散点",
+    "contour3d": "等高线",
+    "bar3d": "3D 柱状"
+  },
+  "annotation": {
+    "addAnnotation": "添加标注",
+    "annotationList": "标注列表",
+    "text": "文本",
+    "latex": "LaTeX",
+    "arrow": "箭头",
+    "rect": "矩形",
+    "defaultText": "标注文本",
+    "textPlaceholder": "文本",
+    "latexPlaceholder": "$E=mc^2$"
+  },
+  "config": {
+    "title": "标题",
+    "xAxis": "X 轴",
+    "yAxis": "Y 轴",
+    "zAxis": "Z 轴",
+    "legend": "图例",
+    "label": "标签",
+    "autoRange": "自动范围",
+    "min": "最小",
+    "max": "最大",
+    "showGrid": "显示网格",
+    "showLegend": "显示图例",
+    "position": "位置",
+    "top": "上",
+    "bottom": "下",
+    "left": "左",
+    "right": "右"
+  },
+  "data": {
+    "noDataset": "无数据集",
+    "xAxis": "X 轴",
+    "yAxis": "Y 轴",
+    "zAxis3d": "Z 轴 (3D)",
+    "label": "标签",
+    "error": "误差",
+    "addRow": "添加行"
+  },
+  "layer": {
+    "none": "无",
+    "addLayer": "添加图层"
+  },
+  "scene3d": {
+    "controls": "3D 场景控制",
+    "colorMap": "颜色映射",
+    "ambientLight": "环境光",
+    "lightAngle": "光照角度",
+    "horizontal": "水平",
+    "vertical": "垂直",
+    "opacity": "透明度",
+    "axes": "坐标轴",
+    "bloom": "辉光",
+    "resetView": "重置视角"
+  },
+  "workspace": {
+    "dataTable": "数据表格",
+    "layerManage": "图层管理",
+    "chartConfig": "图表配置"
+  },
+  "chart2d": {
+    "addLayer": "请添加数据图层"
+  },
+  "scene3dView": {
+    "select3d": "请选择 3D 图表类型以启用 3D 可视化"
+  },
+  "sampleData": {
+    "dataset1": "数据集1",
+    "sine": "正弦函数",
+    "sincSurface": "Sinc 函数曲面",
+    "sphere": "3D 散点球体",
+    "barSample": "柱状图示例"
+  },
+  "store": {
+    "chartTitle": "图表标题",
+    "xAxis": "X 轴",
+    "yAxis": "Y 轴",
+    "zAxis": "Z 轴"
+  },
+  "language": {
+    "switch": "English",
+    "zh": "中文",
+    "en": "English"
+  }
+}

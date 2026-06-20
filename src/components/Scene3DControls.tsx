@@ -2,22 +2,24 @@ import { usePlotStore } from '@/store/plotStore';
 import { getColorMapGradient } from '@/utils/colormaps';
 import type { ColorMapName } from '@/types';
 import { RotateCcw, Eye, EyeOff, Sun, Droplets, Palette, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const colorMapNames: ColorMapName[] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma'];
 
 export default function Scene3DControls() {
+  const { t } = useTranslation();
   const scene3D = usePlotStore((s) => s.scene3D);
   const setScene3D = usePlotStore((s) => s.setScene3D);
 
   return (
     <div className="absolute top-4 right-4 w-56 backdrop-blur-md rounded-lg p-3 space-y-3 text-xs" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div className="font-medium text-sm mb-2" style={{ color: 'var(--text-primary)' }}>3D 场景控制</div>
+      <div className="font-medium text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{t('scene3d.controls')}</div>
 
       {/* Color Map */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
           <Palette size={12} />
-          <span>颜色映射</span>
+          <span>{t('scene3d.colorMap')}</span>
         </div>
         <div className="grid grid-cols-3 gap-1">
           {colorMapNames.map((name) => (
@@ -42,7 +44,7 @@ export default function Scene3DControls() {
         <div className="flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
           <div className="flex items-center gap-1.5">
             <Sun size={12} />
-            <span>环境光</span>
+            <span>{t('scene3d.ambientLight')}</span>
           </div>
           <span style={{ color: 'var(--text-muted)' }}>{scene3D.ambientIntensity.toFixed(2)}</span>
         </div>
@@ -59,10 +61,10 @@ export default function Scene3DControls() {
 
       {/* Light Angle */}
       <div className="space-y-1">
-        <div style={{ color: 'var(--text-secondary)' }}>光照角度</div>
+        <div style={{ color: 'var(--text-secondary)' }}>{t('scene3d.lightAngle')}</div>
         <div className="flex gap-2">
           <label className="flex-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-            水平
+            {t('scene3d.horizontal')}
             <input
               type="range"
               min="0"
@@ -75,7 +77,7 @@ export default function Scene3DControls() {
         </div>
         <div className="flex gap-2">
           <label className="flex-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-            垂直
+            {t('scene3d.vertical')}
             <input
               type="range"
               min="0"
@@ -93,7 +95,7 @@ export default function Scene3DControls() {
         <div className="flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
           <div className="flex items-center gap-1.5">
             <Droplets size={12} />
-            <span>透明度</span>
+            <span>{t('scene3d.opacity')}</span>
           </div>
           <span style={{ color: 'var(--text-muted)' }}>{scene3D.opacity.toFixed(2)}</span>
         </div>
@@ -118,7 +120,7 @@ export default function Scene3DControls() {
           style={!scene3D.showAxes ? { color: 'var(--text-muted)' } : undefined}
         >
           {scene3D.showAxes ? <Eye size={12} /> : <EyeOff size={12} />}
-          坐标轴
+          {t('scene3d.axes')}
         </button>
         <button
           onClick={() => setScene3D({ bloom: !scene3D.bloom })}
@@ -128,7 +130,7 @@ export default function Scene3DControls() {
           style={!scene3D.bloom ? { color: 'var(--text-muted)' } : undefined}
         >
           <Sparkles size={12} />
-          辉光
+          {t('scene3d.bloom')}
         </button>
       </div>
 
@@ -139,7 +141,7 @@ export default function Scene3DControls() {
         style={{ background: 'var(--bg-surface-hover)', color: 'var(--text-primary)' }}
       >
         <RotateCcw size={12} />
-        重置视角
+        {t('scene3d.resetView')}
       </button>
     </div>
   );

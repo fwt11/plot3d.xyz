@@ -1,0 +1,165 @@
+{
+  "ribbon": {
+    "file": "File",
+    "generate": "Generate",
+    "transform": "Transform",
+    "chart": "Chart",
+    "annotation": "Annotation"
+  },
+  "file": {
+    "import": "Import",
+    "importData": "Import Data",
+    "importCsvExcel": "Import CSV / Excel",
+    "export": "Export",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "switchLight": "Switch to Light Theme",
+    "switchDark": "Switch to Dark Theme"
+  },
+  "generate": {
+    "functionCurve": "Function Curve",
+    "sine": "Sine",
+    "sincSurface": "Sinc Surface",
+    "shape3d": "3D Shape",
+    "sphere": "Sphere",
+    "other": "Other",
+    "bar": "Bar"
+  },
+  "transform": {
+    "mathTransform": "Math Transform (Y Column)",
+    "trigTransform": "Trigonometric (Y Column)",
+    "computedCol": "Computed Column",
+    "dataOps": "Data Operations",
+    "log": "Log",
+    "log10": "Log10",
+    "exp": "Exp",
+    "sqrt": "Sqrt",
+    "square": "Square",
+    "reciprocal": "Reciprocal",
+    "abs": "Abs",
+    "degToRad": "Deg→Rad",
+    "add": "Add",
+    "sub": "Sub",
+    "mul": "Mul",
+    "div": "Div",
+    "asc": "Asc",
+    "desc": "Desc",
+    "normalize": "Normalize",
+    "addCol": "+Col",
+    "addRow": "+Row",
+    "sortAsc": "Sort Y Column Ascending",
+    "sortDesc": "Sort Y Column Descending",
+    "normalizeTip": "Normalize Y Column to [0,1]",
+    "addColTip": "Add Column",
+    "addRowTip": "Add Row"
+  },
+  "chart": {
+    "chartType": "Chart Type",
+    "title": "Title",
+    "titlePlaceholder": "Chart Title",
+    "lighting": "Lighting",
+    "opacity": "Opacity",
+    "colorMap": "Color Map",
+    "viewpoint": "Viewpoint",
+    "reset": "Reset",
+    "resetView": "Reset View",
+    "axes": "Axes",
+    "toggleAxes": "Show/Hide Axes"
+  },
+  "chartTypes": {
+    "line": "Line",
+    "scatter": "Scatter",
+    "bar": "Bar",
+    "area": "Area",
+    "pie": "Pie",
+    "polar": "Polar",
+    "surface3d": "3D Surface",
+    "scatter3d": "3D Scatter",
+    "contour3d": "Contour",
+    "bar3d": "3D Bar"
+  },
+  "annotation": {
+    "addAnnotation": "Add Annotation",
+    "annotationList": "Annotations",
+    "text": "Text",
+    "latex": "LaTeX",
+    "arrow": "Arrow",
+    "rect": "Rectangle",
+    "defaultText": "Annotation",
+    "textPlaceholder": "Text",
+    "latexPlaceholder": "$E=mc^2$"
+  },
+  "config": {
+    "title": "Title",
+    "xAxis": "X Axis",
+    "yAxis": "Y Axis",
+    "zAxis": "Z Axis",
+    "legend": "Legend",
+    "label": "Label",
+    "autoRange": "Auto Range",
+    "min": "Min",
+    "max": "Max",
+    "showGrid": "Show Grid",
+    "showLegend": "Show Legend",
+    "position": "Position",
+    "top": "Top",
+    "bottom": "Bottom",
+    "left": "Left",
+    "right": "Right"
+  },
+  "data": {
+    "noDataset": "No Dataset",
+    "xAxis": "X Axis",
+    "yAxis": "Y Axis",
+    "zAxis3d": "Z Axis (3D)",
+    "label": "Label",
+    "error": "Error",
+    "addRow": "Add Row"
+  },
+  "layer": {
+    "none": "None",
+    "addLayer": "Add Layer"
+  },
+  "scene3d": {
+    "controls": "3D Scene Controls",
+    "colorMap": "Color Map",
+    "ambientLight": "Ambient",
+    "lightAngle": "Light Angle",
+    "horizontal": "Horizontal",
+    "vertical": "Vertical",
+    "opacity": "Opacity",
+    "axes": "Axes",
+    "bloom": "Bloom",
+    "resetView": "Reset View"
+  },
+  "workspace": {
+    "dataTable": "Data Table",
+    "layerManage": "Layer Manager",
+    "chartConfig": "Chart Config"
+  },
+  "chart2d": {
+    "addLayer": "Please add a data layer"
+  },
+  "scene3dView": {
+    "select3d": "Select a 3D chart type to enable 3D visualization"
+  },
+  "sampleData": {
+    "dataset1": "Dataset 1",
+    "sine": "Sine Function",
+    "sincSurface": "Sinc Surface",
+    "sphere": "3D Scatter Sphere",
+    "barSample": "Bar Chart Sample"
+  },
+  "store": {
+    "chartTitle": "Chart Title",
+    "xAxis": "X Axis",
+    "yAxis": "Y Axis",
+    "zAxis": "Z Axis"
+  },
+  "language": {
+    "switch": "中文",
+    "zh": "中文",
+    "en": "English"
+  }
+}

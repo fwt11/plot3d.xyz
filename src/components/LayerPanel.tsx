@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { usePlotStore } from '@/store/plotStore';
 import { Eye, EyeOff, Trash2, Plus } from 'lucide-react';
 import { uid } from '@/utils/sampleData';
+import { useTranslation } from 'react-i18next';
 
 export default function LayerPanel() {
+  const { t } = useTranslation();
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const datasets = usePlotStore((s) => s.datasets);
   const addLayer = usePlotStore((s) => s.addLayer);
@@ -98,7 +100,7 @@ export default function LayerPanel() {
                       className="border rounded px-1 py-0.5 outline-none"
                       style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                     >
-                      <option value="">无</option>
+                      <option value="">{t('layer.none')}</option>
                       {ds.columns.map((c) => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -132,7 +134,7 @@ export default function LayerPanel() {
           className="flex items-center gap-1 text-sky-400 hover:text-sky-300 transition-colors mt-1"
         >
           <Plus size={12} />
-          添加图层
+          {t('layer.addLayer')}
         </button>
       )}
     </div>

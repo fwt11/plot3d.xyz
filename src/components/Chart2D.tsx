@@ -15,6 +15,7 @@ import {
 } from 'chart.js';
 import { Line, Scatter, Bar, Pie, PolarArea, Radar } from 'react-chartjs-2';
 import { usePlotStore } from '@/store/plotStore';
+import { useTranslation } from 'react-i18next';
 import type { ChartType, Annotation } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
 
@@ -195,6 +196,7 @@ function AnnotationOverlay({ annotations, chartArea, onMoveAnnotation }: { annot
 }
 
 export default function Chart2D() {
+  const { t } = useTranslation();
   const chartConfig = usePlotStore((s) => s.chartConfig);
   const datasets = usePlotStore((s) => s.datasets);
   const updateAnnotation = usePlotStore((s) => s.updateAnnotation);
@@ -274,7 +276,7 @@ export default function Chart2D() {
   if (expandedDatasets.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
-        请添加数据图层
+        {t('chart2d.addLayer')}
       </div>
     );
   }

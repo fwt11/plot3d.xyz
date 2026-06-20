@@ -1,8 +1,10 @@
 import { usePlotStore } from '@/store/plotStore';
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { DataColumn } from '@/types';
 
 export default function DataTable() {
+  const { t } = useTranslation();
   const datasets = usePlotStore((s) => s.datasets);
   const activeDatasetId = usePlotStore((s) => s.activeDatasetId);
   const setActiveDataset = usePlotStore((s) => s.setActiveDataset);
@@ -14,7 +16,7 @@ export default function DataTable() {
   const setColumnType = usePlotStore((s) => s.setColumnType);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
-  if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>无数据集</div>;
+  if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>{t('data.noDataset')}</div>;
 
   const maxRows = Math.max(...dataset.columns.map((c) => c.values.length), 0);
 
@@ -27,11 +29,11 @@ export default function DataTable() {
   };
 
   const typeOptions: { value: DataColumn['type']; label: string }[] = [
-    { value: 'X', label: 'X 轴' },
-    { value: 'Y', label: 'Y 轴' },
-    { value: 'Z', label: 'Z 轴 (3D)' },
-    { value: 'label', label: '标签' },
-    { value: 'error', label: '误差' },
+    { value: 'X', label: t('data.xAxis') },
+    { value: 'Y', label: t('data.yAxis') },
+    { value: 'Z', label: t('data.zAxis3d') },
+    { value: 'label', label: t('data.label') },
+    { value: 'error', label: t('data.error') },
   ];
 
   return (
@@ -172,7 +174,7 @@ export default function DataTable() {
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
         >
           <Plus size={12} />
-          添加行
+          {t('data.addRow')}
         </button>
       </div>
     </div>

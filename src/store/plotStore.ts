@@ -1,9 +1,11 @@
 import { create } from 'zustand';
+import i18n from '@/i18n';
 import type { Dataset, DataColumn, ChartConfig, Scene3DConfig, AxisConfig, LayerConfig, ChartType, Annotation } from '@/types';
 import { uid, createSampleSineDataset } from '@/utils/sampleData';
 
 interface PlotStore {
   theme: 'light' | 'dark';
+  lang: 'zh' | 'en';
   datasets: Dataset[];
   activeDatasetId: string | null;
   chartConfig: ChartConfig;
@@ -11,6 +13,9 @@ interface PlotStore {
 
   // Theme
   toggleTheme: () => void;
+
+  // Language
+  setLang: (lang: 'zh' | 'en') => void;
 
   // Dataset actions
   addDataset: (dataset: Dataset) => void;
@@ -61,9 +66,9 @@ const defaultDataset = createSampleSineDataset();
 const defaultChartConfig: ChartConfig = {
   id: uid(),
   type: 'line',
-  title: '图表标题',
-  xAxis: { ...defaultAxis, label: 'X 轴' },
-  yAxis: { ...defaultAxis, label: 'Y 轴' },
+  title: i18n.t('store.chartTitle'),
+  xAxis: { ...defaultAxis, label: i18n.t('store.xAxis') },
+  yAxis: { ...defaultAxis, label: i18n.t('store.yAxis') },
   legend: { visible: true, position: 'top' },
   colorMap: 'jet',
   annotations: [],
@@ -81,6 +86,7 @@ const defaultChartConfig: ChartConfig = {
 
 export const usePlotStore = create<PlotStore>((set) => ({
   theme: 'dark',
+  lang: (i18n.language?.startsWith('en') ? 'en' : 'zh') as 'zh' | 'en',
   datasets: [defaultDataset],
   activeDatasetId: defaultDataset.id,
   chartConfig: defaultChartConfig,
@@ -97,6 +103,11 @@ export const usePlotStore = create<PlotStore>((set) => ({
   },
 
   toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+
+  setLang: (lang) => {
+    i18n.changeLanguage(lang);
+    set({ lang });
+  },
 
   addDataset: (dataset) =>
     set((s) => {
@@ -389,7 +400,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     set((s) => ({ chartConfig: { ...s.chartConfig, yAxis: { ...s.chartConfig.yAxis, ...axis } } })),
 
   setZAxis: (axis) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, zAxis: s.chartConfig.zAxis ? { ...s.chartConfig.zAxis, ...axis } : { ...defaultAxis, label: 'Z 轴', ...axis } } })),
+    set((s) => ({ chartConfig: { ...s.chartConfig, zAxis: s.chartConfig.zAxis ? { ...s.chartConfig.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis } } })),
 
   setLegend: (legend) =>
     set((s) => ({ chartConfig: { ...s.chartConfig, legend: { ...s.chartConfig.legend, ...legend } } })),

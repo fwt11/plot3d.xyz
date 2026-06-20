@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePlotStore } from '@/store/plotStore';
+import { useTranslation } from 'react-i18next';
 import DataTable from '@/components/DataTable';
 import Chart2D from '@/components/Chart2D';
 import Scene3D from '@/components/Scene3D';
@@ -10,6 +11,7 @@ import LayerPanel from '@/components/LayerPanel';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
 
 export default function Workspace() {
+  const { t } = useTranslation();
   const [showDataPanel, setShowDataPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const chartConfig = usePlotStore((s) => s.chartConfig);
@@ -33,7 +35,7 @@ export default function Workspace() {
         {showDataPanel && (
           <div className="w-72 flex flex-col shrink-0" style={{ borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>数据表格</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.dataTable')}</span>
               <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80">
                 <PanelLeftClose size={14} />
               </button>
@@ -44,7 +46,7 @@ export default function Workspace() {
             <div style={{ borderTop: '1px solid var(--border)' }}>
               <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
                 <Layers size={12} style={{ color: 'var(--text-faint)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>图层管理</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.layerManage')}</span>
               </div>
               <div className="max-h-48 overflow-y-auto p-2">
                 <LayerPanel />
@@ -80,7 +82,7 @@ export default function Workspace() {
         {showConfigPanel && (
           <div className="w-64 flex flex-col shrink-0" style={{ borderLeft: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>图表配置</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.chartConfig')}</span>
               <button onClick={() => setShowConfigPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80">
                 <PanelRightClose size={14} />
               </button>

@@ -1,11 +1,12 @@
 import type { Dataset } from '@/types';
+import i18n from '@/i18n';
 
 let idCounter = 0;
 function uid(): string {
   return `id_${Date.now()}_${++idCounter}`;
 }
 
-export function createEmptyDataset(name = '数据集1'): Dataset {
+export function createEmptyDataset(name = i18n.t('sampleData.dataset1')): Dataset {
   return {
     id: uid(),
     name,
@@ -26,7 +27,7 @@ export function createSampleSineDataset(): Dataset {
   }
   return {
     id: uid(),
-    name: '正弦函数',
+    name: i18n.t('sampleData.sine'),
     columns: [
       { id: uid(), name: 'X', type: 'X', values: xVals },
       { id: uid(), name: 'Y', type: 'Y', values: yVals },
@@ -52,7 +53,7 @@ export function createSampleSurfaceDataset(): Dataset {
   }
   return {
     id: uid(),
-    name: 'Sinc 函数曲面',
+    name: i18n.t('sampleData.sincSurface'),
     columns: [
       { id: uid(), name: 'X', type: 'X', values: xVals },
       { id: uid(), name: 'Y', type: 'Y', values: yVals },
@@ -75,7 +76,7 @@ export function createSampleScatter3DDataset(): Dataset {
   }
   return {
     id: uid(),
-    name: '3D 散点球体',
+    name: i18n.t('sampleData.sphere'),
     columns: [
       { id: uid(), name: 'X', type: 'X', values: xVals },
       { id: uid(), name: 'Y', type: 'Y', values: yVals },
@@ -87,10 +88,10 @@ export function createSampleScatter3DDataset(): Dataset {
 export function createSampleBarDataset(): Dataset {
   return {
     id: uid(),
-    name: '柱状图示例',
+    name: i18n.t('sampleData.barSample'),
     columns: [
-      { id: uid(), name: '类别', type: 'label', values: ['A', 'B', 'C', 'D', 'E'] },
-      { id: uid(), name: '值', type: 'Y', values: [12, 19, 8, 15, 22] },
+      { id: uid(), name: 'Category', type: 'label', values: ['A', 'B', 'C', 'D', 'E'] },
+      { id: uid(), name: 'Value', type: 'Y', values: [12, 19, 8, 15, 22] },
     ],
   };
 }
