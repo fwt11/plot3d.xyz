@@ -1,7 +1,7 @@
-import type { Dataset, ChartConfig, Scene3DConfig } from '@/types';
+import type { Dataset, ChartConfig } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 1;
+const PROJECT_VERSION = 2;
 
 export interface ProjectFile {
   version: number;
@@ -9,7 +9,6 @@ export interface ProjectFile {
   updatedAt: string;
   datasets: Dataset[];
   chartConfig: ChartConfig;
-  scene3D: Scene3DConfig;
   theme: 'light' | 'dark';
   lang: 'zh' | 'en';
 }
@@ -18,7 +17,6 @@ export interface ProjectFile {
 export function serializeProject(state: {
   datasets: Dataset[];
   chartConfig: ChartConfig;
-  scene3D: Scene3DConfig;
   theme: 'light' | 'dark';
   lang: 'zh' | 'en';
 }): ProjectFile {
@@ -28,7 +26,6 @@ export function serializeProject(state: {
     updatedAt: new Date().toISOString(),
     datasets: JSON.parse(JSON.stringify(state.datasets)),
     chartConfig: JSON.parse(JSON.stringify(state.chartConfig)),
-    scene3D: JSON.parse(JSON.stringify(state.scene3D)),
     theme: state.theme,
     lang: state.lang,
   };
@@ -41,8 +38,7 @@ export function isValidProjectFile(data: unknown): data is ProjectFile {
   return (
     typeof obj.version === 'number' &&
     Array.isArray(obj.datasets) &&
-    typeof obj.chartConfig === 'object' && obj.chartConfig !== null &&
-    typeof obj.scene3D === 'object' && obj.scene3D !== null
+    typeof obj.chartConfig === 'object' && obj.chartConfig !== null
   );
 }
 
@@ -63,6 +59,11 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!isValidProjectFile(data)) return null;
+    // Migrate v1 files that had scene3D field
+    if (data.version === 1) {
+      delete (data as unknown as Record<string, unknown>).scene3D;
+      data.version = PROJECT_VERSION;
+    }
     return data;
   } catch {
     return null;

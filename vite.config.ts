@@ -12,7 +12,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           plotly: ['plotly.js-dist-min'],
-          three: ['three', '@react-three/fiber', '@react-three/drei'],
           xlsx: ['xlsx'],
           export: ['jspdf', 'html-to-image'],
           vendor: ['react', 'react-dom', 'zustand', 'react-i18next', 'i18next', 'lucide-react', 'papaparse'],

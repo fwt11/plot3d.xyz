@@ -1,10 +1,11 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { useChartStore, useDatasetStore } from '@/store/plotStore';
 import { useTranslation } from 'react-i18next';
-import type { ChartType, Annotation, LayerConfig, DataColumn } from '@/types';
+import type { ChartType, Annotation, LayerConfig, DataColumn, ColorMapName } from '@/types';
 import { toNumber, isValidNumber } from '@/types';
 import { is3DChart } from '@/utils/chart';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
+import { colorMaps } from '@/utils/colormaps';
 
 // Lazy-load Plotly.js to avoid blocking initial page load
 type PlotComponentType = React.ComponentType<Record<string, unknown>>;
@@ -105,6 +106,12 @@ function buildErrorBar(
     result.arrayminus = colToNumbers(errorMinusCol);
   }
   return Object.keys(result).length > 4 ? result : undefined;
+}
+
+/** Convert our colormap to Plotly colorscale format */
+function toPlotlyColorScale(mapName: ColorMapName): Array<[number, string]> {
+  const map = colorMaps[mapName];
+  return map.map((color, i) => [i / (map.length - 1), color] as [number, string]);
 }
 
 // --- AnnotationOverlay ---
@@ -221,7 +228,7 @@ function AnnotationOverlay({
   );
 }
 
-// --- Main Chart2D Component ---
+// --- Main ChartView Component ---
 
 const allYColors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
 
@@ -229,6 +236,7 @@ interface ExpandedEntry {
   label: string;
   xCol: DataColumn;
   yCol: DataColumn;
+  zCol?: DataColumn;
   color: string;
   layer: LayerConfig;
   datasetId: string;
@@ -237,7 +245,7 @@ interface ExpandedEntry {
   errorMinusCol?: DataColumn;
 }
 
-export default function Chart2D() {
+export default function ChartView() {
   const { t } = useTranslation();
   const chartConfig = useChartStore((s) => s.chartConfig);
   const datasets = useDatasetStore((s) => s.datasets);
@@ -275,10 +283,6 @@ export default function Chart2D() {
     }
   }, [updateAnnotation]);
 
-  if (is3DType) {
-    return null;
-  }
-
   if (!PlotlyComponent) {
     return (
       <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
@@ -309,30 +313,43 @@ export default function Chart2D() {
     const errorPlusCol = layer.errorPlusColumn ? ds.columns.find((c) => c.id === layer.errorPlusColumn) : undefined;
     const errorMinusCol = layer.errorMinusColumn ? ds.columns.find((c) => c.id === layer.errorMinusColumn) : undefined;
 
-    const yCols = ds.columns.filter((c) => c.type === 'Y');
-    if (yCols.length === 0) {
-      const yCol = ds.columns.find((c) => c.id === layer.yColumn);
-      if (yCol) {
-        expandedDatasets.push({
-          label: layer.displayName || `${ds.name} - ${yCol.name}`,
-          xCol, yCol, color: layer.color, layer, datasetId: ds.id,
-          errorCol, errorPlusCol, errorMinusCol,
+    if (is3DType) {
+      // For 3D, each layer needs X, Y, Z columns
+      const yCol = ds.columns.find((c) => c.id === layer.yColumn) ?? ds.columns.find((c) => c.type === 'Y');
+      const zCol = layer.zColumn ? ds.columns.find((c) => c.id === layer.zColumn) : ds.columns.find((c) => c.type === 'Z');
+      if (!yCol) continue;
+
+      expandedDatasets.push({
+        label: layer.displayName || `${ds.name}`,
+        xCol, yCol, zCol, color: layer.color, layer, datasetId: ds.id,
+        errorCol, errorPlusCol, errorMinusCol,
+      });
+    } else {
+      const yCols = ds.columns.filter((c) => c.type === 'Y');
+      if (yCols.length === 0) {
+        const yCol = ds.columns.find((c) => c.id === layer.yColumn);
+        if (yCol) {
+          expandedDatasets.push({
+            label: layer.displayName || `${ds.name} - ${yCol.name}`,
+            xCol, yCol, color: layer.color, layer, datasetId: ds.id,
+            errorCol, errorPlusCol, errorMinusCol,
+          });
+        }
+      } else {
+        yCols.forEach((yCol, idx) => {
+          expandedDatasets.push({
+            label: yCols.length === 1 ? (layer.displayName || `${ds.name} - ${yCol.name}`) : `${ds.name} - ${yCol.name}`,
+            xCol,
+            yCol,
+            color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
+            layer,
+            datasetId: ds.id,
+            errorCol: yCols.length === 1 ? errorCol : undefined,
+            errorPlusCol: yCols.length === 1 ? errorPlusCol : undefined,
+            errorMinusCol: yCols.length === 1 ? errorMinusCol : undefined,
+          });
         });
       }
-    } else {
-      yCols.forEach((yCol, idx) => {
-        expandedDatasets.push({
-          label: yCols.length === 1 ? (layer.displayName || `${ds.name} - ${yCol.name}`) : `${ds.name} - ${yCol.name}`,
-          xCol,
-          yCol,
-          color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
-          layer,
-          datasetId: ds.id,
-          errorCol: yCols.length === 1 ? errorCol : undefined,
-          errorPlusCol: yCols.length === 1 ? errorPlusCol : undefined,
-          errorMinusCol: yCols.length === 1 ? errorMinusCol : undefined,
-        });
-      });
     }
   }
 
@@ -344,119 +361,259 @@ export default function Chart2D() {
     );
   }
 
-  // --- Check if any layer uses right Y axis ---
-  const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
-
-  // --- Build Plotly traces ---
-
-  const traces = expandedDatasets.map((entry) => {
-    const { label, xCol, yCol, color, layer } = entry;
-    const xValues = colToNumbers(xCol);
-    const yValues = colToNumbers(yCol);
-
-    const xLogScale = chartConfig.xAxis.logScale;
-    const yLogScale = chartConfig.yAxis.logScale;
-    const filterIndices = xValues.map((x, i) => {
-      const y = yValues[i];
-      const xOk = !xLogScale || x > 0;
-      const yOk = !yLogScale || y > 0;
-      return xOk && yOk && isValidNumber(x) && isValidNumber(y);
-    });
-    const filteredX = xValues.filter((_, i) => filterIndices[i]);
-    const filteredY = yValues.filter((_, i) => filterIndices[i]);
-
-    const pointSymbol = pointStyleToSymbol(layer.pointStyle);
-    const showPoints = layer.pointStyle !== 'none';
-
-    if (isPie) {
-      return {
-        type: 'pie' as const,
-        labels: xCol.values.map(String),
-        values: yValues,
-        marker: { colors: generateSegmentColors(yValues.length, 0.85) },
-        textinfo: 'label+percent',
-        hole: 0,
-      };
-    }
-
-    if (isPolar) {
-      return {
-        type: 'scatterpolar' as const,
-        r: filteredY,
-        theta: filteredX,
-        mode: showPoints ? 'lines+markers' : 'lines',
-        name: label,
-        line: { color, dash: lineStyleToDash(layer.lineStyle), width: layer.lineWidth },
-        marker: { symbol: pointSymbol, size: showPoints ? layer.pointSize : 0, color },
-        fill: layer.fill ? 'toself' : undefined,
-      };
-    }
-
-    let plotlyType: 'scatter' | 'bar';
-    let mode: string;
-
-    if (chartType === 'bar') {
-      plotlyType = 'bar';
-      mode = '';
-    } else {
-      plotlyType = 'scatter';
-      mode = isScatter
-        ? (showPoints ? 'markers' : 'markers')
-        : (showPoints ? 'lines+markers' : 'lines');
-    }
-
-    const trace: Record<string, unknown> = {
-      type: plotlyType,
-      mode,
-      name: label,
-      x: useNumericX ? filteredX : xCol.values.map(String),
-      y: useNumericX ? filteredY : yValues,
-      line: {
-        color,
-        dash: lineStyleToDash(layer.lineStyle),
-        width: layer.lineWidth,
-      },
-      marker: {
-        symbol: pointSymbol,
-        size: showPoints ? layer.pointSize : 0,
-        color: color,
-        line: chartType === 'bar' ? { width: 1, color } : undefined,
-      },
-    };
-
-    if (layer.fill || chartType === 'area') {
-      trace.fill = 'tozeroy';
-      trace.fillcolor = color + '40';
-    }
-
-    if (layer.yAxisSide === 'right') {
-      trace.yaxis = 'y2';
-    }
-
-    const errY = buildErrorBar(entry.errorCol, entry.errorPlusCol, entry.errorMinusCol, color);
-    if (errY) {
-      if (useNumericX && (xLogScale || yLogScale)) {
-        const errorArray = errY.array as number[];
-        const errorMinusArray = errY.arrayminus as number[] | undefined;
-        errY.array = errorArray.filter((_, i) => filterIndices[i]);
-        if (errorMinusArray) {
-          errY.arrayminus = errorMinusArray.filter((_, i) => filterIndices[i]);
-        }
-      }
-      trace.error_y = errY;
-    }
-
-    return trace;
-  });
-
-  // --- Build Plotly layout ---
-  // Read CSS variables once
+  // --- Read CSS variables ---
   const cs = getComputedStyle(document.documentElement);
   const textColor = cs.getPropertyValue('--text-primary').trim() || '#e4e4e7';
   const textSecondary = cs.getPropertyValue('--text-secondary').trim() || '#a1a1aa';
   const textMuted = cs.getPropertyValue('--text-muted').trim() || '#71717a';
   const borderColor = cs.getPropertyValue('--border').trim() || '#3f3f46';
   const gridColor = cs.getPropertyValue('--grid-color').trim() || '#27272a';
+
+  const colorScale = toPlotlyColorScale(chartConfig.colorMap);
+
+  // --- Build Plotly traces ---
+
+  let traces: Record<string, unknown>[];
+
+  if (is3DType) {
+    traces = expandedDatasets.map((entry) => {
+      const { label, xCol, yCol, zCol, color, layer } = entry;
+      const xValues = colToNumbers(xCol);
+      const yValues = colToNumbers(yCol);
+
+      if (chartType === 'surface3d' && zCol) {
+        // Surface plot: need gridded data
+        const zValues = colToNumbers(zCol);
+        // Get unique sorted x and y values for grid
+        const uniqueX = [...new Set(xValues.filter(isValidNumber))].sort((a, b) => a - b);
+        const uniqueY = [...new Set(yValues.filter(isValidNumber))].sort((a, b) => a - b);
+
+        // Build z matrix
+        const zMatrix: (number | null)[][] = uniqueY.map(() =>
+          uniqueX.map(() => null as number | null)
+        );
+
+        for (let i = 0; i < xValues.length; i++) {
+          const xi = uniqueX.indexOf(xValues[i]);
+          const yi = uniqueY.indexOf(yValues[i]);
+          if (xi >= 0 && yi >= 0) {
+            zMatrix[yi][xi] = zValues[i];
+          }
+        }
+
+        return {
+          type: 'surface',
+          name: label,
+          x: uniqueX,
+          y: uniqueY,
+          z: zMatrix,
+          colorscale: colorScale,
+          opacity: layer.fill ? 0.8 : 1,
+          showscale: true,
+          colorbar: {
+            title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: textSecondary } },
+            tickfont: { size: chartConfig.fontSize - 1, color: textMuted },
+          },
+          contours: {
+            z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: false } },
+          },
+        };
+      }
+
+      if (chartType === 'contour3d' && zCol) {
+        // Contour 3D: surface with contour projections
+        const zValues = colToNumbers(zCol);
+        const uniqueX = [...new Set(xValues.filter(isValidNumber))].sort((a, b) => a - b);
+        const uniqueY = [...new Set(yValues.filter(isValidNumber))].sort((a, b) => a - b);
+
+        const zMatrix: (number | null)[][] = uniqueY.map(() =>
+          uniqueX.map(() => null as number | null)
+        );
+
+        for (let i = 0; i < xValues.length; i++) {
+          const xi = uniqueX.indexOf(xValues[i]);
+          const yi = uniqueY.indexOf(yValues[i]);
+          if (xi >= 0 && yi >= 0) {
+            zMatrix[yi][xi] = zValues[i];
+          }
+        }
+
+        return {
+          type: 'surface',
+          name: label,
+          x: uniqueX,
+          y: uniqueY,
+          z: zMatrix,
+          colorscale: colorScale,
+          opacity: 0.9,
+          showscale: true,
+          colorbar: {
+            title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: textSecondary } },
+            tickfont: { size: chartConfig.fontSize - 1, color: textMuted },
+          },
+          contours: {
+            x: { show: true, usecolormap: true, highlightcolor: '#fff', project: { x: true } },
+            y: { show: true, usecolormap: true, highlightcolor: '#fff', project: { y: true } },
+            z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: true } },
+          },
+        };
+      }
+
+      if (chartType === 'scatter3d') {
+        const zValues = zCol ? colToNumbers(zCol) : xValues.map(() => 0);
+        return {
+          type: 'scatter3d',
+          mode: layer.pointStyle === 'none' ? 'markers' : 'markers',
+          name: label,
+          x: xValues.filter(isValidNumber),
+          y: yValues.filter(isValidNumber),
+          z: zValues.filter(isValidNumber),
+          marker: {
+            size: layer.pointSize,
+            color: color,
+            symbol: 'circle',
+          },
+          line: {
+            color,
+            width: layer.lineWidth,
+            dash: lineStyleToDash(layer.lineStyle),
+          },
+        };
+      }
+
+      if (chartType === 'bar3d' && zCol) {
+        const zValues = colToNumbers(zCol);
+        // Plotly doesn't have native bar3d, fallback to scatter3d with square markers
+        return {
+          type: 'scatter3d',
+          mode: 'markers',
+          name: label,
+          x: xValues.filter(isValidNumber),
+          y: yValues.filter(isValidNumber),
+          z: zValues.filter(isValidNumber),
+          marker: {
+            size: layer.pointSize * 2,
+            color: color,
+            symbol: 'square',
+          },
+        };
+      }
+
+      // Fallback for unknown 3D types
+      return {
+        type: 'scatter3d',
+        mode: 'markers',
+        name: label,
+        x: colToNumbers(xCol),
+        y: colToNumbers(yCol),
+        z: zCol ? colToNumbers(zCol) : colToNumbers(yCol),
+        marker: { size: layer.pointSize, color },
+      };
+    });
+  } else {
+    // 2D traces (existing logic)
+    traces = expandedDatasets.map((entry) => {
+      const { label, xCol, yCol, color, layer } = entry;
+      const xValues = colToNumbers(xCol);
+      const yValues = colToNumbers(yCol);
+
+      const xLogScale = chartConfig.xAxis.logScale;
+      const yLogScale = chartConfig.yAxis.logScale;
+      const filterIndices = xValues.map((x, i) => {
+        const y = yValues[i];
+        const xOk = !xLogScale || x > 0;
+        const yOk = !yLogScale || y > 0;
+        return xOk && yOk && isValidNumber(x) && isValidNumber(y);
+      });
+      const filteredX = xValues.filter((_, i) => filterIndices[i]);
+      const filteredY = yValues.filter((_, i) => filterIndices[i]);
+
+      const pointSymbol = pointStyleToSymbol(layer.pointStyle);
+      const showPoints = layer.pointStyle !== 'none';
+
+      if (isPie) {
+        return {
+          type: 'pie' as const,
+          labels: xCol.values.map(String),
+          values: yValues,
+          marker: { colors: generateSegmentColors(yValues.length, 0.85) },
+          textinfo: 'label+percent',
+          hole: 0,
+        };
+      }
+
+      if (isPolar) {
+        return {
+          type: 'scatterpolar' as const,
+          r: filteredY,
+          theta: filteredX,
+          mode: showPoints ? 'lines+markers' : 'lines',
+          name: label,
+          line: { color, dash: lineStyleToDash(layer.lineStyle), width: layer.lineWidth },
+          marker: { symbol: pointSymbol, size: showPoints ? layer.pointSize : 0, color },
+          fill: layer.fill ? 'toself' : undefined,
+        };
+      }
+
+      let plotlyType: 'scatter' | 'bar';
+      let mode: string;
+
+      if (chartType === 'bar') {
+        plotlyType = 'bar';
+        mode = '';
+      } else {
+        plotlyType = 'scatter';
+        mode = isScatter
+          ? (showPoints ? 'markers' : 'markers')
+          : (showPoints ? 'lines+markers' : 'lines');
+      }
+
+      const trace: Record<string, unknown> = {
+        type: plotlyType,
+        mode,
+        name: label,
+        x: useNumericX ? filteredX : xCol.values.map(String),
+        y: useNumericX ? filteredY : yValues,
+        line: {
+          color,
+          dash: lineStyleToDash(layer.lineStyle),
+          width: layer.lineWidth,
+        },
+        marker: {
+          symbol: pointSymbol,
+          size: showPoints ? layer.pointSize : 0,
+          color: color,
+          line: chartType === 'bar' ? { width: 1, color } : undefined,
+        },
+      };
+
+      if (layer.fill || chartType === 'area') {
+        trace.fill = 'tozeroy';
+        trace.fillcolor = color + '40';
+      }
+
+      if (layer.yAxisSide === 'right') {
+        trace.yaxis = 'y2';
+      }
+
+      const errY = buildErrorBar(entry.errorCol, entry.errorPlusCol, entry.errorMinusCol, color);
+      if (errY) {
+        if (useNumericX && (xLogScale || yLogScale)) {
+          const errorArray = errY.array as number[];
+          const errorMinusArray = errY.arrayminus as number[] | undefined;
+          errY.array = errorArray.filter((_, i) => filterIndices[i]);
+          if (errorMinusArray) {
+            errY.arrayminus = errorMinusArray.filter((_, i) => filterIndices[i]);
+          }
+        }
+        trace.error_y = errY;
+      }
+
+      return trace;
+    });
+  }
+
+  // --- Build Plotly layout ---
 
   const legendPositionMap: Record<string, { x: number; y: number; xanchor: string; yanchor: string }> = {
     top: { x: 0.5, y: 1.1, xanchor: 'center', yanchor: 'bottom' },
@@ -482,7 +639,7 @@ export default function Chart2D() {
     },
     margin: {
       t: chartConfig.marginTop,
-      r: chartConfig.marginRight + (hasRightYAxis ? 40 : 0),
+      r: chartConfig.marginRight,
       b: chartConfig.marginBottom,
       l: chartConfig.marginLeft,
     },
@@ -496,7 +653,56 @@ export default function Chart2D() {
     autosize: true,
   };
 
-  if (!isNoAxes) {
+  if (is3DType) {
+    // 3D layout uses 'scene' instead of xaxis/yaxis
+    const sceneConfig: Record<string, unknown> = {
+      xaxis: {
+        title: { text: chartConfig.xAxis.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
+        gridcolor: chartConfig.xAxis.gridVisible ? gridColor : 'transparent',
+        zerolinecolor: gridColor,
+        showgrid: chartConfig.xAxis.gridVisible,
+        tickfont: { color: textMuted, size: chartConfig.fontSize },
+      },
+      yaxis: {
+        title: { text: chartConfig.yAxis.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
+        gridcolor: chartConfig.yAxis.gridVisible ? gridColor : 'transparent',
+        zerolinecolor: gridColor,
+        showgrid: chartConfig.yAxis.gridVisible,
+        tickfont: { color: textMuted, size: chartConfig.fontSize },
+      },
+      zaxis: {
+        title: { text: chartConfig.zAxis?.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
+        gridcolor: chartConfig.zAxis?.gridVisible !== false ? gridColor : 'transparent',
+        zerolinecolor: gridColor,
+        showgrid: chartConfig.zAxis?.gridVisible !== false,
+        tickfont: { color: textMuted, size: chartConfig.fontSize },
+      },
+      bgcolor: 'transparent',
+      camera: {
+        eye: { x: 1.5, y: 1.5, z: 1.5 },
+      },
+      aspectmode: 'cube',
+    };
+
+    // Apply axis ranges if not auto
+    if (!chartConfig.xAxis.autoRange && chartConfig.xAxis.min !== undefined && chartConfig.xAxis.max !== undefined) {
+      (sceneConfig.xaxis as Record<string, unknown>).range = [chartConfig.xAxis.min, chartConfig.xAxis.max];
+      (sceneConfig.xaxis as Record<string, unknown>).autorange = false;
+    }
+    if (!chartConfig.yAxis.autoRange && chartConfig.yAxis.min !== undefined && chartConfig.yAxis.max !== undefined) {
+      (sceneConfig.yaxis as Record<string, unknown>).range = [chartConfig.yAxis.min, chartConfig.yAxis.max];
+      (sceneConfig.yaxis as Record<string, unknown>).autorange = false;
+    }
+    if (chartConfig.zAxis && !chartConfig.zAxis.autoRange && chartConfig.zAxis.min !== undefined && chartConfig.zAxis.max !== undefined) {
+      (sceneConfig.zaxis as Record<string, unknown>).range = [chartConfig.zAxis.min, chartConfig.zAxis.max];
+      (sceneConfig.zaxis as Record<string, unknown>).autorange = false;
+    }
+
+    layout.scene = sceneConfig;
+  } else if (!isNoAxes) {
+    // 2D axes layout
+    const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
+
     const xAxisConfig: Record<string, unknown> = {
       title: { text: chartConfig.xAxis.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
       type: chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category'),
@@ -578,11 +784,13 @@ export default function Chart2D() {
         useResizeHandler={true}
         style={{ width: '100%', height: '100%' }}
       />
-      <AnnotationOverlay
-        annotations={chartConfig.annotations}
-        chartArea={chartArea}
-        onMoveAnnotation={handleMoveAnnotation}
-      />
+      {!is3DType && (
+        <AnnotationOverlay
+          annotations={chartConfig.annotations}
+          chartArea={chartArea}
+          onMoveAnnotation={handleMoveAnnotation}
+        />
+      )}
     </div>
   );
 }

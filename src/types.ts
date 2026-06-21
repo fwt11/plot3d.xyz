@@ -105,15 +105,3 @@ export interface ChartConfig {
 }
 
 export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma' | 'cividis' | 'inferno' | 'magma' | 'turbo' | 'batlow';
-
-export interface Scene3DConfig {
-  cameraPosition: [number, number, number];
-  lightAngle: [number, number];
-  ambientIntensity: number;
-  opacity: number;
-  colorMap: ColorMapName;
-  showAxes: boolean;
-  showColorbar: boolean;
-  antialias: boolean;
-  bloom: boolean;
-}

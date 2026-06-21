@@ -4,7 +4,6 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AxisConfig, ExportBackground } from '@/types';
-import Scene3DControls from '@/components/Scene3DControls';
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -26,7 +25,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   );
 }
 
-function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void }) {
+function AxisEditor({ label, axis, onChange, is3D = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
@@ -88,26 +87,30 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
           aria-label={`${label} ${t('config.showGrid')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('config.logScale')}
-        <input
-          type="checkbox"
-          checked={axis.logScale}
-          onChange={(e) => onChange({ logScale: e.target.checked })}
-          className="accent-sky-500"
-          aria-label={`${label} ${t('config.logScale')}`}
-        />
-      </label>
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('config.scientificNotation')}
-        <input
-          type="checkbox"
-          checked={axis.scientificNotation}
-          onChange={(e) => onChange({ scientificNotation: e.target.checked })}
-          className="accent-sky-500"
-          aria-label={`${label} ${t('config.scientificNotation')}`}
-        />
-      </label>
+      {!is3D && (
+        <>
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {t('config.logScale')}
+            <input
+              type="checkbox"
+              checked={axis.logScale}
+              onChange={(e) => onChange({ logScale: e.target.checked })}
+              className="accent-sky-500"
+              aria-label={`${label} ${t('config.logScale')}`}
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {t('config.scientificNotation')}
+            <input
+              type="checkbox"
+              checked={axis.scientificNotation}
+              onChange={(e) => onChange({ scientificNotation: e.target.checked })}
+              className="accent-sky-500"
+              aria-label={`${label} ${t('config.scientificNotation')}`}
+            />
+          </label>
+        </>
+      )}
     </div>
   );
 }
@@ -155,22 +158,16 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.xAxis')}>
-        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} />
+        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} />
       </Section>
 
       <Section title={t('config.yAxis')}>
-        <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} />
+        <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} is3D={is3D} />
       </Section>
 
       {is3D && chartConfig.zAxis && (
         <Section title={t('config.zAxis')}>
-          <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} />
-        </Section>
-      )}
-
-      {is3D && (
-        <Section title={t('scene3d.controls')}>
-          <Scene3DControls />
+          <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} is3D={is3D} />
         </Section>
       )}
 
@@ -204,14 +201,16 @@ export default function ConfigPanel() {
         )}
       </Section>
 
-      <Section title={t('config.margins')} defaultOpen={false}>
-        <div className="grid grid-cols-2 gap-2">
-          <MarginInput label={t('config.marginTop')} value={chartConfig.marginTop} onChange={(v) => setMargins({ marginTop: v })} />
-          <MarginInput label={t('config.marginRight')} value={chartConfig.marginRight} onChange={(v) => setMargins({ marginRight: v })} />
-          <MarginInput label={t('config.marginBottom')} value={chartConfig.marginBottom} onChange={(v) => setMargins({ marginBottom: v })} />
-          <MarginInput label={t('config.marginLeft')} value={chartConfig.marginLeft} onChange={(v) => setMargins({ marginLeft: v })} />
-        </div>
-      </Section>
+      {!is3D && (
+        <Section title={t('config.margins')} defaultOpen={false}>
+          <div className="grid grid-cols-2 gap-2">
+            <MarginInput label={t('config.marginTop')} value={chartConfig.marginTop} onChange={(v) => setMargins({ marginTop: v })} />
+            <MarginInput label={t('config.marginRight')} value={chartConfig.marginRight} onChange={(v) => setMargins({ marginRight: v })} />
+            <MarginInput label={t('config.marginBottom')} value={chartConfig.marginBottom} onChange={(v) => setMargins({ marginBottom: v })} />
+            <MarginInput label={t('config.marginLeft')} value={chartConfig.marginLeft} onChange={(v) => setMargins({ marginLeft: v })} />
+          </div>
+        </Section>
+      )}
 
       <Section title={t('config.export')} defaultOpen={false}>
         <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>

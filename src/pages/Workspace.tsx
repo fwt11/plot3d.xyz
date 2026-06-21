@@ -2,13 +2,10 @@ import { useState, useEffect } from 'react';
 import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
 import { useChartStore } from '@/store/chartStore';
-import { useScene3DStore } from '@/store/scene3DStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useTranslation } from 'react-i18next';
-import { is3DChart } from '@/utils/chart';
 import DataTable from '@/components/DataTable';
-import Chart2D from '@/components/Chart2D';
-import Scene3D from '@/components/Scene3D';
+import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
@@ -89,7 +86,6 @@ export default function Workspace() {
   const [leftWidth, setLeftWidth] = useState(288);
   const [rightWidth, setRightWidth] = useState(256);
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
-  const chartConfig = useChartStore((s) => s.chartConfig);
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const lang = useUiStore((s) => s.lang);
@@ -136,12 +132,10 @@ export default function Workspace() {
         e.preventDefault();
         const dsState = useDatasetStore.getState();
         const chartState = useChartStore.getState();
-        const scene3DState = useScene3DStore.getState();
         const uiState = useUiStore.getState();
         const project = serializeProject({
           datasets: dsState.datasets,
           chartConfig: chartState.chartConfig,
-          scene3D: scene3DState.scene3D,
           theme: uiState.theme,
           lang: uiState.lang,
         });
@@ -152,8 +146,6 @@ export default function Workspace() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, pastLength, futureLength]);
-
-  const is3D = is3DChart(chartConfig.type);
 
   return (
     <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
@@ -253,11 +245,7 @@ export default function Workspace() {
           )}
           <ChartTypeSuggestionBar />
           <div className="w-full h-full">
-            {is3D ? (
-              <Scene3D />
-            ) : (
-              <Chart2D />
-            )}
+            <ChartView />
           </div>
         </div>
 

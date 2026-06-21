@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUiStore, useDatasetStore, useChartStore, useScene3DStore, useHistoryStore } from '@/store/plotStore';
+import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
 import { is3DChart } from '@/utils/chart';
 import { FileUp, Download, Save, FolderOpen } from 'lucide-react';
 import type { Dataset } from '@/types';
@@ -415,12 +415,10 @@ export function FileTab() {
   const handleSaveProject = () => {
     const dsState = useDatasetStore.getState();
     const chartState = useChartStore.getState();
-    const scene3DState = useScene3DStore.getState();
     const uiState = useUiStore.getState();
     const project = serializeProject({
       datasets: dsState.datasets,
       chartConfig: chartState.chartConfig,
-      scene3D: scene3DState.scene3D,
       theme: uiState.theme,
       lang: uiState.lang,
     });
@@ -446,7 +444,6 @@ export function FileTab() {
     useChartStore.setState({
       chartConfig: project.chartConfig,
     });
-    useScene3DStore.setState({ scene3D: project.scene3D });
     // Clear history after loading a project
     useHistoryStore.setState({ _past: [], _future: [] });
     if (project.theme) {
