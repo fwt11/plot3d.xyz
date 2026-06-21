@@ -27,6 +27,26 @@ export const colorMaps: ColorMap = {
     '#0D0887', '#46039F', '#7201A8', '#9C179E', '#BD3786',
     '#D8576B', '#ED7953', '#FB9F3A', '#F0F921',
   ],
+  cividis: [
+    '#002051', '#163A6B', '#2E6094', '#4E87AC', '#73ACBF',
+    '#A0C9D9', '#C8E3E8', '#EDF5F1', '#FDFCF2',
+  ],
+  inferno: [
+    '#000004', '#320A5A', '#781B6C', '#BB3654', '#ED6925',
+    '#FBB61A', '#F9FE74', '#FCFFB2', '#FCFDBF',
+  ],
+  magma: [
+    '#000004', '#1B0C41', '#4A0C6B', '#821A80', '#B73779',
+    '#E65164', '#FB8761', '#FEC487', '#FCFDBF',
+  ],
+  turbo: [
+    '#30123B', '#4662D7', '#36AEAB', '#1AE4B6', '#72FE5E',
+    '#C8EF34', '#FABA39', '#F66B19', '#CA2A04',
+  ],
+  batlow: [
+    '#1A1935', '#2A3B82', '#3E7BA6', '#6CB2B9', '#A8DCA0',
+    '#D4ED82', '#F8E86C', '#F8B740', '#E86931',
+  ],
 };
 
 export function getColorFromMap(value: number, mapName: ColorMapName): string {

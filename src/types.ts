@@ -1,8 +1,20 @@
 export interface DataColumn {
   id: string;
   name: string;
-  type: 'X' | 'Y' | 'Z' | 'label' | 'error';
+  type: 'X' | 'Y' | 'Z' | 'label' | 'error' | 'errorPlus' | 'errorMinus';
   values: (number | string)[];
+}
+
+/** Helper to safely convert column values to numbers */
+export function toNumber(v: number | string): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return isNaN(n) ? NaN : n;
+}
+
+/** Helper to check if a value is a valid number */
+export function isValidNumber(v: number | string): boolean {
+  const n = typeof v === 'number' ? v : Number(v);
+  return !isNaN(n) && isFinite(n);
 }
 
 export interface Dataset {
@@ -17,7 +29,6 @@ export interface AxisConfig {
   max?: number;
   autoRange: boolean;
   gridVisible: boolean;
-  tickCount?: number;
   logScale: boolean;
   scientificNotation: boolean;
 }
@@ -41,6 +52,12 @@ export interface LayerConfig {
   pointSize: number;
   fill: boolean;
   errorColumn?: string;
+  errorPlusColumn?: string;
+  errorMinusColumn?: string;
+  /** Y-axis side for multi-axis plots */
+  yAxisSide?: 'left' | 'right';
+  /** Display name for legend (defaults to dataset-column name) */
+  displayName?: string;
 }
 
 export type AnnotationType = 'text' | 'arrow' | 'rect' | 'latex';
@@ -76,7 +93,7 @@ export interface ChartConfig {
   yAxis: AxisConfig;
   zAxis?: AxisConfig;
   legend: LegendConfig;
-  colorMap: string;
+  colorMap: ColorMapName;
   layers: LayerConfig[];
   annotations: Annotation[];
   marginTop: number;
@@ -87,7 +104,7 @@ export interface ChartConfig {
   fontSize: number;
 }
 
-export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma';
+export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma' | 'cividis' | 'inferno' | 'magma' | 'turbo' | 'batlow';
 
 export interface Scene3DConfig {
   cameraPosition: [number, number, number];
