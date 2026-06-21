@@ -12,6 +12,7 @@ import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
+import { encodeTiff } from '@/utils/tiffEncoder';
 
 export function FileTab() {
   const { t } = useTranslation();
@@ -330,14 +331,29 @@ export function FileTab() {
   const handleExportTIFF = async () => {
     const is3D = is3DChart(chartType);
     const bgColor = getExportBackground();
+    const dpi = 300;
 
-    // NOTE: Browsers cannot natively create real TIFF files.
-    // This exports a high-resolution PNG and saves it with a .tiff extension.
+    const saveTiffBlob = (rgbaData: Uint8Array, w: number, h: number) => {
+      const blob = encodeTiff(rgbaData, w, h, dpi);
+      const link = document.createElement('a');
+      link.download = 'chart.tiff';
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    };
+
+    const rgbaFromCanvas = (canvas: HTMLCanvasElement): Uint8Array => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Cannot get 2d context');
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      return new Uint8Array(imageData.data.buffer);
+    };
+
     if (!is3D) {
-      // 2D: use Plotly's PNG export at high resolution (scale=4 for ~300 DPI equivalent)
+      // 2D: use Plotly's PNG export, draw on canvas to get RGBA, then encode as TIFF
       const div = getPlotlyDiv();
       if (div) {
-        const scale = 4;
+        const scale = dpi / 96; // 96 DPI is screen default
         const dataUrl = await Plotly.toImage(div, {
           format: 'png',
           scale,
@@ -345,26 +361,55 @@ export function FileTab() {
           height: div.clientHeight * scale / (window.devicePixelRatio || 1),
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
-        const link = document.createElement('a');
-        link.download = 'chart.tiff';
-        link.href = dataUrl;
-        link.click();
+        // Decode PNG via Image + Canvas to get raw RGBA
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = dataUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        if (bgColor) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.drawImage(img, 0, 0);
+        const rgbaData = rgbaFromCanvas(canvas);
+        saveTiffBlob(rgbaData, canvas.width, canvas.height);
         return;
       }
     }
 
-    // 3D: use html-to-image with high pixelRatio
+    // 3D: capture via html-to-image or canvas, then encode as TIFF
     const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
     if (container3D) {
       try {
         const dataUrl = await toPng(container3D, {
-          pixelRatio: 4,
+          pixelRatio: dpi / 96,
           backgroundColor: bgColor ?? undefined,
         });
-        const link = document.createElement('a');
-        link.download = 'chart.tiff';
-        link.href = dataUrl;
-        link.click();
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = dataUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        if (bgColor) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.drawImage(img, 0, 0);
+        const rgbaData = rgbaFromCanvas(canvas);
+        saveTiffBlob(rgbaData, canvas.width, canvas.height);
         return;
       } catch {
         // Fall through to canvas-only export
@@ -374,7 +419,7 @@ export function FileTab() {
     // Fallback for 3D: canvas-only export
     const canvas = document.querySelector('canvas');
     if (canvas) {
-      const multiplier = 4;
+      const multiplier = dpi / 96;
       const width = canvas.width;
       const height = canvas.height;
       const scaledCanvas = document.createElement('canvas');
@@ -388,10 +433,8 @@ export function FileTab() {
       }
       ctx.scale(multiplier, multiplier);
       ctx.drawImage(canvas, 0, 0, width, height);
-      const link = document.createElement('a');
-      link.download = 'chart.tiff';
-      link.href = scaledCanvas.toDataURL('image/png');
-      link.click();
+      const rgbaData = rgbaFromCanvas(scaledCanvas);
+      saveTiffBlob(rgbaData, scaledCanvas.width, scaledCanvas.height);
     }
   };
 

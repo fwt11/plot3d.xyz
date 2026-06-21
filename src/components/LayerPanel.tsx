@@ -71,6 +71,8 @@ export default function LayerPanel() {
       {chartConfig.layers.map((layer) => {
         const ds = datasets.find((d) => d.id === layer.datasetId);
         const errorColumns = ds ? ds.columns.filter((c) => c.type === 'error') : [];
+        const errorPlusColumns = ds ? ds.columns.filter((c) => c.type === 'errorPlus') : [];
+        const errorMinusColumns = ds ? ds.columns.filter((c) => c.type === 'errorMinus') : [];
         const isExpanded = expandedLayers.has(layer.id);
 
         return (
@@ -268,22 +270,58 @@ export default function LayerPanel() {
                   </label>
                 </div>
                 {ds && (
-                  <div className="flex gap-1.5 items-center">
-                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                      {t('layer.errorColumn', '误差列')}
-                      <select
-                        value={layer.errorColumn ?? ''}
-                        onChange={(e) => updateLayer(layer.id, { errorColumn: e.target.value || undefined })}
-                        className="border rounded px-1 py-0.5 outline-none flex-1"
-                        style={selectStyle}
-                        aria-label={t('layer.errorColumn', '误差列')}
-                      >
-                        <option value="">{t('layer.none')}</option>
-                        {errorColumns.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorColumn', '误差列')}
+                        <select
+                          value={layer.errorColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorColumn', '误差列')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorPlusColumn', '误差+')}
+                        <select
+                          value={layer.errorPlusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorPlusColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorPlusColumn', '误差+')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorPlusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorMinusColumn', '误差−')}
+                        <select
+                          value={layer.errorMinusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorMinusColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorMinusColumn', '误差−')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorMinusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                   </div>
                 )}
               </div>

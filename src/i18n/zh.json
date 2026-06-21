@@ -23,6 +23,7 @@
     "file": "文件",
     "generate": "生成",
     "transform": "变换",
+    "fit": "拟合",
     "chart": "图",
     "annotation": "标注"
   },
@@ -38,8 +39,8 @@
     "exportSvg": "导出为 SVG",
     "exportPdf": "导出为 PDF",
     "exportCsv": "导出为 CSV",
-    "exportEps": "导出为 EPS",
-    "exportTiff": "导出为 TIFF",
+    "exportEps": "导出为 EPS（实验性）",
+    "exportTiff": "导出为 TIFF (300 DPI)",
     "theme": "主题",
     "light": "浅色",
     "dark": "深色",
@@ -105,8 +106,8 @@
     "polar": "极坐标",
     "surface3d": "3D 曲面",
     "scatter3d": "3D 散点",
-    "contour3d": "等高线",
-    "bar3d": "3D 柱状"
+    "contour3d": "曲面投影",
+    "bar3d": "3D 方块"
   },
   "annotation": {
     "addAnnotation": "添加标注",
@@ -186,6 +187,8 @@
     "nonePoint": "无",
     "fill": "填充",
     "errorColumn": "误差列",
+    "errorPlusColumn": "误差+列",
+    "errorMinusColumn": "误差−列",
     "hideLayer": "隐藏图层",
     "showLayer": "显示图层",
     "selectDataset": "选择数据集",
@@ -245,5 +248,12 @@
     "switch": "English",
     "zh": "中文",
     "en": "English"
+  },
+  "fit": {
+    "curveFitting": "曲线拟合",
+    "linear": "线性",
+    "exponential": "指数",
+    "results": "拟合结果",
+    "addCurve": "添加拟合曲线"
   }
 }

@@ -72,6 +72,8 @@ interface ChartStore {
   addAnnotation: (annotation: Annotation) => void;
   removeAnnotation: (annotationId: string) => void;
   updateAnnotation: (annotationId: string, data: Partial<Annotation>) => void;
+  /** Update annotation without pushing to history (used during drag) */
+  updateAnnotationSilent: (annotationId: string, data: Partial<Annotation>) => void;
 }
 
 export const useChartStore = create<ChartStore>()((set) => {
@@ -161,6 +163,16 @@ export const useChartStore = create<ChartStore>()((set) => {
 
     updateAnnotation: (annotationId, data) =>
       setWithHistory((s) => ({
+        chartConfig: {
+          ...s.chartConfig,
+          annotations: s.chartConfig.annotations.map((a) =>
+            a.id === annotationId ? { ...a, ...data } : a
+          ),
+        },
+      })),
+
+    updateAnnotationSilent: (annotationId, data) =>
+      set((s) => ({
         chartConfig: {
           ...s.chartConfig,
           annotations: s.chartConfig.annotations.map((a) =>

@@ -23,6 +23,7 @@
     "file": "File",
     "generate": "Generate",
     "transform": "Transform",
+    "fit": "Fit",
     "chart": "Chart",
     "annotation": "Annotation"
   },
@@ -38,8 +39,8 @@
     "exportSvg": "Export as SVG",
     "exportPdf": "Export as PDF",
     "exportCsv": "Export as CSV",
-    "exportEps": "Export as EPS",
-    "exportTiff": "Export as TIFF",
+    "exportEps": "Export as EPS (Experimental)",
+    "exportTiff": "Export as TIFF (300 DPI)",
     "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
@@ -105,8 +106,8 @@
     "polar": "Polar",
     "surface3d": "3D Surface",
     "scatter3d": "3D Scatter",
-    "contour3d": "Contour",
-    "bar3d": "3D Bar"
+    "contour3d": "Surface Projection",
+    "bar3d": "3D Blocks"
   },
   "annotation": {
     "addAnnotation": "Add Annotation",
@@ -186,6 +187,8 @@
     "nonePoint": "None",
     "fill": "Fill",
     "errorColumn": "Error Column",
+    "errorPlusColumn": "Error+ Column",
+    "errorMinusColumn": "Error− Column",
     "hideLayer": "Hide layer",
     "showLayer": "Show layer",
     "selectDataset": "Select dataset",
@@ -245,5 +248,12 @@
     "switch": "中文",
     "zh": "中文",
     "en": "English"
+  },
+  "fit": {
+    "curveFitting": "Curve Fitting",
+    "linear": "Linear",
+    "exponential": "Exponential",
+    "results": "Fit Results",
+    "addCurve": "Add Fit Curve"
   }
 }
