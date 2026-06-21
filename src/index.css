@@ -12,44 +12,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  /* Default (dark) CSS variables so Chart.js can read them before data-theme is set */
-  --bg-base: #1a1a2e;
-  --bg-panel: rgba(24, 24, 39, 0.3);
-  --bg-surface: #27272a;
-  --bg-surface-hover: #3f3f46;
-  --bg-input: #18181b;
-  --border: rgba(63, 63, 70, 0.5);
-  --text-primary: #d4d4d8;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --text-faint: #52525b;
-  --accent: #38bdf8;
-  --accent-hover: #0ea5e9;
-  --danger: #fb7185;
-  --danger-hover: #f43f5e;
-  --color-x: #34d399;
-  --color-y: #38bdf8;
-  --color-z: #c084fc;
-  --color-label: #fbbf24;
-  --color-error: #fb7185;
-  --scrollbar-thumb: #3f3f46;
-  --scrollbar-hover: #52525b;
-  --chart-bg: #1e1e32;
-  --grid-color: rgba(63, 63, 70, 0.5);
-  --axis-color: #52525b;
-  --axis-text: #71717a;
-  --scene-bg-from: #0f0f1a;
-  --scene-bg-to: #1a1a2e;
-  --panel-width-left: 288px;
-  --panel-width-right: 256px;
-  --ribbon-height: 80px;
-  --z-base: 0;
-  --z-panel: 10;
-  --z-overlay: 20;
-  --z-modal: 30;
-  --z-toast: 40;
-  --z-top: 50;
 }
 
 /* ─── Dark theme (default) ─── */
@@ -62,7 +24,7 @@
   --border: rgba(63, 63, 70, 0.5);
   --text-primary: #d4d4d8;
   --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-muted: #9ca3af;
   --text-faint: #52525b;
   --accent: #38bdf8;
   --accent-hover: #0ea5e9;
@@ -79,6 +41,11 @@
   --grid-color: rgba(63, 63, 70, 0.5);
   --axis-color: #52525b;
   --axis-text: #71717a;
+  --axis-x-color: #34d399;
+  --axis-y-color: #38bdf8;
+  --axis-z-color: #c084fc;
+  --colorbar-text: #a1a1aa;
+  --status-bar-height: 24px;
   --scene-bg-from: #0f0f1a;
   --scene-bg-to: #1a1a2e;
   --panel-width-left: 288px;
@@ -119,6 +86,11 @@
   --grid-color: rgba(203, 213, 225, 0.5);
   --axis-color: #94a3b8;
   --axis-text: #64748b;
+  --axis-x-color: #059669;
+  --axis-y-color: #0284c7;
+  --axis-z-color: #7c3aed;
+  --colorbar-text: #475569;
+  --status-bar-height: 24px;
   --scene-bg-from: #e2e8f0;
   --scene-bg-to: #f1f5f9;
   --panel-width-left: 288px;
@@ -181,7 +153,7 @@ input[type="number"] {
   }
 
   .sample-btn {
-    @apply flex items-center gap-1 px-2 py-0.5 text-[10px] rounded transition-colors;
+    @apply flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors;
     color: var(--text-faint);
     background: var(--bg-surface);
   }

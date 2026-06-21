@@ -1,20 +1,20 @@
-import { usePlotStore } from '@/store/plotStore';
+import { useDatasetStore } from '@/store/datasetStore';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DataColumn } from '@/types';
 
 export default function DataTable() {
   const { t } = useTranslation();
-  const datasets = usePlotStore((s) => s.datasets);
-  const activeDatasetId = usePlotStore((s) => s.activeDatasetId);
-  const setActiveDataset = usePlotStore((s) => s.setActiveDataset);
-  const updateCellValue = usePlotStore((s) => s.updateCellValue);
-  const addColumn = usePlotStore((s) => s.addColumn);
-  const removeColumn = usePlotStore((s) => s.removeColumn);
-  const addRow = usePlotStore((s) => s.addRow);
-  const removeRow = usePlotStore((s) => s.removeRow);
-  const setColumnType = usePlotStore((s) => s.setColumnType);
-  const renameColumn = usePlotStore((s) => s.renameColumn);
+  const datasets = useDatasetStore((s) => s.datasets);
+  const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
+  const setActiveDataset = useDatasetStore((s) => s.setActiveDataset);
+  const updateCellValue = useDatasetStore((s) => s.updateCellValue);
+  const addColumn = useDatasetStore((s) => s.addColumn);
+  const removeColumn = useDatasetStore((s) => s.removeColumn);
+  const addRow = useDatasetStore((s) => s.addRow);
+  const removeRow = useDatasetStore((s) => s.removeRow);
+  const setColumnType = useDatasetStore((s) => s.setColumnType);
+  const renameColumn = useDatasetStore((s) => s.renameColumn);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
   if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>{t('data.noDataset')}</div>;
@@ -27,6 +27,8 @@ export default function DataTable() {
     Z: { className: 'border', style: { background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderColor: 'rgba(168,85,247,0.3)' } },
     label: { className: 'border', style: { background: 'rgba(245,158,11,0.2)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.3)' } },
     error: { className: 'border', style: { background: 'rgba(244,63,94,0.2)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.3)' } },
+    errorPlus: { className: 'border', style: { background: 'rgba(244,63,94,0.15)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.25)' } },
+    errorMinus: { className: 'border', style: { background: 'rgba(244,63,94,0.15)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.25)' } },
   };
 
   const typeOptions: { value: DataColumn['type']; label: string }[] = [
@@ -35,6 +37,8 @@ export default function DataTable() {
     { value: 'Z', label: t('data.zAxis3d') },
     { value: 'label', label: t('data.label') },
     { value: 'error', label: t('data.error') },
+    { value: 'errorPlus', label: t('data.errorPlus') },
+    { value: 'errorMinus', label: t('data.errorMinus') },
   ];
 
   return (
@@ -66,7 +70,7 @@ export default function DataTable() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-xs border-collapse">
+        <table className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10">
             <tr style={{ background: 'var(--bg-surface)' }}>
               <th className="px-2 py-1 font-normal border-b border-r w-10" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>

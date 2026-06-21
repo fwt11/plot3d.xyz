@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { usePlotStore } from '@/store/plotStore';
+import { useChartStore } from '@/store/chartStore';
+import { useDatasetStore } from '@/store/datasetStore';
 import { Eye, EyeOff, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { uid } from '@/utils/sampleData';
 import { useTranslation } from 'react-i18next';
 
 export default function LayerPanel() {
   const { t } = useTranslation();
-  const chartConfig = usePlotStore((s) => s.chartConfig);
-  const datasets = usePlotStore((s) => s.datasets);
-  const addLayer = usePlotStore((s) => s.addLayer);
-  const removeLayer = usePlotStore((s) => s.removeLayer);
-  const updateLayer = usePlotStore((s) => s.updateLayer);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const datasets = useDatasetStore((s) => s.datasets);
+  const addLayer = useChartStore((s) => s.addLayer);
+  const removeLayer = useChartStore((s) => s.removeLayer);
+  const updateLayer = useChartStore((s) => s.updateLayer);
   const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
 
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set());
@@ -34,7 +35,7 @@ export default function LayerPanel() {
   };
 
   const labelStyle: React.CSSProperties = {
-    color: 'var(--text-muted)',
+    color: 'var(--text-secondary)',
   };
 
   return (
@@ -166,7 +167,7 @@ export default function LayerPanel() {
             {isExpanded && (
               <div className="space-y-1.5 pl-1" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                 <div className="flex gap-1.5">
-                  <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
+                  <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
                     {t('layer.lineStyle', '线型')}
                     <select
                       value={layer.lineStyle}
@@ -180,7 +181,7 @@ export default function LayerPanel() {
                       <option value="dotted">{t('layer.dotted', '点线')}</option>
                     </select>
                   </label>
-                  <label className="flex items-center gap-1 text-xs" style={labelStyle}>
+                  <label className="flex items-center gap-1 text-sm" style={labelStyle}>
                     {t('layer.lineWidth', '线宽')}
                     <input
                       type="number"
@@ -195,7 +196,7 @@ export default function LayerPanel() {
                   </label>
                 </div>
                 <div className="flex gap-1.5">
-                  <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
+                  <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
                     {t('layer.pointStyle', '点型')}
                     <select
                       value={layer.pointStyle}
@@ -210,7 +211,7 @@ export default function LayerPanel() {
                       <option value="none">{t('layer.nonePoint', '无')}</option>
                     </select>
                   </label>
-                  <label className="flex items-center gap-1 text-xs" style={labelStyle}>
+                  <label className="flex items-center gap-1 text-sm" style={labelStyle}>
                     {t('layer.pointSize', '点大小')}
                     <input
                       type="number"
@@ -225,7 +226,7 @@ export default function LayerPanel() {
                   </label>
                 </div>
                 <div className="flex gap-1.5 items-center">
-                  <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
+                  <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
                     <input
                       type="checkbox"
                       checked={layer.fill}
@@ -238,7 +239,7 @@ export default function LayerPanel() {
                 </div>
                 {ds && (
                   <div className="flex gap-1.5 items-center">
-                    <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
                       {t('layer.errorColumn', '误差列')}
                       <select
                         value={layer.errorColumn ?? ''}
