@@ -5,6 +5,7 @@ import { usePlotStore } from '@/store/plotStore';
 import { getColorFromMap, getColorMapGradient } from '@/utils/colormaps';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
+import type { LayerConfig } from '@/types';
 
 interface DataRange {
   xMin: number; xMax: number; xLabel: string;
@@ -17,23 +18,46 @@ function useDataRange(): DataRange | null {
   const chartConfig = usePlotStore((s) => s.chartConfig);
 
   return useMemo(() => {
-    const layer = chartConfig.layers[0];
-    if (!layer) return null;
-    const ds = datasets.find((d) => d.id === layer.datasetId);
-    if (!ds) return null;
-    const xCol = ds.columns.find((c) => c.id === layer.xColumn);
-    const yCol = ds.columns.find((c) => c.id === layer.yColumn);
-    const zCol = ds.columns.find((c) => c.id === layer.zColumn);
-    if (!xCol || !yCol || !zCol) return null;
+    const visibleLayers = chartConfig.layers.filter((l) => l.visible);
+    if (visibleLayers.length === 0) return null;
 
-    const xVals = xCol.values.map(Number);
-    const yVals = yCol.values.map(Number);
-    const zVals = zCol.values.map(Number);
+    let globalXMin = Infinity, globalXMax = -Infinity;
+    let globalYMin = Infinity, globalYMax = -Infinity;
+    let globalZMin = Infinity, globalZMax = -Infinity;
+    let xLabel = chartConfig.xAxis.label;
+    let yLabel = chartConfig.yAxis.label;
+    let zLabel = chartConfig.zAxis?.label;
+
+    for (const layer of visibleLayers) {
+      const ds = datasets.find((d) => d.id === layer.datasetId);
+      if (!ds) continue;
+      const xCol = ds.columns.find((c) => c.id === layer.xColumn);
+      const yCol = ds.columns.find((c) => c.id === layer.yColumn);
+      const zCol = ds.columns.find((c) => c.id === layer.zColumn);
+      if (!xCol || !yCol || !zCol) continue;
+
+      const xVals = xCol.values.map(Number);
+      const yVals = yCol.values.map(Number);
+      const zVals = zCol.values.map(Number);
+
+      globalXMin = Math.min(globalXMin, ...xVals);
+      globalXMax = Math.max(globalXMax, ...xVals);
+      globalYMin = Math.min(globalYMin, ...yVals);
+      globalYMax = Math.max(globalYMax, ...yVals);
+      globalZMin = Math.min(globalZMin, ...zVals);
+      globalZMax = Math.max(globalZMax, ...zVals);
+
+      if (!xLabel) xLabel = xCol.name;
+      if (!yLabel) yLabel = yCol.name;
+      if (!zLabel) zLabel = zCol.name;
+    }
+
+    if (globalXMin === Infinity) return null;
 
     return {
-      xMin: Math.min(...xVals), xMax: Math.max(...xVals), xLabel: chartConfig.xAxis.label || xCol.name,
-      yMin: Math.min(...yVals), yMax: Math.max(...yVals), yLabel: chartConfig.yAxis.label || yCol.name,
-      zMin: Math.min(...zVals), zMax: Math.max(...zVals), zLabel: chartConfig.zAxis?.label || zCol.name,
+      xMin: globalXMin, xMax: globalXMax, xLabel: xLabel || 'X',
+      yMin: globalYMin, yMax: globalYMax, yLabel: yLabel || 'Y',
+      zMin: globalZMin, zMax: globalZMax, zLabel: zLabel || 'Z',
     };
   }, [datasets, chartConfig]);
 }
@@ -161,17 +185,14 @@ function Axes3D({ range }: { range: DataRange }) {
   );
 }
 
-function SurfaceMesh() {
+/** Per-layer surface mesh */
+function SurfaceMeshLayer({ layer, dataRange }: { layer: LayerConfig; dataRange: DataRange }) {
   const datasets = usePlotStore((s) => s.datasets);
-  const chartConfig = usePlotStore((s) => s.chartConfig);
   const scene3D = usePlotStore((s) => s.scene3D);
 
   const meshRef = useRef<THREE.Mesh>(null);
 
   const geometry = useMemo(() => {
-    const layer = chartConfig.layers[0];
-    if (!layer) return new THREE.BufferGeometry();
-
     const ds = datasets.find((d) => d.id === layer.datasetId);
     if (!ds) return new THREE.BufferGeometry();
 
@@ -199,14 +220,9 @@ function SurfaceMesh() {
       grid.set(key, zVals[i]);
     }
 
-    const zMin = Math.min(...zVals);
-    const zMax = Math.max(...zVals);
-    const zRange = zMax - zMin || 1;
-
-    const xMin = uniqueX[0]; const xMax = uniqueX[nx - 1];
-    const yMin = uniqueY[0]; const yMax = uniqueY[ny - 1];
-    const xRange = xMax - xMin || 1;
-    const yRange = yMax - yMin || 1;
+    const xRange = dataRange.xMax - dataRange.xMin || 1;
+    const yRange = dataRange.yMax - dataRange.yMin || 1;
+    const zRange = dataRange.zMax - dataRange.zMin || 1;
 
     const vertices: number[] = [];
     const colorArr: number[] = [];
@@ -217,11 +233,11 @@ function SurfaceMesh() {
         const key = `${uniqueX[i]},${uniqueY[j]}`;
         const z = grid.get(key) ?? 0;
         vertices.push(
-          ((uniqueX[i] - xMin) / xRange) * 2 - 1,
-          ((z - zMin) / zRange) * 2 - 1,
-          ((uniqueY[j] - yMin) / yRange) * 2 - 1
+          ((uniqueX[i] - dataRange.xMin) / xRange) * 2 - 1,
+          ((z - dataRange.zMin) / zRange) * 2 - 1,
+          ((uniqueY[j] - dataRange.yMin) / yRange) * 2 - 1
         );
-        const t = (z - zMin) / zRange;
+        const t = (z - dataRange.zMin) / zRange;
         const c = new THREE.Color(getColorFromMap(t, scene3D.colorMap));
         colorArr.push(c.r, c.g, c.b);
       }
@@ -244,7 +260,7 @@ function SurfaceMesh() {
     geo.setIndex(indices);
     geo.computeVertexNormals();
     return geo;
-  }, [datasets, chartConfig.layers, scene3D.colorMap]);
+  }, [datasets, layer, scene3D.colorMap, dataRange]);
 
   return (
     <mesh ref={meshRef} geometry={geometry}>
@@ -259,15 +275,28 @@ function SurfaceMesh() {
   );
 }
 
-function Scatter3DPoints() {
-  const datasets = usePlotStore((s) => s.datasets);
+/** Multi-layer surface meshes */
+function SurfaceMesh() {
   const chartConfig = usePlotStore((s) => s.chartConfig);
+  const dataRange = useDataRange();
+
+  if (!dataRange) return null;
+
+  return (
+    <>
+      {chartConfig.layers.filter((l) => l.visible).map((layer) => (
+        <SurfaceMeshLayer key={layer.id} layer={layer} dataRange={dataRange} />
+      ))}
+    </>
+  );
+}
+
+/** Per-layer scatter points */
+function Scatter3DLayerPoints({ layer, dataRange }: { layer: LayerConfig; dataRange: DataRange }) {
+  const datasets = usePlotStore((s) => s.datasets);
   const scene3D = usePlotStore((s) => s.scene3D);
 
   const { positions, colors } = useMemo(() => {
-    const layer = chartConfig.layers[0];
-    if (!layer) return { positions: new Float32Array(0), colors: new Float32Array(0) };
-
     const ds = datasets.find((d) => d.id === layer.datasetId);
     if (!ds) return { positions: new Float32Array(0), colors: new Float32Array(0) };
 
@@ -281,22 +310,19 @@ function Scatter3DPoints() {
     const yVals = yCol.values.map(Number);
     const zVals = zCol.values.map(Number);
 
-    const xMin = Math.min(...xVals); const xMax = Math.max(...xVals);
-    const yMin = Math.min(...yVals); const yMax = Math.max(...yVals);
-    const zMin = Math.min(...zVals); const zMax = Math.max(...zVals);
-    const xRange = xMax - xMin || 1;
-    const yRange = yMax - yMin || 1;
-    const zRange = zMax - zMin || 1;
+    const xRange = dataRange.xMax - dataRange.xMin || 1;
+    const yRange = dataRange.yMax - dataRange.yMin || 1;
+    const zRange = dataRange.zMax - dataRange.zMin || 1;
 
     const pos = new Float32Array(xVals.length * 3);
     const col = new Float32Array(xVals.length * 3);
 
     for (let i = 0; i < xVals.length; i++) {
-      pos[i * 3] = ((xVals[i] - xMin) / xRange) * 2 - 1;
-      pos[i * 3 + 1] = ((zVals[i] - zMin) / zRange) * 2 - 1;
-      pos[i * 3 + 2] = ((yVals[i] - yMin) / yRange) * 2 - 1;
+      pos[i * 3] = ((xVals[i] - dataRange.xMin) / xRange) * 2 - 1;
+      pos[i * 3 + 1] = ((zVals[i] - dataRange.zMin) / zRange) * 2 - 1;
+      pos[i * 3 + 2] = ((yVals[i] - dataRange.yMin) / yRange) * 2 - 1;
 
-      const t = (zVals[i] - zMin) / zRange;
+      const t = (zVals[i] - dataRange.zMin) / zRange;
       const c = new THREE.Color(getColorFromMap(t, scene3D.colorMap));
       col[i * 3] = c.r;
       col[i * 3 + 1] = c.g;
@@ -304,7 +330,7 @@ function Scatter3DPoints() {
     }
 
     return { positions: pos, colors: col };
-  }, [datasets, chartConfig.layers, scene3D.colorMap]);
+  }, [datasets, layer, scene3D.colorMap, dataRange]);
 
   if (positions.length === 0) return null;
 
@@ -326,6 +352,250 @@ function Scatter3DPoints() {
       </bufferGeometry>
       <pointsMaterial size={0.04} vertexColors transparent opacity={scene3D.opacity} sizeAttenuation />
     </points>
+  );
+}
+
+/** Multi-layer scatter points */
+function Scatter3DPoints() {
+  const chartConfig = usePlotStore((s) => s.chartConfig);
+  const dataRange = useDataRange();
+
+  if (!dataRange) return null;
+
+  return (
+    <>
+      {chartConfig.layers.filter((l) => l.visible).map((layer) => (
+        <Scatter3DLayerPoints key={layer.id} layer={layer} dataRange={dataRange} />
+      ))}
+    </>
+  );
+}
+
+/** Contour lines for a single layer on the surface */
+function ContourLinesLayer({ layer, dataRange }: { layer: LayerConfig; dataRange: DataRange }) {
+  const datasets = usePlotStore((s) => s.datasets);
+
+  const contourPaths = useMemo(() => {
+    const ds = datasets.find((d) => d.id === layer.datasetId);
+    if (!ds) return [];
+
+    const xCol = ds.columns.find((c) => c.id === layer.xColumn);
+    const yCol = ds.columns.find((c) => c.id === layer.yColumn);
+    const zCol = ds.columns.find((c) => c.id === layer.zColumn);
+
+    if (!xCol || !yCol || !zCol) return [];
+
+    const xVals = xCol.values.map(Number);
+    const yVals = yCol.values.map(Number);
+    const zVals = zCol.values.map(Number);
+
+    const uniqueX = [...new Set(xVals.map((v) => parseFloat(v.toFixed(4))))].sort((a, b) => a - b);
+    const uniqueY = [...new Set(yVals.map((v) => parseFloat(v.toFixed(4))))].sort((a, b) => a - b);
+
+    const nx = uniqueX.length;
+    const ny = uniqueY.length;
+
+    if (nx < 2 || ny < 2) return [];
+
+    const grid = new Map<string, number>();
+    for (let i = 0; i < xVals.length; i++) {
+      const key = `${parseFloat(xVals[i].toFixed(4))},${parseFloat(yVals[i].toFixed(4))}`;
+      grid.set(key, zVals[i]);
+    }
+
+    const xRange = dataRange.xMax - dataRange.xMin || 1;
+    const yRange = dataRange.yMax - dataRange.yMin || 1;
+    const zRange = dataRange.zMax - dataRange.zMin || 1;
+
+    // Generate contour levels
+    const zTicks = niceScale(dataRange.zMin, dataRange.zMax, 8);
+    const paths: { level: number; points: THREE.Vector3[] }[] = [];
+
+    for (const level of zTicks) {
+      const levelNorm = ((level - dataRange.zMin) / zRange) * 2 - 1;
+      if (levelNorm < -1 || levelNorm > 1) continue;
+
+      // March along each row (constant y) to find contour crossings
+      for (let j = 0; j < ny - 1; j++) {
+        for (let i = 0; i < nx - 1; i++) {
+          const z00 = grid.get(`${uniqueX[i]},${uniqueY[j]}`);
+          const z10 = grid.get(`${uniqueX[i + 1]},${uniqueY[j]}`);
+          const z01 = grid.get(`${uniqueX[i]},${uniqueY[j + 1]}`);
+          const z11 = grid.get(`${uniqueX[i + 1]},${uniqueY[j + 1]}`);
+
+          if (z00 === undefined || z10 === undefined || z01 === undefined || z11 === undefined) continue;
+
+          // Normalize positions
+          const x0 = ((uniqueX[i] - dataRange.xMin) / xRange) * 2 - 1;
+          const x1 = ((uniqueX[i + 1] - dataRange.xMin) / xRange) * 2 - 1;
+          const y0 = ((uniqueY[j] - dataRange.yMin) / yRange) * 2 - 1;
+          const y1 = ((uniqueY[j + 1] - dataRange.yMin) / yRange) * 2 - 1;
+
+          // Find edge crossings using linear interpolation
+          const edges: [number, number, number][] = []; // [x_norm, y_norm, z_norm]
+
+          // Bottom edge (y=y0, x from x0 to x1)
+          if ((z00 - level) * (z10 - level) < 0) {
+            const t = (level - z00) / (z10 - z00);
+            const cx = x0 + t * (x1 - x0);
+            edges.push([cx, y0, levelNorm]);
+          }
+          // Top edge (y=y1, x from x0 to x1)
+          if ((z01 - level) * (z11 - level) < 0) {
+            const t = (level - z01) / (z11 - z01);
+            const cx = x0 + t * (x1 - x0);
+            edges.push([cx, y1, levelNorm]);
+          }
+          // Left edge (x=x0, y from y0 to y1)
+          if ((z00 - level) * (z01 - level) < 0) {
+            const t = (level - z00) / (z01 - z00);
+            const cy = y0 + t * (y1 - y0);
+            edges.push([x0, cy, levelNorm]);
+          }
+          // Right edge (x=x1, y from y0 to y1)
+          if ((z10 - level) * (z11 - level) < 0) {
+            const t = (level - z10) / (z11 - z10);
+            const cy = y0 + t * (y1 - y0);
+            edges.push([x1, cy, levelNorm]);
+          }
+
+          // Draw line segments between crossing points
+          if (edges.length >= 2) {
+            paths.push({
+              level,
+              points: [
+                new THREE.Vector3(edges[0][0], edges[0][1], edges[0][2]),
+                new THREE.Vector3(edges[1][0], edges[1][1], edges[1][2]),
+              ],
+            });
+          }
+          if (edges.length === 4) {
+            paths.push({
+              level,
+              points: [
+                new THREE.Vector3(edges[2][0], edges[2][1], edges[2][2]),
+                new THREE.Vector3(edges[3][0], edges[3][1], edges[3][2]),
+              ],
+            });
+          }
+        }
+      }
+    }
+
+    return paths;
+  }, [datasets, layer, dataRange]);
+
+  if (contourPaths.length === 0) return null;
+
+  return (
+    <>
+      {contourPaths.map((path, idx) => (
+        <Line
+          key={`contour-${layer.id}-${idx}`}
+          points={path.points}
+          color={layer.color}
+          lineWidth={1.5}
+          transparent
+          opacity={0.8}
+        />
+      ))}
+    </>
+  );
+}
+
+/** Multi-layer contour lines (renders on top of surface) */
+function ContourLines() {
+  const chartConfig = usePlotStore((s) => s.chartConfig);
+  const dataRange = useDataRange();
+
+  if (!dataRange) return null;
+
+  return (
+    <>
+      {chartConfig.layers.filter((l) => l.visible).map((layer) => (
+        <ContourLinesLayer key={layer.id} layer={layer} dataRange={dataRange} />
+      ))}
+    </>
+  );
+}
+
+/** Per-layer 3D bar chart */
+function Bar3DLayer({ layer, dataRange }: { layer: LayerConfig; dataRange: DataRange }) {
+  const datasets = usePlotStore((s) => s.datasets);
+  const scene3D = usePlotStore((s) => s.scene3D);
+
+  const bars = useMemo(() => {
+    const ds = datasets.find((d) => d.id === layer.datasetId);
+    if (!ds) return [];
+
+    const xCol = ds.columns.find((c) => c.id === layer.xColumn);
+    const yCol = ds.columns.find((c) => c.id === layer.yColumn);
+    const zCol = ds.columns.find((c) => c.id === layer.zColumn);
+
+    if (!xCol || !yCol || !zCol) return [];
+
+    const xVals = xCol.values.map(Number);
+    const yVals = yCol.values.map(Number);
+    const zVals = zCol.values.map(Number);
+
+    const xRange = dataRange.xMax - dataRange.xMin || 1;
+    const yRange = dataRange.yMax - dataRange.yMin || 1;
+    const zRange = dataRange.zMax - dataRange.zMin || 1;
+
+    // Calculate bar width based on data density
+    const uniqueX = [...new Set(xVals.map((v) => parseFloat(v.toFixed(4))))].sort((a, b) => a - b);
+    const uniqueY = [...new Set(yVals.map((v) => parseFloat(v.toFixed(4))))].sort((a, b) => a - b);
+
+    const dx = uniqueX.length > 1 ? (uniqueX[1] - uniqueX[0]) / xRange * 2 : 0.1;
+    const dy = uniqueY.length > 1 ? (uniqueY[1] - uniqueY[0]) / yRange * 2 : 0.1;
+    const barWidthX = Math.min(dx * 0.7, 0.15);
+    const barWidthZ = Math.min(dy * 0.7, 0.15);
+
+    return xVals.map((x, i) => {
+      const z = zVals[i];
+      const y = yVals[i];
+
+      const normX = ((x - dataRange.xMin) / xRange) * 2 - 1;
+      const normZ = ((y - dataRange.yMin) / yRange) * 2 - 1;
+      const normH = ((z - dataRange.zMin) / zRange) * 2;
+
+      const height = Math.max(normH, 0.001);
+      const posY = -1 + height / 2;
+
+      const t = (z - dataRange.zMin) / zRange;
+      const color = getColorFromMap(t, scene3D.colorMap);
+
+      return { position: [normX, posY, normZ] as [number, number, number], size: [barWidthX, height, barWidthZ] as [number, number, number], color };
+    });
+  }, [datasets, layer, dataRange, scene3D.colorMap]);
+
+  if (bars.length === 0) return null;
+
+  return (
+    <>
+      {bars.map((bar, idx) => (
+        <mesh key={idx} position={bar.position}>
+          <boxGeometry args={bar.size} />
+          <meshPhongMaterial color={bar.color} transparent opacity={scene3D.opacity} shininess={40} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/** Multi-layer 3D bars */
+function Bar3DPoints() {
+  const chartConfig = usePlotStore((s) => s.chartConfig);
+  const dataRange = useDataRange();
+
+  if (!dataRange) return null;
+
+  return (
+    <>
+      {chartConfig.layers.filter((l) => l.visible).map((layer) => (
+        <Bar3DLayer key={layer.id} layer={layer} dataRange={dataRange} />
+      ))}
+    </>
   );
 }
 
@@ -359,7 +629,6 @@ function Scene() {
 
 function ColorbarOverlay() {
   const scene3D = usePlotStore((s) => s.scene3D);
-  const chartConfig = usePlotStore((s) => s.chartConfig);
   const dataRange = useDataRange();
 
   if (!scene3D.showColorbar || !dataRange) return null;
@@ -439,7 +708,9 @@ export default function Scene3D() {
       >
         <Scene />
         {(chartConfig.type === 'surface3d' || chartConfig.type === 'contour3d') && <SurfaceMesh />}
+        {chartConfig.type === 'contour3d' && <ContourLines />}
         {chartConfig.type === 'scatter3d' && <Scatter3DPoints />}
+        {chartConfig.type === 'bar3d' && <Bar3DPoints />}
       </Canvas>
       <ColorbarOverlay />
       <LegendOverlay />
