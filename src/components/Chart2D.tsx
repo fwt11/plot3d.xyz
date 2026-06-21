@@ -1,8 +1,9 @@
-import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { useRef, useMemo, useCallback, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  LogarithmicScale,
   RadialLinearScale,
   PointElement,
   LineElement,
@@ -12,11 +13,12 @@ import {
   Title,
   Tooltip,
   Legend,
+  Plugin,
 } from 'chart.js';
 import { Line, Scatter, Bar, Pie, PolarArea, Radar } from 'react-chartjs-2';
 import { usePlotStore } from '@/store/plotStore';
 import { useTranslation } from 'react-i18next';
-import type { ChartType, Annotation } from '@/types';
+import type { ChartType, Annotation, LayerConfig } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
 
 // Helper to read CSS variable values for Chart.js (which doesn't support CSS vars)
@@ -24,9 +26,70 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+// Line style to borderDash mapping
+function lineStyleToDash(style: LayerConfig['lineStyle']): number[] {
+  switch (style) {
+    case 'dashed': return [5, 5];
+    case 'dotted': return [2, 2];
+    default: return [];
+  }
+}
+
+// Custom error bar plugin: draws ±error lines for each data point
+const errorBarPlugin: Plugin<'line' | 'scatter' | 'bar'> = {
+  id: 'errorBars',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const errorValues = (dataset as unknown as Record<string, unknown>)._errorValues as (number | undefined)[] | undefined;
+      if (!errorValues) return;
+
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (meta.hidden) return;
+
+      const color = dataset.borderColor as string;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+
+      meta.data.forEach((element, index) => {
+        const err = errorValues[index];
+        if (err === undefined || err === null || isNaN(err)) return;
+
+        const x = element.x;
+        const y = element.y;
+        const yScale = chart.scales.y;
+        const errPixels = Math.abs(yScale.getPixelForValue(0) - yScale.getPixelForValue(err));
+
+        // Vertical line from -error to +error
+        ctx.beginPath();
+        ctx.moveTo(x, y - errPixels);
+        ctx.lineTo(x, y + errPixels);
+        ctx.stroke();
+
+        // Top cap
+        const capWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(x - capWidth, y - errPixels);
+        ctx.lineTo(x + capWidth, y - errPixels);
+        ctx.stroke();
+
+        // Bottom cap
+        ctx.beginPath();
+        ctx.moveTo(x - capWidth, y + errPixels);
+        ctx.lineTo(x + capWidth, y + errPixels);
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    });
+  },
+};
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  LogarithmicScale,
   RadialLinearScale,
   PointElement,
   LineElement,
@@ -35,10 +98,11 @@ ChartJS.register(
   Filler,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  errorBarPlugin
 );
 
-function AnnotationOverlay({ annotations, chartArea, onMoveAnnotation }: { annotations: Annotation[]; chartArea: DOMRect | null; onMoveAnnotation: (id: string, x: number, y: number, extra?: Partial<Annotation>) => void }) {
+function AnnotationOverlay({ annotations, chartArea, chartRef, onMoveAnnotation }: { annotations: Annotation[]; chartArea: DOMRect | null; chartRef: React.RefObject<ChartJS<'line' | 'scatter' | 'bar' | 'pie' | 'polarArea' | 'radar'> | null>; onMoveAnnotation: (id: string, x: number, y: number, extra?: Partial<Annotation>) => void }) {
   const [dragging, setDragging] = useState<{ id: string; startMouseX: number; startMouseY: number; startX: number; startY: number } | null>(null);
   const [draggingArrow, setDraggingArrow] = useState<{ id: string; endpoint: 'start' | 'end'; startMouseX: number; startMouseY: number; startX: number; startY: number } | null>(null);
 
@@ -85,6 +149,24 @@ function AnnotationOverlay({ annotations, chartArea, onMoveAnnotation }: { annot
 
   if (!chartArea || annotations.length === 0) return null;
 
+  const chart = chartRef.current;
+  const xScale = chart?.scales?.x;
+  const yScale = chart?.scales?.y;
+
+  const toPixelX = (ann: Annotation, val: number): number => {
+    if (ann.coordMode === 'data' && xScale) {
+      return xScale.getPixelForValue(val) - chartArea.left;
+    }
+    return (val / 100) * chartArea.width;
+  };
+
+  const toPixelY = (ann: Annotation, val: number): number => {
+    if (ann.coordMode === 'data' && yScale) {
+      return yScale.getPixelForValue(val) - chartArea.top;
+    }
+    return (val / 100) * chartArea.height;
+  };
+
   return (
     <div
       className="absolute inset-0"
@@ -94,12 +176,12 @@ function AnnotationOverlay({ annotations, chartArea, onMoveAnnotation }: { annot
       onMouseLeave={handleMouseUp}
     >
       {annotations.filter((a) => a.visible).map((ann) => {
-        const px = (ann.x / 100) * chartArea.width;
-        const py = (ann.y / 100) * chartArea.height;
+        const px = toPixelX(ann, ann.x);
+        const py = toPixelY(ann, ann.y);
 
         if (ann.type === 'arrow' && ann.arrowTo) {
-          const tx = (ann.arrowTo.x / 100) * chartArea.width;
-          const ty = (ann.arrowTo.y / 100) * chartArea.height;
+          const tx = toPixelX(ann, ann.arrowTo.x);
+          const ty = toPixelY(ann, ann.arrowTo.y);
           return (
             <svg
               key={ann.id}
@@ -218,10 +300,6 @@ export default function Chart2D() {
     }
   }, [updateAnnotation]);
 
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>).__chartRef = chartRef.current;
-  }, [chartRef.current]);
-
   if (is3D) {
     return null;
   }
@@ -236,7 +314,16 @@ export default function Chart2D() {
 
   const allYColors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
 
-  const expandedDatasets: { label: string; xCol: typeof datasets[0]['columns'][0]; yCol: typeof datasets[0]['columns'][0]; color: string }[] = [];
+  interface ExpandedEntry {
+    label: string;
+    xCol: typeof datasets[0]['columns'][0];
+    yCol: typeof datasets[0]['columns'][0];
+    color: string;
+    layer: LayerConfig;
+    errorCol?: typeof datasets[0]['columns'][0];
+  }
+
+  const expandedDatasets: ExpandedEntry[] = [];
 
   if (!is3DChart) {
     const visibleLayers = chartConfig.layers.filter((l) => l.visible);
@@ -245,11 +332,12 @@ export default function Chart2D() {
       if (!ds) continue;
       const xCol = ds.columns.find((c) => c.id === layer.xColumn) ?? ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
       if (!xCol) continue;
+      const errorCol = layer.errorColumn ? ds.columns.find((c) => c.id === layer.errorColumn) : undefined;
       const yCols = ds.columns.filter((c) => c.type === 'Y');
       if (yCols.length === 0) {
         const yCol = ds.columns.find((c) => c.id === layer.yColumn);
         if (yCol) {
-          expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color });
+          expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color, layer, errorCol });
         }
       } else {
         yCols.forEach((yCol, idx) => {
@@ -258,6 +346,8 @@ export default function Chart2D() {
             xCol,
             yCol,
             color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
+            layer,
+            errorCol: yCols.length === 1 ? errorCol : undefined,
           });
         });
       }
@@ -269,7 +359,8 @@ export default function Chart2D() {
       const xCol = ds.columns.find((c) => c.id === layer.xColumn);
       const yCol = ds.columns.find((c) => c.id === layer.yColumn);
       if (!xCol || !yCol) continue;
-      expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color });
+      const errorCol = layer.errorColumn ? ds.columns.find((c) => c.id === layer.errorColumn) : undefined;
+      expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color, layer, errorCol });
     }
   }
 
@@ -286,7 +377,8 @@ export default function Chart2D() {
 
   const chartData = {
     labels: useNumericX ? undefined : labels,
-    datasets: expandedDatasets.map(({ label, xCol, yCol, color }) => {
+    datasets: expandedDatasets.map(({ label, xCol, yCol, color, layer, errorCol }) => {
+      const isBarPiePolar = chartType === 'bar' || chartType === 'pie' || isPolar;
       const base = {
         label,
         borderColor: color,
@@ -300,11 +392,17 @@ export default function Chart2D() {
             : isPolar
             ? generatePolarColors(yCol.values.length)
             : color,
-        borderWidth: chartType === 'bar' || chartType === 'pie' || isPolar ? 1 : 2,
-        pointRadius: isScatter ? 4 : 2,
-        pointHoverRadius: 6,
-        fill: chartType === 'area' || isPolar,
+        borderWidth: isBarPiePolar ? 1 : layer.lineWidth,
+        borderDash: lineStyleToDash(layer.lineStyle),
+        pointStyle: layer.pointStyle === 'none' ? false as const : layer.pointStyle,
+        pointRadius: layer.pointStyle === 'none' ? 0 : layer.pointSize,
+        pointHoverRadius: layer.pointSize + 2,
+        fill: layer.fill || chartType === 'area' || isPolar,
         tension: 0.3,
+        // Custom property for error bar plugin
+        _errorValues: errorCol
+          ? errorCol.values.map((v) => { const n = Number(v); return isNaN(n) ? undefined : n; })
+          : undefined,
       };
 
       if (useNumericX) {
@@ -369,7 +467,7 @@ export default function Chart2D() {
               border: { color: cssVar('--axis-color') },
               min: chartConfig.xAxis.autoRange ? undefined : chartConfig.xAxis.min,
               max: chartConfig.xAxis.autoRange ? undefined : chartConfig.xAxis.max,
-              type: (useNumericX ? 'linear' : 'category') as 'linear' | 'category',
+              type: chartConfig.xAxis.logScale ? 'logarithmic' as const : (useNumericX ? 'linear' as const : 'category' as const),
             },
             y: {
               title: { display: !!chartConfig.yAxis.label, text: chartConfig.yAxis.label, color: cssVar('--text-secondary') },
@@ -378,6 +476,7 @@ export default function Chart2D() {
               border: { color: cssVar('--axis-color') },
               min: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.min,
               max: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.max,
+              type: chartConfig.yAxis.logScale ? 'logarithmic' as const : 'linear' as const,
             },
           },
   };
@@ -402,7 +501,7 @@ export default function Chart2D() {
   return (
     <div ref={containerRef} className="relative w-full h-full p-4" style={{ background: 'var(--chart-bg)' }}>
       <RenderChart />
-      <AnnotationOverlay annotations={chartConfig.annotations} chartArea={chartArea} onMoveAnnotation={handleMoveAnnotation} />
+      <AnnotationOverlay annotations={chartConfig.annotations} chartArea={chartArea} chartRef={chartRef} onMoveAnnotation={handleMoveAnnotation} />
     </div>
   );
 }
