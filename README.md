@@ -27,7 +27,7 @@ Plot3D 是一款面向科研工作者的交互式数据可视化应用，支持 
 - 坐标轴：标签、范围、对数刻度、科学计数法、网格线
 - 多图层：独立数据集映射、颜色/线型/点型配置、双 Y 轴
 - 误差棒：支持对称/非对称误差列
-- 颜色映射：jet、viridis、hot、coolwarm、parula、plasma
+- 颜色映射：jet、viridis、hot、coolwarm、parula、plasma、cividis（色盲友好）、inferno、magma、turbo、batlow（色盲友好）
 - 图例：显示/隐藏、位置调整
 
 ### 标注系统
@@ -37,23 +37,34 @@ Plot3D 是一款面向科研工作者的交互式数据可视化应用，支持 
 
 ### 3D 场景
 
-- 交互式旋转/缩放/平移 (OrbitControls)
-- 光照角度与强度调节
-- 透明度控制
-- 坐标轴与色条显示
-- Bloom 后处理效果
+- 交互式旋转/缩放/平移
+- 坐标轴标签、范围、网格线统一配置
+- 专业颜色映射与色条
+- 矢量导出 (SVG/PDF)
+
+### 曲线拟合
+
+- 线性回归、多项式回归 (1-6 阶)、指数拟合
+- 拟合统计量：R²、RMSE、MAE
 
 ### 导出
 
-- PNG、SVG、PDF
+- PNG、SVG、PDF、EPS、TIFF (300 DPI)
 - 分辨率倍率 (1x/2x/4x)
 - 背景透明/白色/跟随主题
+- 图表右键可直接导出或复制到剪贴板
+
+### 项目文件
+
+- `.plot3d` 工程文件格式，保存完整状态（数据集、图表配置、主题、语言）
+- Ctrl+S 快速保存，文件菜单打开项目
 
 ### 其他
 
 - 撤销/重做 (Ctrl+Z / Ctrl+Y)，最多 50 步历史
 - 深色/浅色主题切换
 - 中/英双语界面
+- 自定义右键上下文菜单（数据表格、图表画布、图层面板）
 
 ## 快速开始
 
@@ -86,14 +97,13 @@ npm run preview
 | `npm run build` | TypeScript 编译 + Vite 构建 |
 | `npm run preview` | 预览构建产物 |
 | `npm run lint` | ESLint 代码检查 |
-| `npm run check` | TypeScript 类型检查 |
+| `npm run check` | TypeScript 类型检查 (strict 模式) |
 
 ## 技术栈
 
-- **框架**：React 18 + TypeScript
+- **框架**：React 18 + TypeScript (strict 模式)
 - **构建**：Vite 6
-- **2D 图表**：Plotly.js (懒加载)
-- **3D 渲染**：Three.js + React Three Fiber + Drei
+- **图表渲染**：Plotly.js（2D + 3D 统一引擎，懒加载）
 - **状态管理**：Zustand v5
 - **样式**：Tailwind CSS 3 + CSS 变量
 - **国际化**：i18next + react-i18next
@@ -107,17 +117,23 @@ npm run preview
 src/
 ├── components/          # UI 组件
 │   ├── ribbon/          # Ribbon 工具栏标签页
-│   └── scene3d/         # 3D 场景子组件
+│   ├── ChartView.tsx    # 统一 2D/3D 图表渲染
+│   ├── ConfigPanel.tsx  # 右侧配置面板
+│   ├── ContextMenu.tsx  # 自定义右键菜单
+│   ├── DataTable.tsx    # 数据表格
+│   └── LayerPanel.tsx   # 图层管理
 ├── pages/               # 页面组件
 │   └── Workspace.tsx    # 主工作区
 ├── store/               # Zustand 状态管理
-│   ├── chartStore.ts    # 图表配置 + 撤销/重做
+│   ├── chartStore.ts    # 图表配置
 │   ├── datasetStore.ts  # 数据集管理
-│   ├── scene3DStore.ts  # 3D 场景配置
+│   ├── historyStore.ts  # 撤销/重做历史
 │   └── uiStore.ts       # 主题与语言
 ├── utils/               # 工具函数
 │   ├── chart.ts         # 图表类型判断
-│   ├── colormaps.ts     # 颜色映射
+│   ├── colormaps.ts     # 颜色映射（含色盲友好）
+│   ├── curveFitting.ts  # 曲线拟合算法
+│   ├── projectFile.ts   # .plot3d 项目文件
 │   ├── sampleData.ts    # 示例数据生成
 │   ├── annotations.tsx  # 标注工具
 │   └── latex.ts         # LaTeX 渲染
