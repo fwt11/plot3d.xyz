@@ -88,7 +88,10 @@
     "rect": "矩形",
     "defaultText": "标注文本",
     "textPlaceholder": "文本",
-    "latexPlaceholder": "$E=mc^2$"
+    "latexPlaceholder": "$E=mc^2$",
+    "fontSize": "字号",
+    "width": "宽",
+    "height": "高"
   },
   "config": {
     "title": "标题",
@@ -101,12 +104,26 @@
     "min": "最小",
     "max": "最大",
     "showGrid": "显示网格",
+    "logScale": "对数刻度",
+    "scientificNotation": "科学计数法",
     "showLegend": "显示图例",
     "position": "位置",
     "top": "上",
     "bottom": "下",
     "left": "左",
-    "right": "右"
+    "right": "右",
+    "margins": "边距",
+    "marginTop": "上边距",
+    "marginRight": "右边距",
+    "marginBottom": "下边距",
+    "marginLeft": "左边距",
+    "export": "导出设置",
+    "resolution": "分辨率倍数",
+    "background": "背景",
+    "bgTransparent": "透明",
+    "bgWhite": "白色",
+    "bgTheme": "当前主题",
+    "fontSize": "字体大小"
   },
   "data": {
     "noDataset": "无数据集",
@@ -136,7 +153,10 @@
   "workspace": {
     "dataTable": "数据表格",
     "layerManage": "图层管理",
-    "chartConfig": "图表配置"
+    "chartConfig": "图表配置",
+    "zColumnDetected": "检测到 Z 列数据，是否切换到{{type}}？",
+    "switchTo": "切换",
+    "dismiss": "忽略"
   },
   "chart2d": {
     "addLayer": "请添加数据图层"

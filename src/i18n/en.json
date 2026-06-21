@@ -88,7 +88,10 @@
     "rect": "Rectangle",
     "defaultText": "Annotation",
     "textPlaceholder": "Text",
-    "latexPlaceholder": "$E=mc^2$"
+    "latexPlaceholder": "$E=mc^2$",
+    "fontSize": "Size",
+    "width": "W",
+    "height": "H"
   },
   "config": {
     "title": "Title",
@@ -101,12 +104,26 @@
     "min": "Min",
     "max": "Max",
     "showGrid": "Show Grid",
+    "logScale": "Log Scale",
+    "scientificNotation": "Scientific Notation",
     "showLegend": "Show Legend",
     "position": "Position",
     "top": "Top",
     "bottom": "Bottom",
     "left": "Left",
-    "right": "Right"
+    "right": "Right",
+    "margins": "Margins",
+    "marginTop": "Top",
+    "marginRight": "Right",
+    "marginBottom": "Bottom",
+    "marginLeft": "Left",
+    "export": "Export Settings",
+    "resolution": "Resolution",
+    "background": "Background",
+    "bgTransparent": "Transparent",
+    "bgWhite": "White",
+    "bgTheme": "Current Theme",
+    "fontSize": "Font Size"
   },
   "data": {
     "noDataset": "No Dataset",
@@ -136,7 +153,10 @@
   "workspace": {
     "dataTable": "Data Table",
     "layerManage": "Layer Manager",
-    "chartConfig": "Chart Config"
+    "chartConfig": "Chart Config",
+    "zColumnDetected": "Z column data detected. Switch to {{type}}?",
+    "switchTo": "Switch",
+    "dismiss": "Dismiss"
   },
   "chart2d": {
     "addLayer": "Please add a data layer"
