@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useChartStore } from '@/store/chartStore';
 import { useDatasetStore } from '@/store/datasetStore';
-import { Eye, EyeOff, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Trash2, Plus, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { uid } from '@/utils/sampleData';
 import { useTranslation } from 'react-i18next';
+import { showContextMenu, type MenuItemOrSeparator } from '@/components/ContextMenu';
 
 export default function LayerPanel() {
   const { t } = useTranslation();
@@ -38,6 +39,33 @@ export default function LayerPanel() {
     color: 'var(--text-secondary)',
   };
 
+  const handleLayerContextMenu = useCallback((e: React.MouseEvent, layerId: string) => {
+    const layer = chartConfig.layers.find((l) => l.id === layerId);
+    if (!layer) return;
+    const items: MenuItemOrSeparator[] = [
+      {
+        label: layer.visible ? t('context.hideLayer') : t('context.showLayer'),
+        icon: layer.visible ? <EyeOff size={14} /> : <Eye size={14} />,
+        onClick: () => updateLayer(layerId, { visible: !layer.visible }),
+      },
+      {
+        label: t('context.duplicateLayer'),
+        icon: <Copy size={14} />,
+        onClick: () => {
+          addLayer({ ...layer, id: uid(), displayName: (layer.displayName || layer.datasetId) + ' (copy)' });
+        },
+      },
+      { separator: true },
+      {
+        label: t('context.deleteLayer'),
+        icon: <Trash2 size={14} />,
+        onClick: () => removeLayer(layerId),
+        danger: true,
+      },
+    ];
+    showContextMenu(e, items);
+  }, [chartConfig.layers, updateLayer, addLayer, removeLayer, t]);
+
   return (
     <div className="h-full overflow-y-auto text-xs">
       {chartConfig.layers.map((layer) => {
@@ -46,7 +74,9 @@ export default function LayerPanel() {
         const isExpanded = expandedLayers.has(layer.id);
 
         return (
-          <div key={layer.id} className="p-2 rounded space-y-1.5" style={{ background: 'var(--bg-surface)' }}>
+          <div key={layer.id} className="p-2 rounded space-y-1.5" style={{ background: 'var(--bg-surface)' }}
+            onContextMenu={(e) => handleLayerContextMenu(e, layer.id)}
+          >
             <div className="flex items-center gap-2">
               <button
                 onClick={() => updateLayer(layer.id, { visible: !layer.visible })}

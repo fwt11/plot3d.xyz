@@ -9,6 +9,7 @@ import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
+import { ContextMenuOverlay } from '@/components/ContextMenu';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
@@ -148,8 +149,8 @@ export default function Workspace() {
   }, [undo, redo, pastLength, futureLength]);
 
   return (
-    <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div className="sr-only" aria-live="polite" role="status" />
+    <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }} onContextMenu={(e) => e.preventDefault()}>
+      <ContextMenuOverlay />
       {/* Theme & Language controls - page top right */}
       <div role="toolbar" aria-label={t('workspace.toolbar', 'Toolbar')} className="absolute top-2 right-2 flex items-center gap-1 rounded-md px-1.5 py-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', zIndex: 'var(--z-top)' }}>
         <button

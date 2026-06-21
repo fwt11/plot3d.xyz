@@ -1,7 +1,9 @@
 import { useDatasetStore } from '@/store/datasetStore';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DataColumn } from '@/types';
+import { showContextMenu, type MenuItemOrSeparator } from '@/components/ContextMenu';
+import { useCallback, useRef } from 'react';
 
 export default function DataTable() {
   const { t } = useTranslation();
@@ -15,8 +17,66 @@ export default function DataTable() {
   const removeRow = useDatasetStore((s) => s.removeRow);
   const setColumnType = useDatasetStore((s) => s.setColumnType);
   const renameColumn = useDatasetStore((s) => s.renameColumn);
+  const sortDataset = useDatasetStore((s) => s.sortDataset);
+
+  const contextRef = useRef<{ colId: string; rowIdx: number } | null>(null);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
+
+  const handleCellContextMenu = useCallback((e: React.MouseEvent, colId: string, rowIdx: number) => {
+    if (!dataset) return;
+    contextRef.current = { colId, rowIdx };
+    const items: MenuItemOrSeparator[] = [
+      { label: t('context.insertRowAbove'), icon: <ArrowUp size={14} />, onClick: () => addRow(dataset.id) },
+      { label: t('context.insertRowBelow'), icon: <ArrowDown size={14} />, onClick: () => addRow(dataset.id) },
+      { separator: true },
+      { label: t('context.deleteRow'), icon: <Trash2 size={14} />, onClick: () => removeRow(dataset.id, rowIdx), danger: true },
+      { separator: true },
+      { label: t('context.insertColumnLeft'), icon: <Plus size={14} />, onClick: () => addColumn(dataset.id) },
+      { label: t('context.deleteColumn'), icon: <Trash2 size={14} />, onClick: () => removeColumn(dataset.id, colId), danger: true },
+      { separator: true },
+      { label: t('context.sortAsc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, true) },
+      { label: t('context.sortDesc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, false) },
+      { separator: true },
+      {
+        label: t('context.copyCell'), icon: <Copy size={14} />,
+        onClick: () => {
+          const col = dataset.columns.find((c) => c.id === colId);
+          if (col) navigator.clipboard.writeText(String(col.values[rowIdx] ?? ''));
+        },
+      },
+      {
+        label: t('context.copyColumn'), icon: <ClipboardPaste size={14} />,
+        onClick: () => {
+          const col = dataset.columns.find((c) => c.id === colId);
+          if (col) navigator.clipboard.writeText(col.values.join('\n'));
+        },
+      },
+    ];
+    showContextMenu(e, items);
+  }, [dataset, addRow, removeRow, addColumn, removeColumn, sortDataset, t]);
+
+  const handleHeaderContextMenu = useCallback((e: React.MouseEvent, colId: string) => {
+    if (!dataset) return;
+    contextRef.current = { colId, rowIdx: -1 };
+    const items: MenuItemOrSeparator[] = [
+      { label: t('context.insertColumnLeft'), icon: <Plus size={14} />, onClick: () => addColumn(dataset.id) },
+      { label: t('context.deleteColumn'), icon: <Trash2 size={14} />, onClick: () => removeColumn(dataset.id, colId), danger: true },
+      { separator: true },
+      { label: t('context.sortAsc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, true) },
+      { label: t('context.sortDesc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, false) },
+      { separator: true },
+      {
+        label: t('context.copyColumn'), icon: <ClipboardPaste size={14} />,
+        onClick: () => {
+          const col = dataset.columns.find((c) => c.id === colId);
+          if (col) navigator.clipboard.writeText(col.values.join('\n'));
+        },
+      },
+    ];
+    showContextMenu(e, items);
+  }, [dataset, addColumn, removeColumn, sortDataset, t]);
+
   if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>{t('data.noDataset')}</div>;
 
   const maxRows = Math.max(...dataset.columns.map((c) => c.values.length), 0);
@@ -49,19 +109,13 @@ export default function DataTable() {
           <button
             key={d.id}
             onClick={() => setActiveDataset(d.id)}
-            className={`px-3 py-1 rounded text-xs transition-all shrink-0 ${
-              d.id === activeDatasetId ? '' : ''
-            }`}
+            className="px-3 py-1 rounded text-xs transition-all shrink-0"
             style={d.id === activeDatasetId
               ? { background: 'rgba(14,165,233,0.2)', color: '#38bdf8' }
               : { color: 'var(--text-muted)' }
             }
-            onMouseEnter={(e) => {
-              if (d.id !== activeDatasetId) e.currentTarget.style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              if (d.id !== activeDatasetId) e.currentTarget.style.color = 'var(--text-muted)';
-            }}
+            onMouseEnter={(e) => { if (d.id !== activeDatasetId) e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { if (d.id !== activeDatasetId) e.currentTarget.style.color = 'var(--text-muted)'; }}
           >
             {d.name}
           </button>
@@ -73,11 +127,11 @@ export default function DataTable() {
         <table className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10">
             <tr style={{ background: 'var(--bg-surface)' }}>
-              <th className="px-2 py-1 font-normal border-b border-r w-10" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-                #
-              </th>
+              <th className="px-2 py-1 font-normal border-b border-r w-10" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>#</th>
               {dataset.columns.map((col) => (
-                <th key={col.id} className="border-b border-r min-w-[80px]" style={{ borderColor: 'var(--border)' }}>
+                <th key={col.id} className="border-b border-r min-w-[80px]" style={{ borderColor: 'var(--border)' }}
+                  onContextMenu={(e) => handleHeaderContextMenu(e, col.id)}
+                >
                   <div className="flex flex-col items-center gap-0.5 px-1 py-1">
                     <select
                       value={col.type}
@@ -93,9 +147,7 @@ export default function DataTable() {
                       <input
                         type="text"
                         value={col.name}
-                        onChange={(e) => {
-                          renameColumn(dataset.id, col.id, e.target.value);
-                        }}
+                        onChange={(e) => renameColumn(dataset.id, col.id, e.target.value)}
                         className="flex-1 text-center outline-none min-w-0"
                         style={{ background: 'transparent', color: 'var(--text-primary)' }}
                       />
@@ -136,7 +188,9 @@ export default function DataTable() {
                   {rowIdx + 1}
                 </td>
                 {dataset.columns.map((col) => (
-                  <td key={col.id} className="border-r" style={{ borderColor: 'var(--border)' }}>
+                  <td key={col.id} className="border-r" style={{ borderColor: 'var(--border)' }}
+                    onContextMenu={(e) => handleCellContextMenu(e, col.id, rowIdx)}
+                  >
                     <input
                       type="text"
                       value={col.values[rowIdx] ?? ''}

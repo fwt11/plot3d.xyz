@@ -1,4 +1,24 @@
 {
+  "context": {
+    "insertRowAbove": "Insert Row Above",
+    "insertRowBelow": "Insert Row Below",
+    "deleteRow": "Delete Row",
+    "insertColumnLeft": "Insert Column Left",
+    "deleteColumn": "Delete Column",
+    "sortAsc": "Sort Ascending",
+    "sortDesc": "Sort Descending",
+    "copyCell": "Copy Cell",
+    "copyColumn": "Copy Column",
+    "exportPng": "Export as PNG",
+    "exportSvg": "Export as SVG",
+    "copyToClipboard": "Copy Image to Clipboard",
+    "resetZoom": "Reset Zoom",
+    "hideLayer": "Hide Layer",
+    "showLayer": "Show Layer",
+    "duplicateLayer": "Duplicate Layer",
+    "deleteLayer": "Delete Layer",
+    "resetConfig": "Reset Config"
+  },
   "ribbon": {
     "file": "File",
     "generate": "Generate",

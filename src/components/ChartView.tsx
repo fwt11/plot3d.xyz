@@ -6,6 +6,8 @@ import { toNumber, isValidNumber } from '@/types';
 import { is3DChart } from '@/utils/chart';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
 import { colorMaps } from '@/utils/colormaps';
+import { showContextMenu, type MenuItemOrSeparator } from '@/components/ContextMenu';
+import { Image, FileCode, RotateCcw, Camera } from 'lucide-react';
 
 // Lazy-load Plotly.js to avoid blocking initial page load
 type PlotComponentType = React.ComponentType<Record<string, unknown>>;
@@ -282,6 +284,64 @@ export default function ChartView() {
       updateAnnotation(id, { x, y });
     }
   }, [updateAnnotation]);
+
+  const handleChartContextMenu = useCallback((e: React.MouseEvent) => {
+    const items: MenuItemOrSeparator[] = [
+      {
+        label: t('context.exportPng'),
+        icon: <Image size={14} />,
+        onClick: () => {
+          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+          if (div) {
+            import('plotly.js-dist-min').then((Plotly) => {
+              Plotly.default.downloadImage(div, { format: 'png', width: 1200, height: 800, filename: chartConfig.title || 'chart' });
+            });
+          }
+        },
+      },
+      {
+        label: t('context.exportSvg'),
+        icon: <FileCode size={14} />,
+        onClick: () => {
+          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+          if (div) {
+            import('plotly.js-dist-min').then((Plotly) => {
+              Plotly.default.downloadImage(div, { format: 'svg', width: 1200, height: 800, filename: chartConfig.title || 'chart' });
+            });
+          }
+        },
+      },
+      {
+        label: t('context.copyToClipboard'),
+        icon: <Camera size={14} />,
+        onClick: () => {
+          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+          if (div) {
+            import('plotly.js-dist-min').then(async (Plotly) => {
+              const dataUrl = await Plotly.default.toImage(div, { format: 'png', width: 1200, height: 800 });
+              const response = await fetch(dataUrl);
+              const blob = await response.blob();
+              navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            });
+          }
+        },
+      },
+      { separator: true },
+      {
+        label: t('context.resetZoom'),
+        icon: <RotateCcw size={14} />,
+        onClick: () => {
+          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+          if (div) {
+            import('plotly.js-dist-min').then((Plotly) => {
+              Plotly.default.relayout(div, { autosize: true });
+            });
+          }
+        },
+      },
+    ];
+    showContextMenu(e, items);
+  }, [chartConfig.title, t]);
 
   if (!PlotlyComponent) {
     return (
@@ -776,7 +836,7 @@ export default function ChartView() {
   void theme;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full" style={{ background: 'var(--chart-bg)' }}>
+    <div ref={containerRef} className="relative w-full h-full" style={{ background: 'var(--chart-bg)' }} onContextMenu={handleChartContextMenu}>
       <PlotlyComponent
         data={traces}
         layout={layout}

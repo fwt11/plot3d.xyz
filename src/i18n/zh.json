@@ -1,4 +1,24 @@
 {
+  "context": {
+    "insertRowAbove": "在上方插入行",
+    "insertRowBelow": "在下方插入行",
+    "deleteRow": "删除行",
+    "insertColumnLeft": "在左侧插入列",
+    "deleteColumn": "删除列",
+    "sortAsc": "升序排序",
+    "sortDesc": "降序排序",
+    "copyCell": "复制单元格",
+    "copyColumn": "复制整列",
+    "exportPng": "导出为 PNG",
+    "exportSvg": "导出为 SVG",
+    "copyToClipboard": "复制图片到剪贴板",
+    "resetZoom": "重置缩放",
+    "hideLayer": "隐藏图层",
+    "showLayer": "显示图层",
+    "duplicateLayer": "复制图层",
+    "deleteLayer": "删除图层",
+    "resetConfig": "重置配置"
+  },
   "ribbon": {
     "file": "文件",
     "generate": "生成",
