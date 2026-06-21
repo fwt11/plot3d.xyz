@@ -2,13 +2,12 @@ import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePlotStore } from '@/store/plotStore';
 import {
-  FileUp, Download, Database, Sun, Droplets, Palette, RotateCcw, Eye,
+  FileUp, Download, Sun, Droplets, Palette, RotateCcw, Eye,
   LineChart, BarChart3, ScatterChart, AreaChart, PieChart,
   Box, Rotate3D, Mountain, Binary, Compass,
   Type, ArrowUpRight, Square, Sigma, Trash2, EyeOff, Plus,
-  ChevronDown, ChevronRight,
-  FunctionSquare, ArrowUpDown, Minimize2, Calculator, Hash, TrendingUp, Activity, Waves, Zap,
-  Moon, SunMoon, Circle, Languages,
+  FunctionSquare, ArrowUpDown, Minimize2, Waves,
+  Circle,
 } from 'lucide-react';
 import { getColorMapGradient } from '@/utils/colormaps';
 import type { ColorMapName, ChartType, AnnotationType, Annotation } from '@/types';
@@ -16,7 +15,7 @@ import { uid } from '@/utils/sampleData';
 import type { Dataset } from '@/types';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { toPng } from 'html-to-image';
+import { toPng, toSvg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import {
   createSampleSineDataset,
@@ -24,22 +23,21 @@ import {
   createSampleScatter3DDataset,
   createSampleBarDataset,
 } from '@/utils/sampleData';
-import type { AxisConfig } from '@/types';
 
 // ─── Ribbon Tab Types ───────────────────────────────────────────
 type RibbonTab = 'file' | 'generate' | 'transform' | 'chart' | 'annotation';
 
 const getChartTypes = (t: (key: string) => string): { type: ChartType; label: string; icon: React.ReactNode; group: '2d' | '3d' }[] => [
-  { type: 'line', label: t('chartTypes.line'), icon: <LineChart size={18} />, group: '2d' },
-  { type: 'scatter', label: t('chartTypes.scatter'), icon: <ScatterChart size={18} />, group: '2d' },
-  { type: 'bar', label: t('chartTypes.bar'), icon: <BarChart3 size={18} />, group: '2d' },
-  { type: 'area', label: t('chartTypes.area'), icon: <AreaChart size={18} />, group: '2d' },
-  { type: 'pie', label: t('chartTypes.pie'), icon: <PieChart size={18} />, group: '2d' },
-  { type: 'polar', label: t('chartTypes.polar'), icon: <Compass size={18} />, group: '2d' },
-  { type: 'surface3d', label: t('chartTypes.surface3d'), icon: <Mountain size={18} />, group: '3d' },
-  { type: 'scatter3d', label: t('chartTypes.scatter3d'), icon: <Rotate3D size={18} />, group: '3d' },
-  { type: 'contour3d', label: t('chartTypes.contour3d'), icon: <Binary size={18} />, group: '3d' },
-  { type: 'bar3d', label: t('chartTypes.bar3d'), icon: <Box size={18} />, group: '3d' },
+  { type: 'line', label: t('chartTypes.line'), icon: <LineChart size={16} />, group: '2d' },
+  { type: 'scatter', label: t('chartTypes.scatter'), icon: <ScatterChart size={16} />, group: '2d' },
+  { type: 'bar', label: t('chartTypes.bar'), icon: <BarChart3 size={16} />, group: '2d' },
+  { type: 'area', label: t('chartTypes.area'), icon: <AreaChart size={16} />, group: '2d' },
+  { type: 'pie', label: t('chartTypes.pie'), icon: <PieChart size={16} />, group: '2d' },
+  { type: 'polar', label: t('chartTypes.polar'), icon: <Compass size={16} />, group: '2d' },
+  { type: 'surface3d', label: t('chartTypes.surface3d'), icon: <Mountain size={16} />, group: '3d' },
+  { type: 'scatter3d', label: t('chartTypes.scatter3d'), icon: <Rotate3D size={16} />, group: '3d' },
+  { type: 'contour3d', label: t('chartTypes.contour3d'), icon: <Binary size={16} />, group: '3d' },
+  { type: 'bar3d', label: t('chartTypes.bar3d'), icon: <Box size={16} />, group: '3d' },
 ];
 
 const colorMapNames: ColorMapName[] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma'];
@@ -61,6 +59,7 @@ function createDefaultAnnotation(type: AnnotationType, t: (key: string) => strin
     fontSize: 14,
     color: '#e4e4e7',
     visible: true,
+    coordMode: 'percent' as const,
   };
   if (type === 'arrow') return { ...base, content: '', arrowTo: { x: 70, y: 30 } };
   if (type === 'rect') return { ...base, content: '', rectSize: { w: 20, h: 15 } };
@@ -72,7 +71,7 @@ function RibbonGroup({ label, children }: { label: string; children: React.React
   return (
     <div className="flex flex-col items-center border-r px-3 py-1.5 last:border-r-0" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2 flex-1">{children}</div>
-      <span className="text-[10px] mt-0.5 select-none" style={{ color: 'var(--text-faint)' }}>{label}</span>
+      <span className="text-xs mt-0.5 select-none" style={{ color: 'var(--text-faint)' }}>{label}</span>
     </div>
   );
 }
@@ -82,10 +81,20 @@ function FileTab() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addDataset = usePlotStore((s) => s.addDataset);
+  const exportConfig = usePlotStore((s) => s.chartConfig.exportConfig);
   const theme = usePlotStore((s) => s.theme);
-  const toggleTheme = usePlotStore((s) => s.toggleTheme);
-  const lang = usePlotStore((s) => s.lang);
-  const setLang = usePlotStore((s) => s.setLang);
+
+  const getExportBackground = (): string | undefined => {
+    if (exportConfig.background === 'transparent') return undefined;
+    if (exportConfig.background === 'white') return '#ffffff';
+    // 'theme' — use current chart background color from CSS variable
+    const chartArea = document.querySelector('[data-chart-area]') as HTMLElement;
+    if (chartArea) {
+      const computed = getComputedStyle(chartArea).getPropertyValue('--chart-bg').trim();
+      if (computed) return computed;
+    }
+    return theme === 'dark' ? '#1e1e32' : '#ffffff';
+  };
 
   const handleImport = () => fileInputRef.current?.click();
 
@@ -129,15 +138,34 @@ function FileTab() {
 
   const handleExportPNG = async () => {
     const canvas = document.querySelector('canvas');
+    const bgColor = getExportBackground();
     if (canvas) {
+      // For canvas-based charts (3D), create a scaled canvas
+      const multiplier = exportConfig.resolutionMultiplier;
+      const width = canvas.width;
+      const height = canvas.height;
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = width * multiplier;
+      scaledCanvas.height = height * multiplier;
+      const ctx = scaledCanvas.getContext('2d');
+      if (!ctx) return;
+      if (bgColor) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+      }
+      ctx.scale(multiplier, multiplier);
+      ctx.drawImage(canvas, 0, 0, width, height);
       const link = document.createElement('a');
       link.download = 'chart.png';
-      link.href = canvas.toDataURL('image/png');
+      link.href = scaledCanvas.toDataURL('image/png');
       link.click();
     } else {
       const chartArea = document.querySelector('[data-chart-area]') as HTMLElement;
       if (chartArea) {
-        const dataUrl = await toPng(chartArea);
+        const dataUrl = await toPng(chartArea, {
+          pixelRatio: exportConfig.resolutionMultiplier,
+          backgroundColor: bgColor,
+        });
         const link = document.createElement('a');
         link.download = 'chart.png';
         link.href = dataUrl;
@@ -146,18 +174,69 @@ function FileTab() {
     }
   };
 
+  const handleExportSVG = async () => {
+    const chartArea = document.querySelector('[data-chart-area]') as HTMLElement;
+    if (!chartArea) return;
+    const bgColor = getExportBackground();
+    const dataUrl = await toSvg(chartArea, {
+      pixelRatio: exportConfig.resolutionMultiplier,
+      backgroundColor: bgColor,
+    });
+    const link = document.createElement('a');
+    link.download = 'chart.svg';
+    link.href = dataUrl;
+    link.click();
+  };
+
   const handleExportPDF = async () => {
     const canvas = document.querySelector('canvas');
+    const bgColor = getExportBackground();
     let imgData: string;
+    let imgWidth: number;
+    let imgHeight: number;
+
     if (canvas) {
-      imgData = canvas.toDataURL('image/png');
+      const multiplier = exportConfig.resolutionMultiplier;
+      const width = canvas.width;
+      const height = canvas.height;
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = width * multiplier;
+      scaledCanvas.height = height * multiplier;
+      const ctx = scaledCanvas.getContext('2d');
+      if (!ctx) return;
+      if (bgColor) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+      }
+      ctx.scale(multiplier, multiplier);
+      ctx.drawImage(canvas, 0, 0, width, height);
+      imgData = scaledCanvas.toDataURL('image/png');
+      imgWidth = scaledCanvas.width;
+      imgHeight = scaledCanvas.height;
     } else {
       const chartArea = document.querySelector('[data-chart-area]') as HTMLElement;
       if (!chartArea) return;
-      imgData = await toPng(chartArea);
+      imgData = await toPng(chartArea, {
+        pixelRatio: exportConfig.resolutionMultiplier,
+        backgroundColor: bgColor,
+      });
+      imgWidth = chartArea.offsetWidth * exportConfig.resolutionMultiplier;
+      imgHeight = chartArea.offsetHeight * exportConfig.resolutionMultiplier;
     }
-    const pdf = new jsPDF('landscape', 'mm', 'a4');
-    pdf.addImage(imgData, 'PNG', 10, 10, 277, 190);
+
+    // Match PDF page size to chart aspect ratio
+    const aspectRatio = imgWidth / imgHeight;
+    const pdfWidth = 297; // A4 landscape width in mm
+    const pdfHeight = pdfWidth / aspectRatio;
+    const pdf = new jsPDF({
+      orientation: aspectRatio >= 1 ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [pdfWidth, pdfHeight],
+    });
+    const margin = 10;
+    const contentWidth = pdfWidth - 2 * margin;
+    const contentHeight = contentWidth / aspectRatio;
+    pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
     pdf.save('chart.pdf');
   };
 
@@ -182,40 +261,27 @@ function FileTab() {
     <div className="flex items-stretch">
       <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" />
       <RibbonGroup label={t('file.import')}>
-        <button onClick={handleImport} className="ribbon-btn" title={t('file.importCsvExcel')}>
-          <FileUp size={20} />
+        <button onClick={handleImport} className="ribbon-btn" title={t('file.importCsvExcel')} aria-label={t('file.importData')}>
+          <FileUp size={16} />
           <span className="text-xs">{t('file.importData')}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('file.export')}>
-        <button onClick={handleExportPNG} className="ribbon-btn" title="导出 PNG">
-          <Download size={18} />
-          <span className="text-[10px]">PNG</span>
+        <button onClick={handleExportPNG} className="ribbon-btn" title="导出 PNG" aria-label="Export PNG">
+          <Download size={16} />
+          <span className="text-xs">PNG</span>
         </button>
-        <button onClick={handleExportPDF} className="ribbon-btn" title="导出 PDF">
-          <Download size={18} />
-          <span className="text-[10px]">PDF</span>
+        <button onClick={handleExportSVG} className="ribbon-btn" title="导出 SVG">
+          <Download size={16} />
+          <span className="text-xs">SVG</span>
         </button>
-        <button onClick={handleExportCSV} className="ribbon-btn" title="导出 CSV">
-          <Download size={18} />
-          <span className="text-[10px]">CSV</span>
+        <button onClick={handleExportPDF} className="ribbon-btn" title="导出 PDF" aria-label="Export PDF">
+          <Download size={16} />
+          <span className="text-xs">PDF</span>
         </button>
-      </RibbonGroup>
-      <RibbonGroup label={t('file.theme')}>
-        <button onClick={toggleTheme} className="ribbon-btn" title={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}>
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          <span className="text-[10px]">{theme === 'dark' ? t('file.light') : t('file.dark')}</span>
-        </button>
-        <button
-          onClick={() => {
-            const newLang = lang === 'zh' ? 'en' : 'zh';
-            setLang(newLang);
-          }}
-          className="ribbon-btn"
-          title={t('language.switch')}
-        >
-          <Languages size={20} />
-          <span className="text-[10px]">{lang === 'zh' ? 'EN' : '中'}</span>
+        <button onClick={handleExportCSV} className="ribbon-btn" title="导出 CSV" aria-label="Export CSV">
+          <Download size={16} />
+          <span className="text-xs">CSV</span>
         </button>
       </RibbonGroup>
     </div>
@@ -230,24 +296,24 @@ function GenerateTab() {
   return (
     <div className="flex items-stretch">
       <RibbonGroup label={t('generate.functionCurve')}>
-        <button onClick={() => addDataset(createSampleSineDataset())} className="ribbon-btn">
-          <Waves size={18} />
+        <button onClick={() => addDataset(createSampleSineDataset())} className="ribbon-btn" aria-label={t('generate.sine')}>
+          <Waves size={16} />
           <span className="text-xs">{t('generate.sine')}</span>
         </button>
-        <button onClick={() => addDataset(createSampleSurfaceDataset())} className="ribbon-btn">
-          <Mountain size={18} />
+        <button onClick={() => addDataset(createSampleSurfaceDataset())} className="ribbon-btn" aria-label={t('generate.sincSurface')}>
+          <Mountain size={16} />
           <span className="text-xs">{t('generate.sincSurface')}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('generate.shape3d')}>
-        <button onClick={() => addDataset(createSampleScatter3DDataset())} className="ribbon-btn">
-          <Circle size={18} />
+        <button onClick={() => addDataset(createSampleScatter3DDataset())} className="ribbon-btn" aria-label={t('generate.sphere')}>
+          <Circle size={16} />
           <span className="text-xs">{t('generate.sphere')}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('generate.other')}>
-        <button onClick={() => addDataset(createSampleBarDataset())} className="ribbon-btn">
-          <BarChart3 size={18} />
+        <button onClick={() => addDataset(createSampleBarDataset())} className="ribbon-btn" aria-label={t('generate.bar')}>
+          <BarChart3 size={16} />
           <span className="text-xs">{t('generate.bar')}</span>
         </button>
       </RibbonGroup>
@@ -283,102 +349,102 @@ function TransformTab() {
   return (
     <div className="flex items-stretch">
       <RibbonGroup label={t('transform.mathTransform')}>
-        <button onClick={() => transform(Math.log)} className="ribbon-btn" title="ln(y)">
+        <button onClick={() => transform(Math.log)} className="ribbon-btn" title="ln(y)" aria-label="ln(y)">
           <span className="text-sm font-mono">ln</span>
-          <span className="text-[10px]">{t('transform.log')}</span>
+          <span className="text-xs">{t('transform.log')}</span>
         </button>
-        <button onClick={() => transform(Math.log10)} className="ribbon-btn" title="log10(y)">
+        <button onClick={() => transform(Math.log10)} className="ribbon-btn" title="log10(y)" aria-label="log10(y)">
           <span className="text-sm font-mono">lg</span>
-          <span className="text-[10px]">{t('transform.log10')}</span>
+          <span className="text-xs">{t('transform.log10')}</span>
         </button>
-        <button onClick={() => transform(Math.exp)} className="ribbon-btn" title="e^y">
+        <button onClick={() => transform(Math.exp)} className="ribbon-btn" title="e^y" aria-label="e^y">
           <span className="text-sm font-mono">eˣ</span>
-          <span className="text-[10px]">{t('transform.exp')}</span>
+          <span className="text-xs">{t('transform.exp')}</span>
         </button>
-        <button onClick={() => transform(Math.sqrt)} className="ribbon-btn" title="√y">
+        <button onClick={() => transform(Math.sqrt)} className="ribbon-btn" title="√y" aria-label="√y">
           <span className="text-sm font-mono">√</span>
-          <span className="text-[10px]">{t('transform.sqrt')}</span>
+          <span className="text-xs">{t('transform.sqrt')}</span>
         </button>
-        <button onClick={() => transform((v) => v * v)} className="ribbon-btn" title="y²">
+        <button onClick={() => transform((v) => v * v)} className="ribbon-btn" title="y²" aria-label="y²">
           <span className="text-sm font-mono">x²</span>
-          <span className="text-[10px]">{t('transform.square')}</span>
+          <span className="text-xs">{t('transform.square')}</span>
         </button>
-        <button onClick={() => transform((v) => 1 / v)} className="ribbon-btn" title="1/y">
+        <button onClick={() => transform((v) => 1 / v)} className="ribbon-btn" title="1/y" aria-label="1/y">
           <span className="text-sm font-mono">1/x</span>
-          <span className="text-[10px]">{t('transform.reciprocal')}</span>
+          <span className="text-xs">{t('transform.reciprocal')}</span>
         </button>
-        <button onClick={() => transform(Math.abs)} className="ribbon-btn" title="|y|">
+        <button onClick={() => transform(Math.abs)} className="ribbon-btn" title="|y|" aria-label="|y|">
           <span className="text-sm font-mono">|x|</span>
-          <span className="text-[10px]">{t('transform.abs')}</span>
+          <span className="text-xs">{t('transform.abs')}</span>
         </button>
       </RibbonGroup>
 
       <RibbonGroup label={t('transform.trigTransform')}>
-        <button onClick={() => transform(Math.sin)} className="ribbon-btn" title="sin(y)">
+        <button onClick={() => transform(Math.sin)} className="ribbon-btn" title="sin(y)" aria-label="sin(y)">
           <span className="text-sm font-mono">sin</span>
         </button>
-        <button onClick={() => transform(Math.cos)} className="ribbon-btn" title="cos(y)">
+        <button onClick={() => transform(Math.cos)} className="ribbon-btn" title="cos(y)" aria-label="cos(y)">
           <span className="text-sm font-mono">cos</span>
         </button>
-        <button onClick={() => transform(Math.tan)} className="ribbon-btn" title="tan(y)">
+        <button onClick={() => transform(Math.tan)} className="ribbon-btn" title="tan(y)" aria-label="tan(y)">
           <span className="text-sm font-mono">tan</span>
         </button>
-        <button onClick={() => transform((v) => v * Math.PI / 180)} className="ribbon-btn" title="y° → rad">
+        <button onClick={() => transform((v) => v * Math.PI / 180)} className="ribbon-btn" title="y° → rad" aria-label="deg to rad">
           <span className="text-sm font-mono">°→r</span>
-          <span className="text-[10px]">{t('transform.degToRad')}</span>
+          <span className="text-xs">{t('transform.degToRad')}</span>
         </button>
       </RibbonGroup>
 
       <RibbonGroup label={t('transform.computedCol')}>
-        <button onClick={() => compute('x+y', (r) => (r[activeDs!.columns[0].name] ?? 0) + (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X + Y">
+        <button onClick={() => compute('x+y', (r) => (r[activeDs!.columns[0].name] ?? 0) + (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X + Y" aria-label="X + Y">
           <span className="text-sm font-mono">+</span>
-          <span className="text-[10px]">{t('transform.add')}</span>
+          <span className="text-xs">{t('transform.add')}</span>
         </button>
-        <button onClick={() => compute('x-y', (r) => (r[activeDs!.columns[0].name] ?? 0) - (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X - Y">
+        <button onClick={() => compute('x-y', (r) => (r[activeDs!.columns[0].name] ?? 0) - (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X - Y" aria-label="X - Y">
           <span className="text-sm font-mono">−</span>
-          <span className="text-[10px]">{t('transform.sub')}</span>
+          <span className="text-xs">{t('transform.sub')}</span>
         </button>
-        <button onClick={() => compute('x*y', (r) => (r[activeDs!.columns[0].name] ?? 0) * (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X × Y">
+        <button onClick={() => compute('x*y', (r) => (r[activeDs!.columns[0].name] ?? 0) * (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X × Y" aria-label="X × Y">
           <span className="text-sm font-mono">×</span>
-          <span className="text-[10px]">{t('transform.mul')}</span>
+          <span className="text-xs">{t('transform.mul')}</span>
         </button>
-        <button onClick={() => compute('x/y', (r) => { const d = r[activeDs!.columns[1].name]; return d ? r[activeDs!.columns[0].name] / d : NaN; })} className="ribbon-btn" title="X ÷ Y">
+        <button onClick={() => compute('x/y', (r) => { const d = r[activeDs!.columns[1].name]; return d ? r[activeDs!.columns[0].name] / d : NaN; })} className="ribbon-btn" title="X ÷ Y" aria-label="X ÷ Y">
           <span className="text-sm font-mono">÷</span>
-          <span className="text-[10px]">{t('transform.div')}</span>
+          <span className="text-xs">{t('transform.div')}</span>
         </button>
       </RibbonGroup>
 
       <RibbonGroup label={t('transform.dataOps')}>
         <button
           onClick={() => { if (activeDs && yCol) sortDataset(activeDs.id, yCol.id, true); }}
-          className="ribbon-btn" title={t('transform.sortAsc')}
+          className="ribbon-btn" title={t('transform.sortAsc')} aria-label={t('transform.sortAsc')}
         >
           <ArrowUpDown size={16} />
-          <span className="text-[10px]">{t('transform.asc')}</span>
+          <span className="text-xs">{t('transform.asc')}</span>
         </button>
         <button
           onClick={() => { if (activeDs && yCol) sortDataset(activeDs.id, yCol.id, false); }}
-          className="ribbon-btn" title={t('transform.sortDesc')}
+          className="ribbon-btn" title={t('transform.sortDesc')} aria-label={t('transform.sortDesc')}
         >
           <ArrowUpDown size={16} className="rotate-180" />
-          <span className="text-[10px]">{t('transform.desc')}</span>
+          <span className="text-xs">{t('transform.desc')}</span>
         </button>
         <button
           onClick={() => { if (activeDs && yCol) normalizeColumn(activeDs.id, yCol.id); }}
-          className="ribbon-btn" title={t('transform.normalizeTip')}
+          className="ribbon-btn" title={t('transform.normalizeTip')} aria-label={t('transform.normalize')}
         >
           <Minimize2 size={16} />
-          <span className="text-[10px]">{t('transform.normalize')}</span>
+          <span className="text-xs">{t('transform.normalize')}</span>
         </button>
         {activeDs && (
           <>
-            <button onClick={() => addColumn(activeDs.id)} className="ribbon-btn" title={t('transform.addColTip')}>
+            <button onClick={() => addColumn(activeDs.id)} className="ribbon-btn" title={t('transform.addColTip')} aria-label={t('transform.addCol')}>
               <Plus size={16} />
-              <span className="text-[10px]">{t('transform.addCol')}</span>
+              <span className="text-xs">{t('transform.addCol')}</span>
             </button>
-            <button onClick={() => addRow(activeDs.id)} className="ribbon-btn" title={t('transform.addRowTip')}>
+            <button onClick={() => addRow(activeDs.id)} className="ribbon-btn" title={t('transform.addRowTip')} aria-label={t('transform.addRow')}>
               <Plus size={16} />
-              <span className="text-[10px]">{t('transform.addRow')}</span>
+              <span className="text-xs">{t('transform.addRow')}</span>
             </button>
           </>
         )}
@@ -406,11 +472,16 @@ function ChartTab() {
           <button
             key={type}
             onClick={() => setChartType(type)}
-            className={`ribbon-btn ${chartConfig.type === type ? 'bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/50' : ''} ${group === '3d' ? 'ml-1 border-l border-zinc-700 pl-2' : ''}`}
+            className={`ribbon-btn ${chartConfig.type === type ? 'ring-1 ring-sky-500/50' : ''} ${group === '3d' ? 'ml-1 border-l pl-2' : ''}`}
+            style={{
+              ...(chartConfig.type === type ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : {}),
+              ...(group === '3d' ? { borderColor: 'var(--border)' } : {}),
+            }}
             title={label}
+            aria-label={label}
           >
             {icon}
-            <span className="text-[10px]">{label}</span>
+            <span className="text-xs">{label}</span>
           </button>
         ))}
       </RibbonGroup>
@@ -420,8 +491,10 @@ function ChartTab() {
           type="text"
           value={chartConfig.title}
           onChange={(e) => setChartTitle(e.target.value)}
-          className="w-40 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none focus:border-sky-500/50"
+          className="w-40 border rounded px-2 py-1 text-xs outline-none focus:border-sky-500/50"
+          style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           placeholder={t('chart.titlePlaceholder')}
+          aria-label={t('chart.title')}
         />
       </RibbonGroup>
 
@@ -429,56 +502,64 @@ function ChartTab() {
         <>
           <RibbonGroup label={t('chart.lighting')}>
             <div className="flex items-center gap-1">
-              <Sun size={14} className="text-zinc-500" />
+              <Sun size={14} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="range" min="0" max="1" step="0.05"
                 value={scene3D.ambientIntensity}
                 onChange={(e) => setScene3D({ ambientIntensity: Number(e.target.value) })}
-                className="w-16 accent-sky-500"
+                className="w-16"
+                style={{ accentColor: 'var(--accent)' }}
+                aria-label={t('chart.lighting')}
               />
             </div>
           </RibbonGroup>
           <RibbonGroup label={t('chart.opacity')}>
             <div className="flex items-center gap-1">
-              <Droplets size={14} className="text-zinc-500" />
+              <Droplets size={14} style={{ color: 'var(--text-muted)' }} />
               <input
                 type="range" min="0.1" max="1" step="0.05"
                 value={scene3D.opacity}
                 onChange={(e) => setScene3D({ opacity: Number(e.target.value) })}
-                className="w-16 accent-sky-500"
+                className="w-16"
+                style={{ accentColor: 'var(--accent)' }}
+                aria-label={t('chart.opacity')}
               />
             </div>
           </RibbonGroup>
           <RibbonGroup label={t('chart.colorMap')}>
-            <div className="flex items-center gap-1">
-              <Palette size={14} className="text-zinc-500" />
-              <div className="flex gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <Palette size={14} style={{ color: 'var(--text-muted)' }} />
+              <div className="flex gap-1">
                 {colorMapNames.map((name) => (
                   <button
                     key={name}
                     onClick={() => setScene3D({ colorMap: name })}
-                    className={`w-5 h-3 rounded-sm border transition-all ${
-                      scene3D.colorMap === name ? 'border-sky-400 scale-110' : 'border-zinc-600'
+                    className={`w-8 h-5 rounded-sm border transition-all focus:ring-2 focus:ring-offset-1 ${
+                      scene3D.colorMap === name ? 'scale-110' : ''
                     }`}
-                    style={{ background: getColorMapGradient(name) }}
+                    style={{ background: getColorMapGradient(name), borderColor: scene3D.colorMap === name ? 'var(--accent)' : 'var(--border)' }}
+                    aria-label={name}
                     title={name}
                   />
                 ))}
               </div>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{scene3D.colorMap}</span>
             </div>
           </RibbonGroup>
           <RibbonGroup label={t('chart.viewpoint')}>
-            <button onClick={() => setScene3D({ cameraPosition: [3, 3, 3] })} className="ribbon-btn" title={t('chart.resetView')}>
+            <button onClick={() => setScene3D({ cameraPosition: [3, 3, 3] })} className="ribbon-btn" title={t('chart.resetView')} aria-label={t('chart.resetView')}>
               <RotateCcw size={16} />
-              <span className="text-[10px]">{t('chart.reset')}</span>
+              <span className="text-xs">{t('chart.reset')}</span>
             </button>
             <button
               onClick={() => setScene3D({ showAxes: !scene3D.showAxes })}
-              className={`ribbon-btn ${scene3D.showAxes ? 'text-sky-400' : ''}`}
+              className="ribbon-btn"
+              style={scene3D.showAxes ? { color: 'var(--accent)' } : undefined}
               title={t('chart.toggleAxes')}
+              aria-label={t('chart.toggleAxes')}
             >
               <Eye size={16} />
-              <span className="text-[10px]">{t('chart.axes')}</span>
+              <span className="text-xs">{t('chart.axes')}</span>
             </button>
           </RibbonGroup>
         </>
@@ -505,6 +586,7 @@ function AnnotationTab() {
             key={type}
             onClick={() => addAnnotation(createDefaultAnnotation(type, t))}
             className="ribbon-btn"
+            aria-label={label}
           >
             {icon}
             <span className="text-xs">{label}</span>
@@ -516,14 +598,15 @@ function AnnotationTab() {
         <RibbonGroup label={t('annotation.annotationList')}>
           <div className="flex items-center gap-2 max-w-[600px] overflow-x-auto">
             {annotations.map((ann) => (
-              <div key={ann.id} className="flex items-center gap-1 shrink-0 bg-zinc-800/50 rounded px-1.5 py-1">
+              <div key={ann.id} className="flex items-center gap-1 shrink-0 rounded px-1.5 py-1" style={{ background: 'var(--bg-input)' }}>
                 <button
                   onClick={() => updateAnnotation(ann.id, { visible: !ann.visible })}
-                  className="text-zinc-400 hover:text-zinc-200"
+                  style={{ color: 'var(--text-secondary)' }}
+                  aria-label={ann.visible ? t('annotation.hide', 'Hide annotation') : t('annotation.show', 'Show annotation')}
                 >
                   {ann.visible ? <Eye size={11} /> : <EyeOff size={11} />}
                 </button>
-                <span className="text-[10px] text-zinc-500 uppercase w-8">
+                <span className="text-xs uppercase w-8" style={{ color: 'var(--text-muted)' }}>
                   {ann.type === 'latex' ? 'TeX' : ann.type}
                 </span>
                 {(ann.type === 'text' || ann.type === 'latex') && (
@@ -531,8 +614,10 @@ function AnnotationTab() {
                     type="text"
                     value={ann.content}
                     onChange={(e) => updateAnnotation(ann.id, { content: e.target.value })}
-                    className="w-24 bg-zinc-900 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 outline-none focus:border-sky-500/50"
+                    className="w-24 border rounded px-1.5 py-0.5 text-xs outline-none focus:border-sky-500/50"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                     placeholder={ann.type === 'latex' ? '$E=mc^2$' : t('annotation.textPlaceholder')}
+                    aria-label={ann.type === 'latex' ? 'LaTeX content' : t('annotation.textPlaceholder')}
                   />
                 )}
                 <input
@@ -540,10 +625,12 @@ function AnnotationTab() {
                   value={ann.color}
                   onChange={(e) => updateAnnotation(ann.id, { color: e.target.value })}
                   className="w-4 h-4 rounded cursor-pointer bg-transparent border-0"
+                  aria-label={t('annotation.color', 'Annotation color')}
                 />
                 <button
                   onClick={() => removeAnnotation(ann.id)}
-                  className="text-zinc-600 hover:text-rose-400"
+                  style={{ color: 'var(--text-faint)' }}
+                  aria-label={t('annotation.delete', 'Delete annotation')}
                 >
                   <Trash2 size={11} />
                 </button>
@@ -590,6 +677,7 @@ export default function Ribbon() {
             } : {
               color: 'var(--text-muted)',
             }}
+            aria-label={tab.label}
           >
             {tab.label}
           </button>

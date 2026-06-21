@@ -28,10 +28,13 @@ export default function Scene3DControls() {
               onClick={() => setScene3D({ colorMap: name })}
               className={`h-5 rounded text-[10px] font-mono transition-all ${
                 scene3D.colorMap === name
-                  ? 'ring-1 ring-sky-400 scale-105'
+                  ? 'ring-1 scale-105'
                   : 'opacity-70 hover:opacity-100'
               }`}
-              style={{ background: getColorMapGradient(name) }}
+              style={{
+                background: getColorMapGradient(name),
+                ...(scene3D.colorMap === name ? { boxShadow: '0 0 0 1px var(--accent)' } : {}),
+              }}
             >
               <span className="text-white drop-shadow-md">{name}</span>
             </button>
@@ -114,20 +117,16 @@ export default function Scene3DControls() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => setScene3D({ showAxes: !scene3D.showAxes })}
-          className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
-            scene3D.showAxes ? 'bg-sky-500/20 text-sky-400' : ''
-          }`}
-          style={!scene3D.showAxes ? { color: 'var(--text-muted)' } : undefined}
+          className={`flex items-center gap-1 px-2 py-1 rounded transition-colors`}
+          style={scene3D.showAxes ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : { color: 'var(--text-muted)' }}
         >
           {scene3D.showAxes ? <Eye size={12} /> : <EyeOff size={12} />}
           {t('scene3d.axes')}
         </button>
         <button
           onClick={() => setScene3D({ bloom: !scene3D.bloom })}
-          className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
-            scene3D.bloom ? 'bg-sky-500/20 text-sky-400' : ''
-          }`}
-          style={!scene3D.bloom ? { color: 'var(--text-muted)' } : undefined}
+          className={`flex items-center gap-1 px-2 py-1 rounded transition-colors`}
+          style={scene3D.bloom ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : { color: 'var(--text-muted)' }}
         >
           <Sparkles size={12} />
           {t('scene3d.bloom')}
