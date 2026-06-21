@@ -14,6 +14,7 @@ export default function DataTable() {
   const addRow = usePlotStore((s) => s.addRow);
   const removeRow = usePlotStore((s) => s.removeRow);
   const setColumnType = usePlotStore((s) => s.setColumnType);
+  const renameColumn = usePlotStore((s) => s.renameColumn);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
   if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>{t('data.noDataset')}</div>;
@@ -77,7 +78,7 @@ export default function DataTable() {
                     <select
                       value={col.type}
                       onChange={(e) => setColumnType(dataset.id, col.id, e.target.value as DataColumn['type'])}
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer outline-none ${typeColors[col.type].className}`}
+                      className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer outline-none ${typeColors[col.type].className}`}
                       style={typeColors[col.type].style}
                     >
                       {typeOptions.map((opt) => (
@@ -89,11 +90,7 @@ export default function DataTable() {
                         type="text"
                         value={col.name}
                         onChange={(e) => {
-                          const ds = usePlotStore.getState().datasets.find((d) => d.id === dataset.id);
-                          if (!ds) return;
-                          usePlotStore.getState().updateDataset(dataset.id, {
-                            columns: ds.columns.map((c) => c.id === col.id ? { ...c, name: e.target.value } : c),
-                          });
+                          renameColumn(dataset.id, col.id, e.target.value);
                         }}
                         className="flex-1 text-center outline-none min-w-0"
                         style={{ background: 'transparent', color: 'var(--text-primary)' }}
