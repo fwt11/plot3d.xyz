@@ -1,8 +1,10 @@
-import { usePlotStore } from '@/store/plotStore';
+import { useChartStore } from '@/store/chartStore';
+import { is3DChart } from '@/utils/chart';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AxisConfig, ExportBackground } from '@/types';
+import Scene3DControls from '@/components/Scene3DControls';
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -10,7 +12,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
     <div className="border-b" style={{ borderColor: 'var(--border)' }}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 w-full px-3 py-2 text-xs font-medium transition-colors"
+        className="flex items-center gap-1 w-full px-3 py-2 text-sm font-medium transition-colors"
         style={{ color: 'var(--text-primary)' }}
         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(63,63,70,0.3)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
@@ -28,8 +30,8 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
   const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
-      <div className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
-      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('config.label')}
         <input
           type="text"
@@ -40,7 +42,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
           aria-label={`${label} ${t('config.label')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('config.autoRange')}
         <input
           type="checkbox"
@@ -52,7 +54,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
       </label>
       {!axis.autoRange && (
         <div className="flex gap-2">
-          <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('config.min')}
             <input
               type="number"
@@ -63,7 +65,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
               aria-label={`${label} ${t('config.min')}`}
             />
           </label>
-          <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('config.max')}
             <input
               type="number"
@@ -76,7 +78,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
           </label>
         </div>
       )}
-      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('config.showGrid')}
         <input
           type="checkbox"
@@ -86,7 +88,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
           aria-label={`${label} ${t('config.showGrid')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('config.logScale')}
         <input
           type="checkbox"
@@ -96,7 +98,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
           aria-label={`${label} ${t('config.logScale')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('config.scientificNotation')}
         <input
           type="checkbox"
@@ -112,7 +114,7 @@ function AxisEditor({ label, axis, onChange }: { label: string; axis: AxisConfig
 
 function MarginInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
+    <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
       {label}
       <input
         type="number"
@@ -128,14 +130,16 @@ function MarginInput({ label, value, onChange }: { label: string; value: number;
 
 export default function ConfigPanel() {
   const { t } = useTranslation();
-  const chartConfig = usePlotStore((s) => s.chartConfig);
-  const setChartTitle = usePlotStore((s) => s.setChartTitle);
-  const setXAxis = usePlotStore((s) => s.setXAxis);
-  const setYAxis = usePlotStore((s) => s.setYAxis);
-  const setLegend = usePlotStore((s) => s.setLegend);
-  const setMargins = usePlotStore((s) => s.setMargins);
-  const setExportConfig = usePlotStore((s) => s.setExportConfig);
-  const setFontSize = usePlotStore((s) => s.setFontSize);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const is3D = is3DChart(chartConfig.type);
+  const setChartTitle = useChartStore((s) => s.setChartTitle);
+  const setXAxis = useChartStore((s) => s.setXAxis);
+  const setYAxis = useChartStore((s) => s.setYAxis);
+  const setZAxis = useChartStore((s) => s.setZAxis);
+  const setLegend = useChartStore((s) => s.setLegend);
+  const setMargins = useChartStore((s) => s.setMargins);
+  const setExportConfig = useChartStore((s) => s.setExportConfig);
+  const setFontSize = useChartStore((s) => s.setFontSize);
 
   return (
     <div className="h-full overflow-y-auto text-xs">
@@ -158,8 +162,20 @@ export default function ConfigPanel() {
         <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} />
       </Section>
 
+      {is3D && chartConfig.zAxis && (
+        <Section title={t('config.zAxis')}>
+          <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} />
+        </Section>
+      )}
+
+      {is3D && (
+        <Section title={t('scene3d.controls')}>
+          <Scene3DControls />
+        </Section>
+      )}
+
       <Section title={t('config.legend')}>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {t('config.showLegend')}
           <input
             type="checkbox"
@@ -170,7 +186,7 @@ export default function ConfigPanel() {
           />
         </label>
         {chartConfig.legend.visible && (
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('config.position')}
             <select
               value={chartConfig.legend.position}
@@ -198,7 +214,7 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.export')} defaultOpen={false}>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {t('config.resolution')}
           <select
             value={chartConfig.exportConfig.resolutionMultiplier}
@@ -212,7 +228,7 @@ export default function ConfigPanel() {
             <option value={4}>4x</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {t('config.background')}
           <select
             value={chartConfig.exportConfig.background}
@@ -229,7 +245,7 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.fontSize')} defaultOpen={false}>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
           {t('config.fontSize')}
           <input
             type="number"

@@ -1,20 +1,22 @@
-import { usePlotStore } from '@/store/plotStore';
+import { useScene3DStore } from '@/store/scene3DStore';
+import { useChartStore } from '@/store/chartStore';
+import { is3DChart } from '@/utils/chart';
 import { getColorMapGradient } from '@/utils/colormaps';
-import type { ColorMapName } from '@/types';
+import { colorMapNames } from '@/utils/chart';
 import { RotateCcw, Eye, EyeOff, Sun, Droplets, Palette, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-const colorMapNames: ColorMapName[] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma'];
-
 export default function Scene3DControls() {
   const { t } = useTranslation();
-  const scene3D = usePlotStore((s) => s.scene3D);
-  const setScene3D = usePlotStore((s) => s.setScene3D);
+  const scene3D = useScene3DStore((s) => s.scene3D);
+  const setScene3D = useScene3DStore((s) => s.setScene3D);
+  const chartType = useChartStore((s) => s.chartConfig.type);
+  const is3D = is3DChart(chartType);
+
+  if (!is3D) return null;
 
   return (
-    <div className="absolute top-4 right-4 w-56 backdrop-blur-md rounded-lg p-3 space-y-3 text-xs" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-      <div className="font-medium text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{t('scene3d.controls')}</div>
-
+    <div className="space-y-3 text-xs">
       {/* Color Map */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
@@ -26,7 +28,7 @@ export default function Scene3DControls() {
             <button
               key={name}
               onClick={() => setScene3D({ colorMap: name })}
-              className={`h-5 rounded text-[10px] font-mono transition-all ${
+              className={`h-5 rounded text-xs font-mono transition-all ${
                 scene3D.colorMap === name
                   ? 'ring-1 scale-105'
                   : 'opacity-70 hover:opacity-100'
@@ -119,6 +121,7 @@ export default function Scene3DControls() {
           onClick={() => setScene3D({ showAxes: !scene3D.showAxes })}
           className={`flex items-center gap-1 px-2 py-1 rounded transition-colors`}
           style={scene3D.showAxes ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : { color: 'var(--text-muted)' }}
+          aria-pressed={scene3D.showAxes}
         >
           {scene3D.showAxes ? <Eye size={12} /> : <EyeOff size={12} />}
           {t('scene3d.axes')}
@@ -127,6 +130,7 @@ export default function Scene3DControls() {
           onClick={() => setScene3D({ bloom: !scene3D.bloom })}
           className={`flex items-center gap-1 px-2 py-1 rounded transition-colors`}
           style={scene3D.bloom ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : { color: 'var(--text-muted)' }}
+          aria-pressed={scene3D.bloom}
         >
           <Sparkles size={12} />
           {t('scene3d.bloom')}
