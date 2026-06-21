@@ -12,6 +12,44 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Default (dark) CSS variables so Chart.js can read them before data-theme is set */
+  --bg-base: #1a1a2e;
+  --bg-panel: rgba(24, 24, 39, 0.3);
+  --bg-surface: #27272a;
+  --bg-surface-hover: #3f3f46;
+  --bg-input: #18181b;
+  --border: rgba(63, 63, 70, 0.5);
+  --text-primary: #d4d4d8;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-faint: #52525b;
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --danger: #fb7185;
+  --danger-hover: #f43f5e;
+  --color-x: #34d399;
+  --color-y: #38bdf8;
+  --color-z: #c084fc;
+  --color-label: #fbbf24;
+  --color-error: #fb7185;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-hover: #52525b;
+  --chart-bg: #1e1e32;
+  --grid-color: rgba(63, 63, 70, 0.5);
+  --axis-color: #52525b;
+  --axis-text: #71717a;
+  --scene-bg-from: #0f0f1a;
+  --scene-bg-to: #1a1a2e;
+  --panel-width-left: 288px;
+  --panel-width-right: 256px;
+  --ribbon-height: 80px;
+  --z-base: 0;
+  --z-panel: 10;
+  --z-overlay: 20;
+  --z-modal: 30;
+  --z-toast: 40;
+  --z-top: 50;
 }
 
 /* ─── Dark theme (default) ─── */
@@ -28,6 +66,13 @@
   --text-faint: #52525b;
   --accent: #38bdf8;
   --accent-hover: #0ea5e9;
+  --danger: #fb7185;
+  --danger-hover: #f43f5e;
+  --color-x: #34d399;
+  --color-y: #38bdf8;
+  --color-z: #c084fc;
+  --color-label: #fbbf24;
+  --color-error: #fb7185;
   --scrollbar-thumb: #3f3f46;
   --scrollbar-hover: #52525b;
   --chart-bg: #1e1e32;
@@ -36,6 +81,15 @@
   --axis-text: #71717a;
   --scene-bg-from: #0f0f1a;
   --scene-bg-to: #1a1a2e;
+  --panel-width-left: 288px;
+  --panel-width-right: 256px;
+  --ribbon-height: 80px;
+  --z-base: 0;
+  --z-panel: 10;
+  --z-overlay: 20;
+  --z-modal: 30;
+  --z-toast: 40;
+  --z-top: 50;
 }
 
 /* ─── Light theme ─── */
@@ -52,6 +106,13 @@
   --text-faint: #94a3b8;
   --accent: #0284c7;
   --accent-hover: #0369a1;
+  --danger: #e11d48;
+  --danger-hover: #be123c;
+  --color-x: #059669;
+  --color-y: #0284c7;
+  --color-z: #7c3aed;
+  --color-label: #d97706;
+  --color-error: #e11d48;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-hover: #94a3b8;
   --chart-bg: #ffffff;
@@ -60,10 +121,24 @@
   --axis-text: #64748b;
   --scene-bg-from: #e2e8f0;
   --scene-bg-to: #f1f5f9;
+  --panel-width-left: 288px;
+  --panel-width-right: 256px;
+  --ribbon-height: 80px;
+  --z-base: 0;
+  --z-panel: 10;
+  --z-overlay: 20;
+  --z-modal: 30;
+  --z-toast: 40;
+  --z-top: 50;
 }
 
 code, pre, .font-mono {
   font-family: 'JetBrains Mono', monospace;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Scrollbar */
@@ -116,7 +191,7 @@ input[type="number"] {
   }
 
   .ribbon-btn {
-    @apply flex flex-col items-center gap-0.5 px-2.5 py-1 rounded transition-colors;
+    @apply flex flex-col items-center gap-0.5 px-3 py-1.5 rounded transition-colors;
     color: var(--text-muted);
   }
   .ribbon-btn:hover {
