@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import i18n from '@/i18n';
-import type { Dataset, DataColumn, ChartConfig, Scene3DConfig, AxisConfig, LayerConfig, ChartType, Annotation } from '@/types';
+import type { Dataset, DataColumn, ChartConfig, Scene3DConfig, AxisConfig, LayerConfig, ChartType, Annotation, ExportConfig } from '@/types';
 import { uid, createSampleSineDataset } from '@/utils/sampleData';
 
 interface PlotStore {
@@ -10,12 +10,21 @@ interface PlotStore {
   activeDatasetId: string | null;
   chartConfig: ChartConfig;
   scene3D: Scene3DConfig;
+  pendingChartTypeSuggestion: ChartType | null;
+  _past: Partial<PlotStore>[];
+  _future: Partial<PlotStore>[];
 
   // Theme
   toggleTheme: () => void;
 
   // Language
   setLang: (lang: 'zh' | 'en') => void;
+
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 
   // Dataset actions
   addDataset: (dataset: Dataset) => void;
@@ -28,6 +37,7 @@ interface PlotStore {
   addRow: (datasetId: string) => void;
   removeRow: (datasetId: string, rowIndex: number) => void;
   setColumnType: (datasetId: string, columnId: string, type: DataColumn['type']) => void;
+  renameColumn: (datasetId: string, columnId: string, name: string) => void;
   transformColumn: (datasetId: string, columnId: string, fn: (val: number) => number) => void;
   addComputedColumn: (datasetId: string, name: string, fn: (row: Record<string, number>) => number) => void;
   sortDataset: (datasetId: string, columnId: string, ascending: boolean) => void;
@@ -44,6 +54,13 @@ interface PlotStore {
   addLayer: (layer: LayerConfig) => void;
   removeLayer: (layerId: string) => void;
   updateLayer: (layerId: string, data: Partial<LayerConfig>) => void;
+  setMargins: (margins: { marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number }) => void;
+  setExportConfig: (config: Partial<ExportConfig>) => void;
+  setFontSize: (fontSize: number) => void;
+
+  // Chart type suggestion actions
+  acceptChartTypeSuggestion: () => void;
+  dismissChartTypeSuggestion: () => void;
 
   // Annotation actions
   addAnnotation: (annotation: Annotation) => void;
@@ -59,6 +76,7 @@ const defaultAxis: AxisConfig = {
   autoRange: true,
   gridVisible: true,
   logScale: false,
+  scientificNotation: false,
 };
 
 const defaultDataset = createSampleSineDataset();
@@ -72,6 +90,12 @@ const defaultChartConfig: ChartConfig = {
   legend: { visible: true, position: 'top' },
   colorMap: 'jet',
   annotations: [],
+  marginTop: 40,
+  marginRight: 40,
+  marginBottom: 40,
+  marginLeft: 40,
+  exportConfig: { resolutionMultiplier: 2, background: 'transparent' },
+  fontSize: 12,
   layers: [
     {
       id: uid(),
@@ -80,16 +104,38 @@ const defaultChartConfig: ChartConfig = {
       yColumn: defaultDataset.columns[1].id,
       color: '#0ea5e9',
       visible: true,
+      lineStyle: 'solid',
+      lineWidth: 2,
+      pointStyle: 'circle',
+      pointSize: 3,
+      fill: false,
     },
   ],
 };
 
-export const usePlotStore = create<PlotStore>((set) => ({
+const MAX_HISTORY = 50;
+
+export const usePlotStore = create<PlotStore>()((set, get) => {
+  const setWithHistory = (partial: Partial<PlotStore> | ((s: PlotStore) => Partial<PlotStore>)) => {
+    const currentSnapshot = {
+      datasets: get().datasets,
+      chartConfig: get().chartConfig,
+      activeDatasetId: get().activeDatasetId,
+    };
+    set((s) => ({
+      _past: [...s._past.slice(-(MAX_HISTORY - 1)), currentSnapshot],
+      _future: [],
+    }));
+    set(partial);
+  };
+
+  return {
   theme: 'dark',
   lang: (i18n.language?.startsWith('en') ? 'en' : 'zh') as 'zh' | 'en',
   datasets: [defaultDataset],
   activeDatasetId: defaultDataset.id,
   chartConfig: defaultChartConfig,
+  pendingChartTypeSuggestion: null,
   scene3D: {
     cameraPosition: [3, 3, 3],
     lightAngle: [45, 45],
@@ -101,8 +147,50 @@ export const usePlotStore = create<PlotStore>((set) => ({
     antialias: true,
     bloom: false,
   },
+  _past: [],
+  _future: [],
 
-  toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+  undo: () => {
+    const { _past, _future } = get();
+    if (_past.length === 0) return;
+    const previous = _past[_past.length - 1];
+    const currentSnapshot = {
+      datasets: get().datasets,
+      chartConfig: get().chartConfig,
+      activeDatasetId: get().activeDatasetId,
+    };
+    set({
+      ...previous,
+      _past: _past.slice(0, -1),
+      _future: [currentSnapshot, ..._future],
+    });
+  },
+
+  redo: () => {
+    const { _past, _future } = get();
+    if (_future.length === 0) return;
+    const next = _future[0];
+    const currentSnapshot = {
+      datasets: get().datasets,
+      chartConfig: get().chartConfig,
+      activeDatasetId: get().activeDatasetId,
+    };
+    set({
+      ...next,
+      _past: [..._past, currentSnapshot],
+      _future: _future.slice(1),
+    });
+  },
+
+  canUndo: () => get()._past.length > 0,
+  canRedo: () => get()._future.length > 0,
+
+  toggleTheme: () => {
+    const newTheme = get().theme === 'dark' ? 'light' : 'dark';
+    // Sync data-theme to documentElement immediately so cssVar() reads correct values during render
+    document.documentElement.setAttribute('data-theme', newTheme);
+    set({ theme: newTheme });
+  },
 
   setLang: (lang) => {
     i18n.changeLanguage(lang);
@@ -110,9 +198,8 @@ export const usePlotStore = create<PlotStore>((set) => ({
   },
 
   addDataset: (dataset) =>
-    set((s) => {
+    setWithHistory((s) => {
       const hasZ = dataset.columns.some((c) => c.type === 'Z');
-      const hasY = dataset.columns.some((c) => c.type === 'Y');
       const xCol = dataset.columns.find((c) => c.type === 'X') ?? dataset.columns[0];
       const yCol = dataset.columns.find((c) => c.type === 'Y') ?? dataset.columns[1];
       const zCol = dataset.columns.find((c) => c.type === 'Z');
@@ -128,55 +215,51 @@ export const usePlotStore = create<PlotStore>((set) => ({
           zColumn: zCol?.id,
           color: `hsl(${Math.random() * 360}, 70%, 55%)`,
           visible: true,
+          lineStyle: 'solid',
+          lineWidth: 2,
+          pointStyle: 'circle',
+          pointSize: 3,
+          fill: false,
         }];
       }
 
-      // Auto-set chart type based on data
-      let newType = s.chartConfig.type;
+      // Suggest chart type instead of auto-switching
+      let suggestion: ChartType | null = null;
       if (hasZ) {
-        // If data has Z column, switch to 3D
-        // For scatter-like data (many unique X/Y values), use scatter3d
-        // For grid-like data, use surface3d
         const xVals = xCol?.values.map(Number) ?? [];
         const yVals = yCol?.values.map(Number) ?? [];
         const uniqueXRatio = new Set(xVals.map((v) => v.toFixed(2))).size / (xVals.length || 1);
         const uniqueYRatio = new Set(yVals.map((v) => v.toFixed(2))).size / (yVals.length || 1);
-        // If most X and Y values are unique (scatter), use scatter3d
-        // If there are many repeated values (grid), use surface3d
         if (uniqueXRatio > 0.5 && uniqueYRatio > 0.5) {
-          newType = 'scatter3d';
+          suggestion = 'scatter3d';
         } else {
-          newType = 'surface3d';
-        }
-      } else if (hasY && !hasZ) {
-        // If currently 3D but new data has no Z, switch to 2D
-        if (['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(s.chartConfig.type)) {
-          newType = 'line';
+          suggestion = 'surface3d';
         }
       }
 
       return {
         datasets: [...s.datasets, dataset],
         activeDatasetId: dataset.id,
-        chartConfig: { ...s.chartConfig, type: newType, layers: newLayers },
+        chartConfig: { ...s.chartConfig, layers: newLayers },
+        pendingChartTypeSuggestion: suggestion,
       };
     }),
 
   removeDataset: (id) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.filter((d) => d.id !== id),
       activeDatasetId: s.activeDatasetId === id ? (s.datasets[0]?.id ?? null) : s.activeDatasetId,
     })),
 
   updateDataset: (id, data) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) => (d.id === id ? { ...d, ...data } : d)),
     })),
 
   setActiveDataset: (id) => set({ activeDatasetId: id }),
 
   updateCellValue: (datasetId, columnId, rowIndex, value) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? {
@@ -192,7 +275,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   addColumn: (datasetId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? {
@@ -212,7 +295,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   removeColumn: (datasetId, columnId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? { ...d, columns: d.columns.filter((c) => c.id !== columnId) }
@@ -221,7 +304,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   addRow: (datasetId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? {
@@ -236,7 +319,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   removeRow: (datasetId, rowIndex) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? {
@@ -251,17 +334,15 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   setColumnType: (datasetId, columnId, type) =>
-    set((s) => {
+    setWithHistory((s) => {
       const newType = type as DataColumn['type'];
 
-      // Compute the new datasets first to check for Z columns
       const newDatasets = s.datasets.map((d) =>
         d.id === datasetId
           ? { ...d, columns: d.columns.map((c) => (c.id === columnId ? { ...c, type: newType } : c)) }
           : d
       );
 
-      // Check if any dataset has Z columns
       const hasZColumn = newDatasets.some((d) => d.columns.some((c) => c.type === 'Z'));
       const isCurrently3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(s.chartConfig.type);
 
@@ -272,7 +353,6 @@ export const usePlotStore = create<PlotStore>((set) => ({
         newChartType = 'line';
       }
 
-      // Auto-create a layer for the dataset if none exists
       let layers = s.chartConfig.layers;
       const hasLayerForDs = layers.some((l) => l.datasetId === datasetId);
       if (!hasLayerForDs) {
@@ -290,6 +370,11 @@ export const usePlotStore = create<PlotStore>((set) => ({
               zColumn: zCol?.id,
               color: `hsl(${Math.random() * 360}, 70%, 55%)`,
               visible: true,
+              lineStyle: 'solid',
+              lineWidth: 2,
+              pointStyle: 'circle',
+              pointSize: 3,
+              fill: false,
             }];
           }
         }
@@ -301,8 +386,17 @@ export const usePlotStore = create<PlotStore>((set) => ({
       };
     }),
 
+  renameColumn: (datasetId, columnId, name) =>
+    setWithHistory((s) => ({
+      datasets: s.datasets.map((d) =>
+        d.id === datasetId
+          ? { ...d, columns: d.columns.map((c) => (c.id === columnId ? { ...c, name } : c)) }
+          : d
+      ),
+    })),
+
   transformColumn: (datasetId, columnId, fn) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
           ? {
@@ -318,7 +412,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   addComputedColumn: (datasetId, name, fn) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
         const maxRows = Math.max(...d.columns.map((c) => c.values.length), 0);
@@ -336,7 +430,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   sortDataset: (datasetId, columnId, ascending) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
         const col = d.columns.find((c) => c.id === columnId);
@@ -354,7 +448,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   normalizeColumn: (datasetId, columnId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
         return {
@@ -372,7 +466,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   setChartType: (type) =>
-    set((s) => {
+    setWithHistory((s) => {
       const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(type);
       let layers = s.chartConfig.layers;
 
@@ -391,49 +485,69 @@ export const usePlotStore = create<PlotStore>((set) => ({
     }),
 
   setChartTitle: (title) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, title } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, title } })),
 
   setXAxis: (axis) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, xAxis: { ...s.chartConfig.xAxis, ...axis } } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, xAxis: { ...s.chartConfig.xAxis, ...axis } } })),
 
   setYAxis: (axis) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, yAxis: { ...s.chartConfig.yAxis, ...axis } } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, yAxis: { ...s.chartConfig.yAxis, ...axis } } })),
 
   setZAxis: (axis) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, zAxis: s.chartConfig.zAxis ? { ...s.chartConfig.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis } } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, zAxis: s.chartConfig.zAxis ? { ...s.chartConfig.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis } } })),
 
   setLegend: (legend) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, legend: { ...s.chartConfig.legend, ...legend } } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, legend: { ...s.chartConfig.legend, ...legend } } })),
 
   setColorMap: (colorMap) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, colorMap } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, colorMap } })),
 
   addLayer: (layer) =>
-    set((s) => ({ chartConfig: { ...s.chartConfig, layers: [...s.chartConfig.layers, layer] } })),
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, layers: [...s.chartConfig.layers, layer] } })),
 
   removeLayer: (layerId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       chartConfig: { ...s.chartConfig, layers: s.chartConfig.layers.filter((l) => l.id !== layerId) },
     })),
 
   updateLayer: (layerId, data) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       chartConfig: {
         ...s.chartConfig,
         layers: s.chartConfig.layers.map((l) => (l.id === layerId ? { ...l, ...data } : l)),
       },
     })),
 
+  setMargins: (margins) =>
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, ...margins } })),
+
+  setExportConfig: (config) =>
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, exportConfig: { ...s.chartConfig.exportConfig, ...config } } })),
+
+  setFontSize: (fontSize) =>
+    setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, fontSize } })),
+
+  acceptChartTypeSuggestion: () => {
+    const suggestion = get().pendingChartTypeSuggestion;
+    if (suggestion) {
+      get().setChartType(suggestion);
+      set({ pendingChartTypeSuggestion: null });
+    }
+  },
+
+  dismissChartTypeSuggestion: () =>
+    set({ pendingChartTypeSuggestion: null }),
+
   setScene3D: (config) =>
     set((s) => ({ scene3D: { ...s.scene3D, ...config } })),
 
   addAnnotation: (annotation) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       chartConfig: { ...s.chartConfig, annotations: [...s.chartConfig.annotations, annotation] },
     })),
 
   removeAnnotation: (annotationId) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       chartConfig: {
         ...s.chartConfig,
         annotations: s.chartConfig.annotations.filter((a) => a.id !== annotationId),
@@ -441,7 +555,7 @@ export const usePlotStore = create<PlotStore>((set) => ({
     })),
 
   updateAnnotation: (annotationId, data) =>
-    set((s) => ({
+    setWithHistory((s) => ({
       chartConfig: {
         ...s.chartConfig,
         annotations: s.chartConfig.annotations.map((a) =>
@@ -449,4 +563,8 @@ export const usePlotStore = create<PlotStore>((set) => ({
         ),
       },
     })),
-}));
+  };
+});
+
+// Sync initial theme to documentElement so cssVar() works on first render
+document.documentElement.setAttribute('data-theme', 'dark');
