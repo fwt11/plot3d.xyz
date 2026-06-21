@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
-import { usePlotStore } from '@/store/plotStore';
+import { useUiStore } from '@/store/uiStore';
+import { useDatasetStore } from '@/store/datasetStore';
+import { useChartStore } from '@/store/chartStore';
+import { useScene3DStore } from '@/store/scene3DStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { useTranslation } from 'react-i18next';
+import { is3DChart } from '@/utils/chart';
 import DataTable from '@/components/DataTable';
 import Chart2D from '@/components/Chart2D';
 import Scene3D from '@/components/Scene3D';
-import Scene3DControls from '@/components/Scene3DControls';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2 } from 'lucide-react';
+import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
 function ChartTypeSuggestionBar() {
   const { t } = useTranslation();
-  const pendingChartTypeSuggestion = usePlotStore((s) => s.pendingChartTypeSuggestion);
-  const acceptChartTypeSuggestion = usePlotStore((s) => s.acceptChartTypeSuggestion);
-  const dismissChartTypeSuggestion = usePlotStore((s) => s.dismissChartTypeSuggestion);
+  const pendingChartTypeSuggestion = useDatasetStore((s) => s.pendingChartTypeSuggestion);
+  const acceptChartTypeSuggestion = useDatasetStore((s) => s.acceptChartTypeSuggestion);
+  const dismissChartTypeSuggestion = useDatasetStore((s) => s.dismissChartTypeSuggestion);
 
   if (!pendingChartTypeSuggestion) return null;
 
@@ -59,51 +64,105 @@ function ChartTypeSuggestionBar() {
   );
 }
 
+function StatusBar() {
+  const chartType = useChartStore((s) => s.chartConfig.type);
+  const datasets = useDatasetStore((s) => s.datasets);
+  const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
+  const { t } = useTranslation();
+
+  const activeDs = datasets.find(d => d.id === activeDatasetId);
+  const rowCount = activeDs ? Math.max(...activeDs.columns.map(c => c.values.length), 0) : 0;
+
+  return (
+    <div className="flex items-center px-3 gap-4 text-xs shrink-0" style={{ height: 'var(--status-bar-height, 24px)', background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+      <span>{t(`chartTypes.${chartType}`)}</span>
+      <span>{activeDs?.name ?? '-'}</span>
+      <span>{rowCount} {t('workspace.rows')}</span>
+    </div>
+  );
+}
+
 export default function Workspace() {
   const { t } = useTranslation();
   const [showDataPanel, setShowDataPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
-  const chartConfig = usePlotStore((s) => s.chartConfig);
-  const theme = usePlotStore((s) => s.theme);
-  const toggleTheme = usePlotStore((s) => s.toggleTheme);
-  const lang = usePlotStore((s) => s.lang);
-  const setLang = usePlotStore((s) => s.setLang);
-  const undo = usePlotStore((s) => s.undo);
-  const redo = usePlotStore((s) => s.redo);
-  const canUndo = usePlotStore((s) => s.canUndo);
-  const canRedo = usePlotStore((s) => s.canRedo);
+  const [leftWidth, setLeftWidth] = useState(288);
+  const [rightWidth, setRightWidth] = useState(256);
+  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const theme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
+  const lang = useUiStore((s) => s.lang);
+  const setLang = useUiStore((s) => s.setLang);
+  const undo = useHistoryStore((s) => s.undo);
+  const redo = useHistoryStore((s) => s.redo);
+  const pastLength = useHistoryStore((s) => s._past.length);
+  const futureLength = useHistoryStore((s) => s._future.length);
 
   // Sync theme to document root so CSS variables are available globally
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // Resizable panel tracking
+  useEffect(() => {
+    if (!resizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizing === 'left') {
+        setLeftWidth(Math.max(200, Math.min(500, e.clientX)));
+      } else {
+        setRightWidth(Math.max(200, Math.min(500, window.innerWidth - e.clientX)));
+      }
+    };
+    const handleMouseUp = () => setResizing(null);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizing]);
+
   // Keyboard shortcuts for undo/redo and save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        if (canUndo()) undo();
+        if (pastLength > 0) undo();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
-        if (canRedo()) redo();
+        if (futureLength > 0) redo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
+        const dsState = useDatasetStore.getState();
+        const chartState = useChartStore.getState();
+        const scene3DState = useScene3DStore.getState();
+        const uiState = useUiStore.getState();
+        const project = serializeProject({
+          datasets: dsState.datasets,
+          chartConfig: chartState.chartConfig,
+          scene3D: scene3DState.scene3D,
+          theme: uiState.theme,
+          lang: uiState.lang,
+        });
+        const title = chartState.chartConfig.title || 'untitled';
+        saveProjectFile(project, title);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, canUndo, canRedo]);
+  }, [undo, redo, pastLength, futureLength]);
 
-  const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
+  const is3D = is3DChart(chartConfig.type);
 
   return (
     <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div className="sr-only" aria-live="polite" role="status" />
       {/* Theme & Language controls - page top right */}
-      <div className="absolute top-2 right-2 flex items-center gap-1 rounded-md px-1.5 py-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', zIndex: 'var(--z-top)' }}>
+      <div role="toolbar" aria-label={t('workspace.toolbar', 'Toolbar')} className="absolute top-2 right-2 flex items-center gap-1 rounded-md px-1.5 py-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', zIndex: 'var(--z-top)' }}>
         <button
           onClick={undo}
-          disabled={!canUndo()}
+          disabled={pastLength === 0}
           className="flex items-center justify-center w-7 h-7 rounded transition-colors disabled:opacity-30"
           style={{ color: 'var(--text-secondary)' }}
           title={t('workspace.undo', 'Undo') + ' (Ctrl+Z)'}
@@ -113,7 +172,7 @@ export default function Workspace() {
         </button>
         <button
           onClick={redo}
-          disabled={!canRedo()}
+          disabled={futureLength === 0}
           className="flex items-center justify-center w-7 h-7 rounded transition-colors disabled:opacity-30"
           style={{ color: 'var(--text-secondary)' }}
           title={t('workspace.redo', 'Redo') + ' (Ctrl+Y)'}
@@ -140,7 +199,7 @@ export default function Workspace() {
         >
           <Languages size={15} />
         </button>
-        <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
           {lang === 'zh' ? '中' : 'EN'}
         </span>
       </div>
@@ -152,7 +211,7 @@ export default function Workspace() {
       <div className="flex flex-1 overflow-hidden">
         {/* Data panel */}
         {showDataPanel && (
-          <div className="flex flex-col shrink-0" style={{ width: 'var(--panel-width-left)', borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
+          <div className="flex flex-col shrink-0" style={{ width: leftWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.dataTable')}</span>
               <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeDataPanel', 'Close data panel')}>
@@ -173,6 +232,12 @@ export default function Workspace() {
             </div>
           </div>
         )}
+        {showDataPanel && (
+          <div
+            className="w-1 cursor-col-resize hover:bg-sky-500/30 transition-colors shrink-0"
+            onMouseDown={() => setResizing('left')}
+          />
+        )}
 
         {/* Chart canvas */}
         <div className="flex-1 relative overflow-hidden" data-chart-area>
@@ -189,10 +254,7 @@ export default function Workspace() {
           <ChartTypeSuggestionBar />
           <div className="w-full h-full">
             {is3D ? (
-              <div className="relative w-full h-full">
-                <Scene3D />
-                <Scene3DControls />
-              </div>
+              <Scene3D />
             ) : (
               <Chart2D />
             )}
@@ -201,7 +263,13 @@ export default function Workspace() {
 
         {/* Config panel */}
         {showConfigPanel && (
-          <div className="flex flex-col shrink-0" style={{ width: 'var(--panel-width-right)', borderLeft: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
+          <div
+            className="w-1 cursor-col-resize hover:bg-sky-500/30 transition-colors shrink-0"
+            onMouseDown={() => setResizing('right')}
+          />
+        )}
+        {showConfigPanel && (
+          <div className="flex flex-col shrink-0" style={{ width: rightWidth, borderLeft: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.chartConfig')}</span>
               <button onClick={() => setShowConfigPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeConfigPanel', 'Close config panel')}>
@@ -225,6 +293,7 @@ export default function Workspace() {
           <PanelRightOpen size={16} />
         </button>
       )}
+      <StatusBar />
     </div>
   );
 }

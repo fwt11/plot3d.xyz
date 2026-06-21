@@ -3,6 +3,10 @@ import i18n from '@/i18n';
 
 let idCounter = 0;
 function uid(): string {
+  // Use crypto.randomUUID when available, fallback to timestamp+counter
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
   return `id_${Date.now()}_${++idCounter}`;
 }
 
