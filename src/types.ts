@@ -19,6 +19,7 @@ export interface AxisConfig {
   gridVisible: boolean;
   tickCount?: number;
   logScale: boolean;
+  scientificNotation: boolean;
 }
 
 export interface LegendConfig {
@@ -34,6 +35,12 @@ export interface LayerConfig {
   zColumn?: string;
   color: string;
   visible: boolean;
+  lineStyle: 'solid' | 'dashed' | 'dotted';
+  lineWidth: number;
+  pointStyle: 'circle' | 'square' | 'triangle' | 'none';
+  pointSize: number;
+  fill: boolean;
+  errorColumn?: string;
 }
 
 export type AnnotationType = 'text' | 'arrow' | 'rect' | 'latex';
@@ -47,11 +54,19 @@ export interface Annotation {
   fontSize: number;
   color: string;
   visible: boolean;
+  coordMode: 'percent' | 'data';
   arrowTo?: { x: number; y: number };
   rectSize?: { w: number; h: number };
 }
 
 export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d';
+
+export type ExportBackground = 'transparent' | 'white' | 'theme';
+
+export interface ExportConfig {
+  resolutionMultiplier: 1 | 2 | 4;
+  background: ExportBackground;
+}
 
 export interface ChartConfig {
   id: string;
@@ -64,6 +79,12 @@ export interface ChartConfig {
   colorMap: string;
   layers: LayerConfig[];
   annotations: Annotation[];
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  exportConfig: ExportConfig;
+  fontSize: number;
 }
 
 export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma';
