@@ -1,108 +1,123 @@
-import { useRef, useMemo, useCallback, useState } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-  Plugin,
-} from 'chart.js';
-import { Line, Scatter, Bar, Pie, PolarArea, Radar } from 'react-chartjs-2';
-import { usePlotStore } from '@/store/plotStore';
+import { useRef, useCallback, useState, useEffect } from 'react';
+import { useChartStore, useDatasetStore } from '@/store/plotStore';
 import { useTranslation } from 'react-i18next';
-import type { ChartType, Annotation, LayerConfig } from '@/types';
+import type { ChartType, Annotation, LayerConfig, DataColumn } from '@/types';
+import { toNumber, isValidNumber } from '@/types';
+import { is3DChart } from '@/utils/chart';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
 
-// Helper to read CSS variable values for Chart.js (which doesn't support CSS vars)
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// Lazy-load Plotly.js to avoid blocking initial page load
+type PlotComponentType = React.ComponentType<Record<string, unknown>>;
+let PlotComponent: PlotComponentType | null = null;
+let plotlyLoadPromise: Promise<PlotComponentType> | null = null;
+
+function loadPlotly(): Promise<PlotComponentType> {
+  if (PlotComponent) return Promise.resolve(PlotComponent);
+  if (plotlyLoadPromise) return plotlyLoadPromise;
+
+  plotlyLoadPromise = import('plotly.js-dist-min').then((PlotlyModule) => {
+    const Plotly = PlotlyModule.default;
+    return import('react-plotly.js/factory').then((factoryModule) => {
+      PlotComponent = factoryModule.default(Plotly);
+      return PlotComponent;
+    });
+  });
+  return plotlyLoadPromise;
 }
 
-// Line style to borderDash mapping
-function lineStyleToDash(style: LayerConfig['lineStyle']): number[] {
+/** Map line style to Plotly dash string */
+function lineStyleToDash(style: LayerConfig['lineStyle']): string {
   switch (style) {
-    case 'dashed': return [5, 5];
-    case 'dotted': return [2, 2];
-    default: return [];
+    case 'dashed': return 'dash';
+    case 'dotted': return 'dot';
+    default: return 'solid';
   }
 }
 
-// Custom error bar plugin: draws ±error lines for each data point
-const errorBarPlugin: Plugin<'line' | 'scatter' | 'bar'> = {
-  id: 'errorBars',
-  afterDatasetsDraw(chart) {
-    const ctx = chart.ctx;
-    chart.data.datasets.forEach((dataset, datasetIndex) => {
-      const errorValues = (dataset as unknown as Record<string, unknown>)._errorValues as (number | undefined)[] | undefined;
-      if (!errorValues) return;
+/** Map point style to Plotly marker symbol */
+function pointStyleToSymbol(style: LayerConfig['pointStyle']): string {
+  switch (style) {
+    case 'square': return 'square';
+    case 'triangle': return 'triangle-up';
+    case 'none': return 'circle';
+    default: return 'circle';
+  }
+}
 
-      const meta = chart.getDatasetMeta(datasetIndex);
-      if (meta.hidden) return;
+/** Generate pie/polar colors in hex format */
+function generateSegmentColors(count: number, alpha: number): string[] {
+  const baseHues = [200, 30, 150, 340, 60, 270, 100, 10, 180, 300];
+  return Array.from({ length: count }, (_, i) => {
+    const hue = baseHues[i % baseHues.length];
+    const s = 0.7, l = 0.55;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (hue < 60) { r = c; g = x; }
+    else if (hue < 120) { r = x; g = c; }
+    else if (hue < 180) { g = c; b = x; }
+    else if (hue < 240) { g = x; b = c; }
+    else if (hue < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+    const hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    return alpha < 1 ? `rgba(${Math.round((r + m) * 255)},${Math.round((g + m) * 255)},${Math.round((b + m) * 255)},${alpha})` : hex;
+  });
+}
 
-      const color = dataset.borderColor as string;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
+/** Convert column values to number array */
+function colToNumbers(col: DataColumn): number[] {
+  return col.values.map((v) => toNumber(v));
+}
 
-      meta.data.forEach((element, index) => {
-        const err = errorValues[index];
-        if (err === undefined || err === null || isNaN(err)) return;
+/** Build error bar config for a trace */
+function buildErrorBar(
+  errorCol: DataColumn | undefined,
+  errorPlusCol: DataColumn | undefined,
+  errorMinusCol: DataColumn | undefined,
+  color: string,
+): Record<string, unknown> | undefined {
+  if (!errorCol && !errorPlusCol && !errorMinusCol) return undefined;
 
-        const x = element.x;
-        const y = element.y;
-        const yScale = chart.scales.y;
-        const errPixels = Math.abs(yScale.getPixelForValue(0) - yScale.getPixelForValue(err));
+  if (errorCol) {
+    return {
+      type: 'data',
+      array: colToNumbers(errorCol),
+      visible: true,
+      color,
+      thickness: 1,
+      width: 4,
+    };
+  }
 
-        // Vertical line from -error to +error
-        ctx.beginPath();
-        ctx.moveTo(x, y - errPixels);
-        ctx.lineTo(x, y + errPixels);
-        ctx.stroke();
+  const result: Record<string, unknown> = {
+    type: 'data',
+    visible: true,
+    color,
+    thickness: 1,
+    width: 4,
+  };
+  if (errorPlusCol) {
+    result.array = colToNumbers(errorPlusCol);
+  }
+  if (errorMinusCol) {
+    result.arrayminus = colToNumbers(errorMinusCol);
+  }
+  return Object.keys(result).length > 4 ? result : undefined;
+}
 
-        // Top cap
-        const capWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(x - capWidth, y - errPixels);
-        ctx.lineTo(x + capWidth, y - errPixels);
-        ctx.stroke();
+// --- AnnotationOverlay ---
 
-        // Bottom cap
-        ctx.beginPath();
-        ctx.moveTo(x - capWidth, y + errPixels);
-        ctx.lineTo(x + capWidth, y + errPixels);
-        ctx.stroke();
-      });
-
-      ctx.restore();
-    });
-  },
-};
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  RadialLinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Filler,
-  Title,
-  Tooltip,
-  Legend,
-  errorBarPlugin
-);
-
-function AnnotationOverlay({ annotations, chartArea, chartRef, onMoveAnnotation }: { annotations: Annotation[]; chartArea: DOMRect | null; chartRef: React.RefObject<ChartJS<'line' | 'scatter' | 'bar' | 'pie' | 'polarArea' | 'radar'> | null>; onMoveAnnotation: (id: string, x: number, y: number, extra?: Partial<Annotation>) => void }) {
+function AnnotationOverlay({
+  annotations,
+  chartArea,
+  onMoveAnnotation,
+}: {
+  annotations: Annotation[];
+  chartArea: DOMRect | null;
+  onMoveAnnotation: (id: string, x: number, y: number, extra?: Partial<Annotation>) => void;
+}) {
   const [dragging, setDragging] = useState<{ id: string; startMouseX: number; startMouseY: number; startX: number; startY: number } | null>(null);
   const [draggingArrow, setDraggingArrow] = useState<{ id: string; endpoint: 'start' | 'end'; startMouseX: number; startMouseY: number; startX: number; startY: number } | null>(null);
 
@@ -149,77 +164,34 @@ function AnnotationOverlay({ annotations, chartArea, chartRef, onMoveAnnotation 
 
   if (!chartArea || annotations.length === 0) return null;
 
-  const chart = chartRef.current;
-  const xScale = chart?.scales?.x;
-  const yScale = chart?.scales?.y;
-
-  const toPixelX = (ann: Annotation, val: number): number => {
-    if (ann.coordMode === 'data' && xScale) {
-      return xScale.getPixelForValue(val) - chartArea.left;
-    }
-    return (val / 100) * chartArea.width;
-  };
-
-  const toPixelY = (ann: Annotation, val: number): number => {
-    if (ann.coordMode === 'data' && yScale) {
-      return yScale.getPixelForValue(val) - chartArea.top;
-    }
-    return (val / 100) * chartArea.height;
-  };
+  const toPixelX = (val: number): number => (val / 100) * chartArea.width;
+  const toPixelY = (val: number): number => (val / 100) * chartArea.height;
 
   return (
     <div
       className="absolute inset-0"
-      style={{ padding: '16px', cursor: isDragging ? 'grabbing' : 'default' }}
+      style={{ padding: '16px', cursor: isDragging ? 'grabbing' : 'default', pointerEvents: isDragging ? 'auto' : 'none' }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
       {annotations.filter((a) => a.visible).map((ann) => {
-        const px = toPixelX(ann, ann.x);
-        const py = toPixelY(ann, ann.y);
+        const px = toPixelX(ann.x);
+        const py = toPixelY(ann.y);
 
         if (ann.type === 'arrow' && ann.arrowTo) {
-          const tx = toPixelX(ann, ann.arrowTo.x);
-          const ty = toPixelY(ann, ann.arrowTo.y);
+          const tx = toPixelX(ann.arrowTo.x);
+          const ty = toPixelY(ann.arrowTo.y);
           return (
-            <svg
-              key={ann.id}
-              className="absolute inset-0 w-full h-full"
-              style={{ overflow: 'visible', pointerEvents: 'none' }}
-            >
+            <svg key={ann.id} className="absolute inset-0 w-full h-full" style={{ overflow: 'visible', pointerEvents: 'none' }}>
               <defs>
                 <marker id={`arrowhead-${ann.id}`} markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
                   <polygon points="0 0, 8 3, 0 6" fill={ann.color} />
                 </marker>
               </defs>
-              <line
-                x1={px} y1={py} x2={tx} y2={ty}
-                stroke={ann.color}
-                strokeWidth={2}
-                markerEnd={`url(#arrowhead-${ann.id})`}
-                style={{ pointerEvents: 'none' }}
-              />
-              {/* Start handle */}
-              <circle
-                cx={px} cy={py} r={6}
-                fill={ann.color}
-                fillOpacity={0.6}
-                stroke={ann.color}
-                strokeWidth={1}
-                style={{ cursor: 'grab', pointerEvents: 'auto' }}
-                onMouseDown={(e) => handleArrowEndpointDown(e as unknown as React.MouseEvent, ann.id, 'start', ann.x, ann.y)}
-              />
-              {/* End handle */}
-              <circle
-                cx={tx} cy={ty} r={6}
-                fill={ann.color}
-                fillOpacity={0.6}
-                stroke={ann.color}
-                strokeWidth={1}
-                style={{ cursor: 'grab', pointerEvents: 'auto' }}
-                onMouseDown={(e) => handleArrowEndpointDown(e as unknown as React.MouseEvent, ann.id, 'end', ann.arrowTo!.x, ann.arrowTo!.y)}
-              />
+              <line x1={px} y1={py} x2={tx} y2={ty} stroke={ann.color} strokeWidth={2} markerEnd={`url(#arrowhead-${ann.id})`} style={{ pointerEvents: 'none' }} />
+              <circle cx={px} cy={py} r={6} fill={ann.color} fillOpacity={0.6} stroke={ann.color} strokeWidth={1} style={{ cursor: 'grab', pointerEvents: 'auto' }} onMouseDown={(e) => handleArrowEndpointDown(e as unknown as React.MouseEvent, ann.id, 'start', ann.x, ann.y)} />
+              <circle cx={tx} cy={ty} r={6} fill={ann.color} fillOpacity={0.6} stroke={ann.color} strokeWidth={1} style={{ cursor: 'grab', pointerEvents: 'auto' }} onMouseDown={(e) => handleArrowEndpointDown(e as unknown as React.MouseEvent, ann.id, 'end', ann.arrowTo!.x, ann.arrowTo!.y)} />
             </svg>
           );
         }
@@ -228,23 +200,10 @@ function AnnotationOverlay({ annotations, chartArea, chartRef, onMoveAnnotation 
           const w = (ann.rectSize.w / 100) * chartArea.width;
           const h = (ann.rectSize.h / 100) * chartArea.height;
           return (
-            <div
-              key={ann.id}
-              className="absolute border-2 rounded-sm cursor-grab active:cursor-grabbing"
-              style={{
-                left: px - w / 2,
-                top: py - h / 2,
-                width: w,
-                height: h,
-                borderColor: ann.color,
-                backgroundColor: ann.color + '15',
-              }}
-              onMouseDown={(e) => handleMouseDown(e, ann)}
-            />
+            <div key={ann.id} className="absolute border-2 rounded-sm cursor-grab active:cursor-grabbing" style={{ left: px - w / 2, top: py - h / 2, width: w, height: h, borderColor: ann.color, backgroundColor: ann.color + '15', pointerEvents: 'auto' }} onMouseDown={(e) => handleMouseDown(e, ann)} />
           );
         }
 
-        // Text or LaTeX
         const isLatex = ann.type === 'latex' || isLatexContent(ann.content);
         let html: string;
         if (isLatex) {
@@ -255,42 +214,58 @@ function AnnotationOverlay({ annotations, chartArea, chartRef, onMoveAnnotation 
         }
 
         return (
-          <div
-            key={ann.id}
-            className="absolute cursor-grab active:cursor-grabbing select-none"
-            style={{
-              left: px,
-              top: py,
-              transform: 'translate(-50%, -50%)',
-              color: ann.color,
-              fontSize: `${ann.fontSize}px`,
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-            }}
-            onMouseDown={(e) => handleMouseDown(e, ann)}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div key={ann.id} className="absolute cursor-grab active:cursor-grabbing select-none" style={{ left: px, top: py, transform: 'translate(-50%, -50%)', color: ann.color, fontSize: `${ann.fontSize}px`, lineHeight: 1.2, whiteSpace: 'nowrap', textShadow: '0 1px 3px rgba(0,0,0,0.8)', pointerEvents: 'auto' }} onMouseDown={(e) => handleMouseDown(e, ann)} dangerouslySetInnerHTML={{ __html: html }} />
         );
       })}
     </div>
   );
 }
 
+// --- Main Chart2D Component ---
+
+const allYColors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
+
+interface ExpandedEntry {
+  label: string;
+  xCol: DataColumn;
+  yCol: DataColumn;
+  color: string;
+  layer: LayerConfig;
+  datasetId: string;
+  errorCol?: DataColumn;
+  errorPlusCol?: DataColumn;
+  errorMinusCol?: DataColumn;
+}
+
 export default function Chart2D() {
   const { t } = useTranslation();
-  const chartConfig = usePlotStore((s) => s.chartConfig);
-  const datasets = usePlotStore((s) => s.datasets);
-  const updateAnnotation = usePlotStore((s) => s.updateAnnotation);
-  const chartRef = useRef<ChartJS<'line' | 'scatter' | 'bar' | 'pie' | 'polarArea' | 'radar'>>(null);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const datasets = useDatasetStore((s) => s.datasets);
+  const updateAnnotation = useChartStore((s) => s.updateAnnotation);
+  const theme = useChartStore((s) => s.chartConfig); // re-render on theme change
   const containerRef = useRef<HTMLDivElement>(null);
+  const [chartArea, setChartArea] = useState<DOMRect | null>(null);
+  const [PlotlyComponent, setPlotlyComponent] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
 
-  const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
+  const is3DType = is3DChart(chartConfig.type);
 
-  const chartArea = useMemo(() => {
-    if (!containerRef.current) return null;
-    return containerRef.current.getBoundingClientRect();
-  }, [chartConfig.annotations, chartConfig.type, chartConfig.layers]);
+  // Lazy load Plotly
+  useEffect(() => {
+    loadPlotly().then((comp) => {
+      setPlotlyComponent(() => comp);
+    });
+  }, []);
+
+  // Update chartArea on resize only
+  useEffect(() => {
+    const update = () => {
+      if (containerRef.current) {
+        setChartArea(containerRef.current.getBoundingClientRect());
+      }
+    };
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const handleMoveAnnotation = useCallback((id: string, x: number, y: number, extra?: Partial<Annotation>) => {
     if (extra) {
@@ -300,67 +275,64 @@ export default function Chart2D() {
     }
   }, [updateAnnotation]);
 
-  if (is3D) {
+  if (is3DType) {
     return null;
+  }
+
+  if (!PlotlyComponent) {
+    return (
+      <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+        {t('chart2d.loading', 'Loading chart...')}
+      </div>
+    );
   }
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
   const isPolar = chartType === 'polar';
-  const isNoAxes = chartType === 'pie' || isPolar;
-  const is3DChart = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartType);
-  // Scientific plots: line, scatter, area use numeric X axis
+  const isPie = chartType === 'pie';
+  const isNoAxes = isPie || isPolar;
   const useNumericX = isScatter || chartType === 'line' || chartType === 'area';
 
-  const allYColors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
-
-  interface ExpandedEntry {
-    label: string;
-    xCol: typeof datasets[0]['columns'][0];
-    yCol: typeof datasets[0]['columns'][0];
-    color: string;
-    layer: LayerConfig;
-    errorCol?: typeof datasets[0]['columns'][0];
-  }
+  // --- Expand layers into trace entries ---
 
   const expandedDatasets: ExpandedEntry[] = [];
+  const visibleLayers = chartConfig.layers.filter((l) => l.visible);
 
-  if (!is3DChart) {
-    const visibleLayers = chartConfig.layers.filter((l) => l.visible);
-    for (const layer of visibleLayers) {
-      const ds = datasets.find((d) => d.id === layer.datasetId);
-      if (!ds) continue;
-      const xCol = ds.columns.find((c) => c.id === layer.xColumn) ?? ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
-      if (!xCol) continue;
-      const errorCol = layer.errorColumn ? ds.columns.find((c) => c.id === layer.errorColumn) : undefined;
-      const yCols = ds.columns.filter((c) => c.type === 'Y');
-      if (yCols.length === 0) {
-        const yCol = ds.columns.find((c) => c.id === layer.yColumn);
-        if (yCol) {
-          expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color, layer, errorCol });
-        }
-      } else {
-        yCols.forEach((yCol, idx) => {
-          expandedDatasets.push({
-            label: `${ds.name} - ${yCol.name}`,
-            xCol,
-            yCol,
-            color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
-            layer,
-            errorCol: yCols.length === 1 ? errorCol : undefined,
-          });
+  for (const layer of visibleLayers) {
+    const ds = datasets.find((d) => d.id === layer.datasetId);
+    if (!ds) continue;
+    const xCol = ds.columns.find((c) => c.id === layer.xColumn) ?? ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
+    if (!xCol) continue;
+
+    const errorCol = layer.errorColumn ? ds.columns.find((c) => c.id === layer.errorColumn) : undefined;
+    const errorPlusCol = layer.errorPlusColumn ? ds.columns.find((c) => c.id === layer.errorPlusColumn) : undefined;
+    const errorMinusCol = layer.errorMinusColumn ? ds.columns.find((c) => c.id === layer.errorMinusColumn) : undefined;
+
+    const yCols = ds.columns.filter((c) => c.type === 'Y');
+    if (yCols.length === 0) {
+      const yCol = ds.columns.find((c) => c.id === layer.yColumn);
+      if (yCol) {
+        expandedDatasets.push({
+          label: layer.displayName || `${ds.name} - ${yCol.name}`,
+          xCol, yCol, color: layer.color, layer, datasetId: ds.id,
+          errorCol, errorPlusCol, errorMinusCol,
         });
       }
-    }
-  } else {
-    for (const layer of chartConfig.layers.filter((l) => l.visible)) {
-      const ds = datasets.find((d) => d.id === layer.datasetId);
-      if (!ds) continue;
-      const xCol = ds.columns.find((c) => c.id === layer.xColumn);
-      const yCol = ds.columns.find((c) => c.id === layer.yColumn);
-      if (!xCol || !yCol) continue;
-      const errorCol = layer.errorColumn ? ds.columns.find((c) => c.id === layer.errorColumn) : undefined;
-      expandedDatasets.push({ label: `${ds.name} - ${yCol.name}`, xCol, yCol, color: layer.color, layer, errorCol });
+    } else {
+      yCols.forEach((yCol, idx) => {
+        expandedDatasets.push({
+          label: yCols.length === 1 ? (layer.displayName || `${ds.name} - ${yCol.name}`) : `${ds.name} - ${yCol.name}`,
+          xCol,
+          yCol,
+          color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
+          layer,
+          datasetId: ds.id,
+          errorCol: yCols.length === 1 ? errorCol : undefined,
+          errorPlusCol: yCols.length === 1 ? errorPlusCol : undefined,
+          errorMinusCol: yCols.length === 1 ? errorMinusCol : undefined,
+        });
+      });
     }
   }
 
@@ -372,156 +344,245 @@ export default function Chart2D() {
     );
   }
 
-  const firstEntry = expandedDatasets[0];
-  const labels = firstEntry.xCol.values.map(String);
+  // --- Check if any layer uses right Y axis ---
+  const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
 
-  const chartData = {
-    labels: useNumericX ? undefined : labels,
-    datasets: expandedDatasets.map(({ label, xCol, yCol, color, layer, errorCol }) => {
-      const isBarPiePolar = chartType === 'bar' || chartType === 'pie' || isPolar;
-      const base = {
-        label,
-        borderColor: color,
-        backgroundColor:
-          chartType === 'area'
-            ? color + '40'
-            : chartType === 'bar'
-            ? color + 'CC'
-            : chartType === 'pie'
-            ? generatePieColors(yCol.values.length)
-            : isPolar
-            ? generatePolarColors(yCol.values.length)
-            : color,
-        borderWidth: isBarPiePolar ? 1 : layer.lineWidth,
-        borderDash: lineStyleToDash(layer.lineStyle),
-        pointStyle: layer.pointStyle === 'none' ? false as const : layer.pointStyle,
-        pointRadius: layer.pointStyle === 'none' ? 0 : layer.pointSize,
-        pointHoverRadius: layer.pointSize + 2,
-        fill: layer.fill || chartType === 'area' || isPolar,
-        tension: 0.3,
-        // Custom property for error bar plugin
-        _errorValues: errorCol
-          ? errorCol.values.map((v) => { const n = Number(v); return isNaN(n) ? undefined : n; })
-          : undefined,
-      };
+  // --- Build Plotly traces ---
 
-      if (useNumericX) {
-        return {
-          ...base,
-          data: xCol.values.map((x, i) => ({
-            x: Number(x) || 0,
-            y: Number(yCol.values[i]) || 0,
-          })),
-        };
-      }
+  const traces = expandedDatasets.map((entry) => {
+    const { label, xCol, yCol, color, layer } = entry;
+    const xValues = colToNumbers(xCol);
+    const yValues = colToNumbers(yCol);
 
+    const xLogScale = chartConfig.xAxis.logScale;
+    const yLogScale = chartConfig.yAxis.logScale;
+    const filterIndices = xValues.map((x, i) => {
+      const y = yValues[i];
+      const xOk = !xLogScale || x > 0;
+      const yOk = !yLogScale || y > 0;
+      return xOk && yOk && isValidNumber(x) && isValidNumber(y);
+    });
+    const filteredX = xValues.filter((_, i) => filterIndices[i]);
+    const filteredY = yValues.filter((_, i) => filterIndices[i]);
+
+    const pointSymbol = pointStyleToSymbol(layer.pointStyle);
+    const showPoints = layer.pointStyle !== 'none';
+
+    if (isPie) {
       return {
-        ...base,
-        data: yCol.values.map((v) => Number(v) || 0),
+        type: 'pie' as const,
+        labels: xCol.values.map(String),
+        values: yValues,
+        marker: { colors: generateSegmentColors(yValues.length, 0.85) },
+        textinfo: 'label+percent',
+        hole: 0,
       };
-    }),
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 300 },
-    plugins: {
-      legend: {
-        display: chartConfig.legend.visible,
-        position: chartConfig.legend.position as 'top' | 'bottom' | 'left' | 'right',
-        labels: { color: cssVar('--text-secondary'), font: { size: 11 } },
-      },
-      title: {
-        display: !!chartConfig.title,
-        text: chartConfig.title,
-        color: cssVar('--text-primary'),
-        font: { size: 14, weight: 'bold' as const },
-      },
-      tooltip: {
-        backgroundColor: cssVar('--bg-surface'),
-        titleColor: cssVar('--text-primary'),
-        bodyColor: cssVar('--text-secondary'),
-        borderColor: cssVar('--border'),
-        borderWidth: 1,
-      },
-    },
-    scales:
-      isNoAxes
-        ? {}
-        : isPolar
-        ? {
-            r: {
-              grid: { display: chartConfig.yAxis.gridVisible, color: cssVar('--grid-color') },
-              ticks: { color: cssVar('--axis-text'), backdropColor: 'transparent' },
-              pointLabels: { color: cssVar('--text-secondary'), font: { size: 11 } },
-              min: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.min,
-              max: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.max,
-            },
-          }
-        : {
-            x: {
-              title: { display: !!chartConfig.xAxis.label, text: chartConfig.xAxis.label, color: cssVar('--text-secondary') },
-              grid: { display: chartConfig.xAxis.gridVisible, color: cssVar('--grid-color'), lineWidth: 1 },
-              ticks: { color: cssVar('--axis-text') },
-              border: { color: cssVar('--axis-color') },
-              min: chartConfig.xAxis.autoRange ? undefined : chartConfig.xAxis.min,
-              max: chartConfig.xAxis.autoRange ? undefined : chartConfig.xAxis.max,
-              type: chartConfig.xAxis.logScale ? 'logarithmic' as const : (useNumericX ? 'linear' as const : 'category' as const),
-            },
-            y: {
-              title: { display: !!chartConfig.yAxis.label, text: chartConfig.yAxis.label, color: cssVar('--text-secondary') },
-              grid: { display: chartConfig.yAxis.gridVisible, color: cssVar('--grid-color'), lineWidth: 1 },
-              ticks: { color: cssVar('--axis-text') },
-              border: { color: cssVar('--axis-color') },
-              min: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.min,
-              max: chartConfig.yAxis.autoRange ? undefined : chartConfig.yAxis.max,
-              type: chartConfig.yAxis.logScale ? 'logarithmic' as const : 'linear' as const,
-            },
-          },
-  };
-
-  const RenderChart = () => {
-    switch (chartType) {
-      case 'scatter':
-        return <Scatter ref={chartRef as React.Ref<ChartJS<'scatter'>>} data={chartData as Parameters<typeof Scatter>[0]['data']} options={options} />;
-      case 'bar':
-        return <Bar ref={chartRef as React.Ref<ChartJS<'bar'>>} data={chartData as Parameters<typeof Bar>[0]['data']} options={options} />;
-      case 'pie':
-        return <Pie ref={chartRef as React.Ref<ChartJS<'pie'>>} data={chartData as Parameters<typeof Pie>[0]['data']} options={options} />;
-      case 'polar':
-        return <PolarArea ref={chartRef as React.Ref<ChartJS<'polarArea'>>} data={chartData as Parameters<typeof PolarArea>[0]['data']} options={options as any} />;
-      case 'area':
-      case 'line':
-      default:
-        return <Line ref={chartRef as React.Ref<ChartJS<'line'>>} data={chartData as Parameters<typeof Line>[0]['data']} options={options} />;
     }
+
+    if (isPolar) {
+      return {
+        type: 'scatterpolar' as const,
+        r: filteredY,
+        theta: filteredX,
+        mode: showPoints ? 'lines+markers' : 'lines',
+        name: label,
+        line: { color, dash: lineStyleToDash(layer.lineStyle), width: layer.lineWidth },
+        marker: { symbol: pointSymbol, size: showPoints ? layer.pointSize : 0, color },
+        fill: layer.fill ? 'toself' : undefined,
+      };
+    }
+
+    let plotlyType: 'scatter' | 'bar';
+    let mode: string;
+
+    if (chartType === 'bar') {
+      plotlyType = 'bar';
+      mode = '';
+    } else {
+      plotlyType = 'scatter';
+      mode = isScatter
+        ? (showPoints ? 'markers' : 'markers')
+        : (showPoints ? 'lines+markers' : 'lines');
+    }
+
+    const trace: Record<string, unknown> = {
+      type: plotlyType,
+      mode,
+      name: label,
+      x: useNumericX ? filteredX : xCol.values.map(String),
+      y: useNumericX ? filteredY : yValues,
+      line: {
+        color,
+        dash: lineStyleToDash(layer.lineStyle),
+        width: layer.lineWidth,
+      },
+      marker: {
+        symbol: pointSymbol,
+        size: showPoints ? layer.pointSize : 0,
+        color: color,
+        line: chartType === 'bar' ? { width: 1, color } : undefined,
+      },
+    };
+
+    if (layer.fill || chartType === 'area') {
+      trace.fill = 'tozeroy';
+      trace.fillcolor = color + '40';
+    }
+
+    if (layer.yAxisSide === 'right') {
+      trace.yaxis = 'y2';
+    }
+
+    const errY = buildErrorBar(entry.errorCol, entry.errorPlusCol, entry.errorMinusCol, color);
+    if (errY) {
+      if (useNumericX && (xLogScale || yLogScale)) {
+        const errorArray = errY.array as number[];
+        const errorMinusArray = errY.arrayminus as number[] | undefined;
+        errY.array = errorArray.filter((_, i) => filterIndices[i]);
+        if (errorMinusArray) {
+          errY.arrayminus = errorMinusArray.filter((_, i) => filterIndices[i]);
+        }
+      }
+      trace.error_y = errY;
+    }
+
+    return trace;
+  });
+
+  // --- Build Plotly layout ---
+  // Read CSS variables once
+  const cs = getComputedStyle(document.documentElement);
+  const textColor = cs.getPropertyValue('--text-primary').trim() || '#e4e4e7';
+  const textSecondary = cs.getPropertyValue('--text-secondary').trim() || '#a1a1aa';
+  const textMuted = cs.getPropertyValue('--text-muted').trim() || '#71717a';
+  const borderColor = cs.getPropertyValue('--border').trim() || '#3f3f46';
+  const gridColor = cs.getPropertyValue('--grid-color').trim() || '#27272a';
+
+  const legendPositionMap: Record<string, { x: number; y: number; xanchor: string; yanchor: string }> = {
+    top: { x: 0.5, y: 1.1, xanchor: 'center', yanchor: 'bottom' },
+    bottom: { x: 0.5, y: -0.1, xanchor: 'center', yanchor: 'top' },
+    left: { x: -0.1, y: 0.5, xanchor: 'right', yanchor: 'middle' },
+    right: { x: 1.1, y: 0.5, xanchor: 'left', yanchor: 'middle' },
   };
+
+  const legendPos = legendPositionMap[chartConfig.legend.position] || legendPositionMap.top;
+
+  const layout: Record<string, unknown> = {
+    title: {
+      text: chartConfig.title || '',
+      font: { size: 14, color: textColor },
+      xref: 'paper',
+      x: 0.5,
+    },
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: {
+      color: textSecondary,
+      size: chartConfig.fontSize,
+    },
+    margin: {
+      t: chartConfig.marginTop,
+      r: chartConfig.marginRight + (hasRightYAxis ? 40 : 0),
+      b: chartConfig.marginBottom,
+      l: chartConfig.marginLeft,
+    },
+    showlegend: chartConfig.legend.visible,
+    legend: {
+      ...legendPos,
+      font: { size: 11, color: textSecondary },
+      bgcolor: 'transparent',
+      borderwidth: 0,
+    },
+    autosize: true,
+  };
+
+  if (!isNoAxes) {
+    const xAxisConfig: Record<string, unknown> = {
+      title: { text: chartConfig.xAxis.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
+      type: chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category'),
+      gridcolor: chartConfig.xAxis.gridVisible ? gridColor : 'transparent',
+      gridwidth: 1,
+      zerolinecolor: gridColor,
+      linecolor: borderColor,
+      tickfont: { color: textMuted, size: chartConfig.fontSize },
+      exponentformat: chartConfig.xAxis.scientificNotation ? 'e' : 'none',
+    };
+    if (chartConfig.xAxis.scientificNotation) xAxisConfig.tickformat = '.2e';
+    if (!chartConfig.xAxis.autoRange && chartConfig.xAxis.min !== undefined && chartConfig.xAxis.max !== undefined) {
+      xAxisConfig.range = [chartConfig.xAxis.min, chartConfig.xAxis.max];
+      xAxisConfig.autorange = false;
+    }
+
+    const yAxisConfig: Record<string, unknown> = {
+      title: { text: chartConfig.yAxis.label || '', font: { size: chartConfig.fontSize, color: textSecondary } },
+      type: chartConfig.yAxis.logScale ? 'log' : 'linear',
+      gridcolor: chartConfig.yAxis.gridVisible ? gridColor : 'transparent',
+      gridwidth: 1,
+      zerolinecolor: gridColor,
+      linecolor: borderColor,
+      tickfont: { color: textMuted, size: chartConfig.fontSize },
+      exponentformat: chartConfig.yAxis.scientificNotation ? 'e' : 'none',
+    };
+    if (chartConfig.yAxis.scientificNotation) yAxisConfig.tickformat = '.2e';
+    if (!chartConfig.yAxis.autoRange && chartConfig.yAxis.min !== undefined && chartConfig.yAxis.max !== undefined) {
+      yAxisConfig.range = [chartConfig.yAxis.min, chartConfig.yAxis.max];
+      yAxisConfig.autorange = false;
+    }
+
+    layout.xaxis = xAxisConfig;
+    layout.yaxis = yAxisConfig;
+
+    if (hasRightYAxis) {
+      layout.yaxis2 = {
+        title: { text: '', font: { size: chartConfig.fontSize, color: textSecondary } },
+        overlaying: 'y',
+        side: 'right',
+        type: chartConfig.yAxis.logScale ? 'log' : 'linear',
+        gridcolor: 'transparent',
+        zerolinecolor: gridColor,
+        linecolor: borderColor,
+        tickfont: { color: textMuted, size: chartConfig.fontSize },
+        exponentformat: chartConfig.yAxis.scientificNotation ? 'e' : 'none',
+        showgrid: false,
+      };
+      if (chartConfig.yAxis.scientificNotation) {
+        (layout.yaxis2 as Record<string, unknown>).tickformat = '.2e';
+      }
+    }
+  }
+
+  if (isPolar) {
+    layout.polar = {
+      radialaxis: { gridcolor: chartConfig.yAxis.gridVisible ? gridColor : 'transparent', tickfont: { color: textMuted }, visible: true },
+      angularaxis: { gridcolor: chartConfig.xAxis.gridVisible ? gridColor : 'transparent', tickfont: { color: textMuted } },
+    };
+    delete layout.xaxis;
+    delete layout.yaxis;
+  }
+
+  const plotlyConfig = {
+    responsive: true,
+    displayModeBar: false,
+    scrollZoom: true,
+  };
+
+  // Suppress unused variable warning for theme (used to trigger re-render on theme change)
+  void theme;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full p-4" style={{ background: 'var(--chart-bg)' }}>
-      <RenderChart />
-      <AnnotationOverlay annotations={chartConfig.annotations} chartArea={chartArea} chartRef={chartRef} onMoveAnnotation={handleMoveAnnotation} />
+    <div ref={containerRef} className="relative w-full h-full" style={{ background: 'var(--chart-bg)' }}>
+      <PlotlyComponent
+        data={traces}
+        layout={layout}
+        config={plotlyConfig}
+        useResizeHandler={true}
+        style={{ width: '100%', height: '100%' }}
+      />
+      <AnnotationOverlay
+        annotations={chartConfig.annotations}
+        chartArea={chartArea}
+        onMoveAnnotation={handleMoveAnnotation}
+      />
     </div>
   );
-}
-
-function generatePieColors(count: number): string[] {
-  const colors: string[] = [];
-  const baseHues = [200, 30, 150, 340, 60, 270, 100, 10, 180, 300];
-  for (let i = 0; i < count; i++) {
-    const hue = baseHues[i % baseHues.length];
-    colors.push(`hsla(${hue}, 70%, 55%, 0.85)`);
-  }
-  return colors;
-}
-
-function generatePolarColors(count: number): string[] {
-  const colors: string[] = [];
-  const baseHues = [200, 30, 150, 340, 60, 270, 100, 10, 180, 300];
-  for (let i = 0; i < count; i++) {
-    const hue = baseHues[i % baseHues.length];
-    colors.push(`hsla(${hue}, 65%, 55%, 0.6)`);
-  }
-  return colors;
 }

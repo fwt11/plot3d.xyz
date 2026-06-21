@@ -1,45 +1,14 @@
-import { usePlotStore } from '@/store/plotStore';
+import { useChartStore } from '@/store/chartStore';
 import { useTranslation } from 'react-i18next';
-import { uid } from '@/utils/sampleData';
-import type { AnnotationType, Annotation } from '@/types';
-import { Plus, Trash2, Eye, EyeOff, Type, ArrowUpRight, Square, Sigma } from 'lucide-react';
-
-function getAnnotationTypes(t: (key: string) => string): { type: AnnotationType; label: string; icon: React.ReactNode }[] {
-  return [
-    { type: 'text', label: t('annotation.text'), icon: <Type size={12} /> },
-    { type: 'latex', label: t('annotation.latex'), icon: <Sigma size={12} /> },
-    { type: 'arrow', label: t('annotation.arrow'), icon: <ArrowUpRight size={12} /> },
-    { type: 'rect', label: t('annotation.rect'), icon: <Square size={12} /> },
-  ];
-}
-
-function createDefaultAnnotation(type: AnnotationType, t: (key: string) => string): Annotation {
-  const base = {
-    id: uid(),
-    type,
-    x: 50,
-    y: 50,
-    content: type === 'latex' ? '$E = mc^2$' : type === 'text' ? t('annotation.defaultText') : '',
-    fontSize: 14,
-    color: '#e4e4e7',
-    visible: true,
-    coordMode: 'percent' as const,
-  };
-  if (type === 'arrow') {
-    return { ...base, content: '', arrowTo: { x: 70, y: 30 } };
-  }
-  if (type === 'rect') {
-    return { ...base, content: '', rectSize: { w: 20, h: 15 } };
-  }
-  return base;
-}
+import { getAnnotationTypes, createDefaultAnnotation } from '@/utils/annotations';
+import { Trash2, Eye, EyeOff } from 'lucide-react';
 
 export default function AnnotationPanel() {
   const { t } = useTranslation();
-  const annotations = usePlotStore((s) => s.chartConfig.annotations);
-  const addAnnotation = usePlotStore((s) => s.addAnnotation);
-  const removeAnnotation = usePlotStore((s) => s.removeAnnotation);
-  const updateAnnotation = usePlotStore((s) => s.updateAnnotation);
+  const annotations = useChartStore((s) => s.chartConfig.annotations);
+  const addAnnotation = useChartStore((s) => s.addAnnotation);
+  const removeAnnotation = useChartStore((s) => s.removeAnnotation);
+  const updateAnnotation = useChartStore((s) => s.updateAnnotation);
 
   const annotationTypes = getAnnotationTypes(t);
 
@@ -174,7 +143,7 @@ export default function AnnotationPanel() {
                 <input
                   type="number"
                   value={ann.arrowTo.x}
-                  onChange={(e) => updateAnnotation(ann.id, { arrowTo: { ...ann.arrowTo, x: Number(e.target.value) } })}
+                  onChange={(e) => updateAnnotation(ann.id, { arrowTo: { x: Number(e.target.value), y: ann.arrowTo!.y } })}
                   className="w-12 border rounded px-1 py-0.5 outline-none"
                   style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 />
@@ -184,7 +153,7 @@ export default function AnnotationPanel() {
                 <input
                   type="number"
                   value={ann.arrowTo.y}
-                  onChange={(e) => updateAnnotation(ann.id, { arrowTo: { ...ann.arrowTo, y: Number(e.target.value) } })}
+                  onChange={(e) => updateAnnotation(ann.id, { arrowTo: { x: ann.arrowTo!.x, y: Number(e.target.value) } })}
                   className="w-12 border rounded px-1 py-0.5 outline-none"
                   style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 />
@@ -200,7 +169,7 @@ export default function AnnotationPanel() {
                 <input
                   type="number"
                   value={ann.rectSize.w}
-                  onChange={(e) => updateAnnotation(ann.id, { rectSize: { ...ann.rectSize, w: Number(e.target.value) } })}
+                  onChange={(e) => updateAnnotation(ann.id, { rectSize: { w: Number(e.target.value), h: ann.rectSize!.h } })}
                   className="w-12 border rounded px-1 py-0.5 outline-none"
                   style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 />
@@ -210,7 +179,7 @@ export default function AnnotationPanel() {
                 <input
                   type="number"
                   value={ann.rectSize.h}
-                  onChange={(e) => updateAnnotation(ann.id, { rectSize: { ...ann.rectSize, h: Number(e.target.value) } })}
+                  onChange={(e) => updateAnnotation(ann.id, { rectSize: { w: ann.rectSize!.w, h: Number(e.target.value) } })}
                   className="w-12 border rounded px-1 py-0.5 outline-none"
                   style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 />
