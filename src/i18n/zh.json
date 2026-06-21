@@ -7,10 +7,19 @@
     "annotation": "标注"
   },
   "file": {
+    "project": "项目",
+    "saveProject": "保存项目",
+    "loadProject": "打开项目",
     "import": "导入",
     "importData": "导入数据",
     "importCsvExcel": "导入 CSV / Excel",
     "export": "导出",
+    "exportPng": "导出为 PNG",
+    "exportSvg": "导出为 SVG",
+    "exportPdf": "导出为 PDF",
+    "exportCsv": "导出为 CSV",
+    "exportEps": "导出为 EPS",
+    "exportTiff": "导出为 TIFF",
     "theme": "主题",
     "light": "浅色",
     "dark": "深色",
@@ -91,7 +100,11 @@
     "latexPlaceholder": "$E=mc^2$",
     "fontSize": "字号",
     "width": "宽",
-    "height": "高"
+    "height": "高",
+    "hide": "隐藏标注",
+    "show": "显示标注",
+    "color": "标注颜色",
+    "delete": "删除标注"
   },
   "config": {
     "title": "标题",
@@ -132,11 +145,35 @@
     "zAxis3d": "Z 轴 (3D)",
     "label": "标签",
     "error": "误差",
+    "errorPlus": "误差+",
+    "errorMinus": "误差−",
     "addRow": "添加行"
   },
   "layer": {
     "none": "无",
-    "addLayer": "添加图层"
+    "addLayer": "添加图层",
+    "style": "样式",
+    "lineStyle": "线型",
+    "lineWidth": "线宽",
+    "pointStyle": "点型",
+    "pointSize": "点大小",
+    "solid": "实线",
+    "dashed": "虚线",
+    "dotted": "点线",
+    "circle": "圆形",
+    "square": "方形",
+    "triangle": "三角",
+    "nonePoint": "无",
+    "fill": "填充",
+    "errorColumn": "误差列",
+    "hideLayer": "隐藏图层",
+    "showLayer": "显示图层",
+    "selectDataset": "选择数据集",
+    "color": "图层颜色",
+    "deleteLayer": "删除图层",
+    "xColumn": "X 列",
+    "yColumn": "Y 列",
+    "zColumn": "Z 列"
   },
   "scene3d": {
     "controls": "3D 场景控制",
@@ -156,7 +193,14 @@
     "chartConfig": "图表配置",
     "zColumnDetected": "检测到 Z 列数据，是否切换到{{type}}？",
     "switchTo": "切换",
-    "dismiss": "忽略"
+    "dismiss": "忽略",
+    "undo": "撤销",
+    "redo": "重做",
+    "closeDataPanel": "关闭数据面板",
+    "closeConfigPanel": "关闭配置面板",
+    "openDataPanel": "打开数据面板",
+    "openConfigPanel": "打开配置面板",
+    "rows": "行"
   },
   "chart2d": {
     "addLayer": "请添加数据图层"

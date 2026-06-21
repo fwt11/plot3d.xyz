@@ -7,10 +7,19 @@
     "annotation": "Annotation"
   },
   "file": {
+    "project": "Project",
+    "saveProject": "Save Project",
+    "loadProject": "Open Project",
     "import": "Import",
     "importData": "Import Data",
     "importCsvExcel": "Import CSV / Excel",
     "export": "Export",
+    "exportPng": "Export as PNG",
+    "exportSvg": "Export as SVG",
+    "exportPdf": "Export as PDF",
+    "exportCsv": "Export as CSV",
+    "exportEps": "Export as EPS",
+    "exportTiff": "Export as TIFF",
     "theme": "Theme",
     "light": "Light",
     "dark": "Dark",
@@ -91,7 +100,11 @@
     "latexPlaceholder": "$E=mc^2$",
     "fontSize": "Size",
     "width": "W",
-    "height": "H"
+    "height": "H",
+    "hide": "Hide annotation",
+    "show": "Show annotation",
+    "color": "Annotation color",
+    "delete": "Delete annotation"
   },
   "config": {
     "title": "Title",
@@ -132,11 +145,35 @@
     "zAxis3d": "Z Axis (3D)",
     "label": "Label",
     "error": "Error",
+    "errorPlus": "Error+",
+    "errorMinus": "Error−",
     "addRow": "Add Row"
   },
   "layer": {
     "none": "None",
-    "addLayer": "Add Layer"
+    "addLayer": "Add Layer",
+    "style": "Style",
+    "lineStyle": "Line Style",
+    "lineWidth": "Line Width",
+    "pointStyle": "Point Style",
+    "pointSize": "Point Size",
+    "solid": "Solid",
+    "dashed": "Dashed",
+    "dotted": "Dotted",
+    "circle": "Circle",
+    "square": "Square",
+    "triangle": "Triangle",
+    "nonePoint": "None",
+    "fill": "Fill",
+    "errorColumn": "Error Column",
+    "hideLayer": "Hide layer",
+    "showLayer": "Show layer",
+    "selectDataset": "Select dataset",
+    "color": "Layer color",
+    "deleteLayer": "Delete layer",
+    "xColumn": "X column",
+    "yColumn": "Y column",
+    "zColumn": "Z column"
   },
   "scene3d": {
     "controls": "3D Scene Controls",
@@ -156,7 +193,14 @@
     "chartConfig": "Chart Config",
     "zColumnDetected": "Z column data detected. Switch to {{type}}?",
     "switchTo": "Switch",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "undo": "Undo",
+    "redo": "Redo",
+    "closeDataPanel": "Close data panel",
+    "closeConfigPanel": "Close config panel",
+    "openDataPanel": "Open data panel",
+    "openConfigPanel": "Open config panel",
+    "rows": "rows"
   },
   "chart2d": {
     "addLayer": "Please add a data layer"
