@@ -1,10 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useChartStore } from '@/store/chartStore';
 import { useDatasetStore } from '@/store/datasetStore';
+import { useToastStore } from '@/store/toastStore';
+import { confirm } from '@/store/confirmStore';
 import { Eye, EyeOff, Trash2, Plus, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { uid } from '@/utils/sampleData';
+import { is3DChart } from '@/utils/chart';
 import { useTranslation } from 'react-i18next';
-import { showContextMenu, type MenuItemOrSeparator } from '@/components/ContextMenu';
+import { showContextMenu, type MenuItemOrSeparator } from '@/utils/contextMenu';
 
 export default function LayerPanel() {
   const { t } = useTranslation();
@@ -13,7 +16,8 @@ export default function LayerPanel() {
   const addLayer = useChartStore((s) => s.addLayer);
   const removeLayer = useChartStore((s) => s.removeLayer);
   const updateLayer = useChartStore((s) => s.updateLayer);
-  const is3D = ['surface3d', 'scatter3d', 'contour3d', 'bar3d'].includes(chartConfig.type);
+  const addToast = useToastStore((s) => s.addToast);
+  const is3D = is3DChart(chartConfig.type);
 
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(new Set());
 
@@ -59,12 +63,12 @@ export default function LayerPanel() {
       {
         label: t('context.deleteLayer'),
         icon: <Trash2 size={14} />,
-        onClick: () => removeLayer(layerId),
+        onClick: () => { confirm({ title: t('confirm.deleteLayerTitle'), message: t('confirm.deleteLayerMessage'), danger: true, onConfirm: () => { removeLayer(layerId); addToast(t('toast.deleted'), 'info'); } }); },
         danger: true,
       },
     ];
     showContextMenu(e, items);
-  }, [chartConfig.layers, updateLayer, addLayer, removeLayer, t]);
+  }, [chartConfig.layers, updateLayer, addLayer, removeLayer, t, addToast]);
 
   return (
     <div className="h-full overflow-y-auto text-xs">
@@ -122,7 +126,7 @@ export default function LayerPanel() {
                 aria-label={t('layer.color', 'Layer color')}
               />
               <button
-                onClick={() => removeLayer(layer.id)}
+                onClick={() => confirm({ title: t('confirm.deleteLayerTitle'), message: t('confirm.deleteLayerMessage'), danger: true, onConfirm: () => removeLayer(layer.id) })}
                 className="transition-colors"
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#fb7185'; }}
@@ -189,10 +193,10 @@ export default function LayerPanel() {
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
-              aria-label={t('layer.style', '样式')}
+              aria-label={t('layer.style', 'Style')}
             >
               {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-              {t('layer.style', '样式')}
+              {t('layer.style', 'Style')}
             </button>
 
             {/* Collapsible style options */}
@@ -200,21 +204,21 @@ export default function LayerPanel() {
               <div className="space-y-1.5 pl-1" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                 <div className="flex gap-1.5">
                   <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                    {t('layer.lineStyle', '线型')}
+                    {t('layer.lineStyle', 'Line Style')}
                     <select
                       value={layer.lineStyle}
                       onChange={(e) => updateLayer(layer.id, { lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
                       className="border rounded px-1 py-0.5 outline-none flex-1"
                       style={selectStyle}
-                      aria-label={t('layer.lineStyle', '线型')}
+                      aria-label={t('layer.lineStyle', 'Line Style')}
                     >
-                      <option value="solid">{t('layer.solid', '实线')}</option>
-                      <option value="dashed">{t('layer.dashed', '虚线')}</option>
-                      <option value="dotted">{t('layer.dotted', '点线')}</option>
+                      <option value="solid">{t('layer.solid', 'Solid')}</option>
+                      <option value="dashed">{t('layer.dashed', 'Dashed')}</option>
+                      <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-1 text-sm" style={labelStyle}>
-                    {t('layer.lineWidth', '线宽')}
+                    {t('layer.lineWidth', 'Line Width')}
                     <input
                       type="number"
                       min={1}
@@ -223,28 +227,28 @@ export default function LayerPanel() {
                       onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })}
                       className="border rounded px-1 py-0.5 outline-none w-10 text-center"
                       style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                      aria-label={t('layer.lineWidth', '线宽')}
+                      aria-label={t('layer.lineWidth', 'Line Width')}
                     />
                   </label>
                 </div>
                 <div className="flex gap-1.5">
                   <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                    {t('layer.pointStyle', '点型')}
+                    {t('layer.pointStyle', 'Point Style')}
                     <select
                       value={layer.pointStyle}
                       onChange={(e) => updateLayer(layer.id, { pointStyle: e.target.value as 'circle' | 'square' | 'triangle' | 'none' })}
                       className="border rounded px-1 py-0.5 outline-none flex-1"
                       style={selectStyle}
-                      aria-label={t('layer.pointStyle', '点型')}
+                      aria-label={t('layer.pointStyle', 'Point Style')}
                     >
-                      <option value="circle">{t('layer.circle', '圆形')}</option>
-                      <option value="square">{t('layer.square', '方形')}</option>
-                      <option value="triangle">{t('layer.triangle', '三角')}</option>
-                      <option value="none">{t('layer.nonePoint', '无')}</option>
+                      <option value="circle">{t('layer.circle', 'Circle')}</option>
+                      <option value="square">{t('layer.square', 'Square')}</option>
+                      <option value="triangle">{t('layer.triangle', 'Triangle')}</option>
+                      <option value="none">{t('layer.nonePoint', 'None')}</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-1 text-sm" style={labelStyle}>
-                    {t('layer.pointSize', '点大小')}
+                    {t('layer.pointSize', 'Point Size')}
                     <input
                       type="number"
                       min={1}
@@ -253,7 +257,7 @@ export default function LayerPanel() {
                       onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
                       className="border rounded px-1 py-0.5 outline-none w-10 text-center"
                       style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                      aria-label={t('layer.pointSize', '点大小')}
+                      aria-label={t('layer.pointSize', 'Point Size')}
                     />
                   </label>
                 </div>
@@ -264,22 +268,39 @@ export default function LayerPanel() {
                       checked={layer.fill}
                       onChange={(e) => updateLayer(layer.id, { fill: e.target.checked })}
                       className="accent-sky-500"
-                      aria-label={t('layer.fill', '填充')}
+                      aria-label={t('layer.fill', 'Fill')}
                     />
-                    {t('layer.fill', '填充')}
+                    {t('layer.fill', 'Fill')}
                   </label>
                 </div>
+                {!is3D && (
+                  <div className="flex gap-1.5 items-center">
+                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                      {t('layer.yAxisSide', 'Y Axis Side')}
+                      <select
+                        value={layer.yAxisSide || 'left'}
+                        onChange={(e) => updateLayer(layer.id, { yAxisSide: e.target.value as 'left' | 'right' })}
+                        className="border rounded px-1 py-0.5 outline-none flex-1"
+                        style={selectStyle}
+                        aria-label={t('layer.yAxisSide', 'Y Axis Side')}
+                      >
+                        <option value="left">{t('layer.yAxisLeft', 'Left')}</option>
+                        <option value="right">{t('layer.yAxisRight', 'Right')}</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
                 {ds && (
                   <div className="flex flex-col gap-1.5">
                     <div className="flex gap-1.5 items-center">
                       <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                        {t('layer.errorColumn', '误差列')}
+                        {t('layer.errorColumn', 'Error Column')}
                         <select
                           value={layer.errorColumn ?? ''}
                           onChange={(e) => updateLayer(layer.id, { errorColumn: e.target.value || undefined })}
                           className="border rounded px-1 py-0.5 outline-none flex-1"
                           style={selectStyle}
-                          aria-label={t('layer.errorColumn', '误差列')}
+                          aria-label={t('layer.errorColumn', 'Error Column')}
                         >
                           <option value="">{t('layer.none')}</option>
                           {errorColumns.map((c) => (
@@ -290,13 +311,13 @@ export default function LayerPanel() {
                     </div>
                     <div className="flex gap-1.5 items-center">
                       <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                        {t('layer.errorPlusColumn', '误差+')}
+                        {t('layer.errorPlusColumn', 'Error+ Column')}
                         <select
                           value={layer.errorPlusColumn ?? ''}
                           onChange={(e) => updateLayer(layer.id, { errorPlusColumn: e.target.value || undefined })}
                           className="border rounded px-1 py-0.5 outline-none flex-1"
                           style={selectStyle}
-                          aria-label={t('layer.errorPlusColumn', '误差+')}
+                          aria-label={t('layer.errorPlusColumn', 'Error+ Column')}
                         >
                           <option value="">{t('layer.none')}</option>
                           {errorPlusColumns.map((c) => (
@@ -307,13 +328,64 @@ export default function LayerPanel() {
                     </div>
                     <div className="flex gap-1.5 items-center">
                       <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
-                        {t('layer.errorMinusColumn', '误差−')}
+                        {t('layer.errorMinusColumn', 'Error− Column')}
                         <select
                           value={layer.errorMinusColumn ?? ''}
                           onChange={(e) => updateLayer(layer.id, { errorMinusColumn: e.target.value || undefined })}
                           className="border rounded px-1 py-0.5 outline-none flex-1"
                           style={selectStyle}
-                          aria-label={t('layer.errorMinusColumn', '误差−')}
+                          aria-label={t('layer.errorMinusColumn', 'Error− Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorMinusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorXColumn', 'X Error Column')}
+                        <select
+                          value={layer.errorXColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorXColumn', 'X Error Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorXPlusColumn', 'X Error+ Column')}
+                        <select
+                          value={layer.errorXPlusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXPlusColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorXPlusColumn', 'X Error+ Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorPlusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        {t('layer.errorXMinusColumn', 'X Error− Column')}
+                        <select
+                          value={layer.errorXMinusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXMinusColumn: e.target.value || undefined })}
+                          className="border rounded px-1 py-0.5 outline-none flex-1"
+                          style={selectStyle}
+                          aria-label={t('layer.errorXMinusColumn', 'X Error− Column')}
                         >
                           <option value="">{t('layer.none')}</option>
                           {errorMinusColumns.map((c) => (

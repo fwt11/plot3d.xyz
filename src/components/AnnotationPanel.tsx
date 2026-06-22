@@ -75,7 +75,7 @@ export default function AnnotationPanel() {
             />
           )}
 
-          {/* Coord mode toggle */}
+          {/* Coord mode toggle: percent (screen-relative) or data (axis-relative) */}
           <div className="flex items-center gap-1">
             <button
               onClick={() => updateAnnotation(ann.id, { coordMode: 'percent' })}
@@ -94,6 +94,7 @@ export default function AnnotationPanel() {
                 background: ann.coordMode === 'data' ? 'var(--accent)' : 'var(--bg-input)',
                 color: ann.coordMode === 'data' ? '#fff' : 'var(--text-muted)',
               }}
+              title={t('annotation.dataModeTip')}
             >
               XY
             </button>
@@ -122,7 +123,7 @@ export default function AnnotationPanel() {
               />
             </label>
             <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              {t('annotation.fontSize', '字号')}
+              {t('annotation.fontSize')}
               <input
                 type="number"
                 value={ann.fontSize}
@@ -165,7 +166,7 @@ export default function AnnotationPanel() {
           {ann.type === 'rect' && ann.rectSize && (
             <div className="flex gap-2">
               <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                {t('annotation.width', '宽')}
+                {t('annotation.width')}
                 <input
                   type="number"
                   value={ann.rectSize.w}
@@ -175,7 +176,7 @@ export default function AnnotationPanel() {
                 />
               </label>
               <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                {t('annotation.height', '高')}
+                {t('annotation.height')}
                 <input
                   type="number"
                   value={ann.rectSize.h}

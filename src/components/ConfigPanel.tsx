@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AxisConfig, ExportBackground } from '@/types';
+import AnnotationPanel from './AnnotationPanel';
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -25,7 +26,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
   );
 }
 
-function AxisEditor({ label, axis, onChange, is3D = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean }) {
+function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean; allowCategory?: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
@@ -39,6 +40,18 @@ function AxisEditor({ label, axis, onChange, is3D = false }: { label: string; ax
           className="flex-1 border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           aria-label={`${label} ${t('config.label')}`}
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        {t('config.unit')}
+        <input
+          type="text"
+          value={axis.unit ?? ''}
+          onChange={(e) => onChange({ unit: e.target.value })}
+          placeholder="e.g. s, mol/L"
+          className="flex-1 border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
+          style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          aria-label={`${label} ${t('config.unit')}`}
         />
       </label>
       <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -111,6 +124,18 @@ function AxisEditor({ label, axis, onChange, is3D = false }: { label: string; ax
           </label>
         </>
       )}
+      {allowCategory && (
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          {t('config.categoryAxis')}
+          <input
+            type="checkbox"
+            checked={axis.categoryAxis ?? true}
+            onChange={(e) => onChange({ categoryAxis: e.target.checked })}
+            className="accent-sky-500"
+            aria-label={`${label} ${t('config.categoryAxis')}`}
+          />
+        </label>
+      )}
     </div>
   );
 }
@@ -158,7 +183,7 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.xAxis')}>
-        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} />
+        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} allowCategory={chartConfig.type === 'bar'} />
       </Section>
 
       <Section title={t('config.yAxis')}>
@@ -256,6 +281,12 @@ export default function ConfigPanel() {
           />
         </label>
       </Section>
+
+      {!is3D && (
+        <Section title={t('annotation.annotations')} defaultOpen={false}>
+          <AnnotationPanel />
+        </Section>
+      )}
     </div>
   );
 }

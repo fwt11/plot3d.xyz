@@ -3,6 +3,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
 import { useChartStore } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
+import { useChartInteractionStore } from '@/store/chartInteractionStore';
 import { useTranslation } from 'react-i18next';
 import DataTable from '@/components/DataTable';
 import ChartView from '@/components/ChartView';
@@ -10,6 +11,7 @@ import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
 import { ContextMenuOverlay } from '@/components/ContextMenu';
+import ToastContainer from '@/components/Toast';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
@@ -64,18 +66,63 @@ function ChartTypeSuggestionBar() {
 
 function StatusBar() {
   const chartType = useChartStore((s) => s.chartConfig.type);
+  const layers = useChartStore((s) => s.chartConfig.layers);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
+  const hover = useChartInteractionStore((s) => s.hover);
+  const zoom = useChartInteractionStore((s) => s.zoom);
   const { t } = useTranslation();
 
   const activeDs = datasets.find(d => d.id === activeDatasetId);
   const rowCount = activeDs ? Math.max(...activeDs.columns.map(c => c.values.length), 0) : 0;
 
+  // Memory usage (Chrome-only, optional)
+  const [memMB, setMemMB] = useState<number | null>(null);
+  useEffect(() => {
+    const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
+    if (!perf.memory) return;
+    const update = () => setMemMB(perf.memory!.usedJSHeapSize / 1024 / 1024);
+    update();
+    const id = setInterval(update, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  const fmt = (v: number | string | undefined) => {
+    if (v === undefined) return '';
+    if (typeof v === 'number') {
+      if (!isFinite(v)) return String(v);
+      return Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0)
+        ? v.toExponential(2)
+        : v.toPrecision(4).replace(/\.?0+$/, '');
+    }
+    return String(v);
+  };
+
+  const zoomLabel = zoom && (zoom.x0 !== undefined || zoom.y0 !== undefined)
+    ? `x:[${fmt(zoom.x0)}..${fmt(zoom.x1)}] y:[${fmt(zoom.y0)}..${fmt(zoom.y1)}]`
+    : null;
+
   return (
-    <div className="flex items-center px-3 gap-4 text-xs shrink-0" style={{ height: 'var(--status-bar-height, 24px)', background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+    <div className="flex items-center px-3 gap-4 text-xs shrink-0 overflow-hidden" style={{ height: 'var(--status-bar-height, 24px)', background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
       <span>{t(`chartTypes.${chartType}`)}</span>
       <span>{activeDs?.name ?? '-'}</span>
       <span>{rowCount} {t('workspace.rows')}</span>
+      <span>{layers.length} {t('workspace.layers')}</span>
+      {hover && (
+        <span title={t('workspace.cursor')}>
+          {t('workspace.cursor')}: ({fmt(hover.x)}, {fmt(hover.y)}{hover.z !== undefined ? `, ${fmt(hover.z)}` : ''})
+        </span>
+      )}
+      {zoomLabel && (
+        <span title={t('workspace.zoom')} className="truncate" style={{ maxWidth: 360 }}>
+          {t('workspace.zoom')}: {zoomLabel}
+        </span>
+      )}
+      {memMB !== null && (
+        <span className="ml-auto" title={t('workspace.mem')}>
+          {t('workspace.mem')}: {memMB.toFixed(0)} MB
+        </span>
+      )}
     </div>
   );
 }
@@ -86,7 +133,8 @@ export default function Workspace() {
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const [leftWidth, setLeftWidth] = useState(288);
   const [rightWidth, setRightWidth] = useState(256);
-  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
+  const [layerPanelHeight, setLayerPanelHeight] = useState(220);
+  const [resizing, setResizing] = useState<'left' | 'right' | 'layer' | null>(null);
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const lang = useUiStore((s) => s.lang);
@@ -107,8 +155,15 @@ export default function Workspace() {
     const handleMouseMove = (e: MouseEvent) => {
       if (resizing === 'left') {
         setLeftWidth(Math.max(200, Math.min(500, e.clientX)));
-      } else {
+      } else if (resizing === 'right') {
         setRightWidth(Math.max(200, Math.min(500, window.innerWidth - e.clientX)));
+      } else if (resizing === 'layer') {
+        // Distance from viewport bottom to the layer panel top
+        const dataPanelEl = document.getElementById('data-panel-container');
+        if (!dataPanelEl) return;
+        const rect = dataPanelEl.getBoundingClientRect();
+        const newHeight = Math.max(120, Math.min(rect.height - 120, rect.bottom - e.clientY));
+        setLayerPanelHeight(newHeight);
       }
     };
     const handleMouseUp = () => setResizing(null);
@@ -204,7 +259,7 @@ export default function Workspace() {
       <div className="flex flex-1 overflow-hidden">
         {/* Data panel */}
         {showDataPanel && (
-          <div className="flex flex-col shrink-0" style={{ width: leftWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
+          <div id="data-panel-container" className="flex flex-col shrink-0" style={{ width: leftWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.dataTable')}</span>
               <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeDataPanel', 'Close data panel')}>
@@ -219,9 +274,14 @@ export default function Workspace() {
                 <Layers size={12} style={{ color: 'var(--text-faint)' }} />
                 <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.layerManage')}</span>
               </div>
-              <div className="max-h-48 overflow-y-auto p-2">
+              <div style={{ height: layerPanelHeight }} className="overflow-y-auto p-2">
                 <LayerPanel />
               </div>
+              <div
+                className="h-1 cursor-row-resize hover:bg-sky-500/30 transition-colors"
+                onMouseDown={() => setResizing('layer')}
+                style={{ borderTop: '1px solid var(--border)' }}
+              />
             </div>
           </div>
         )}
@@ -283,6 +343,7 @@ export default function Workspace() {
         </button>
       )}
       <StatusBar />
+      <ToastContainer />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
+import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { FileUp, Download, Save, FolderOpen } from 'lucide-react';
 import type { Dataset } from '@/types';
@@ -8,7 +9,6 @@ import { uid } from '@/utils/sampleData';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import Plotly from 'plotly.js-dist-min';
-import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
@@ -22,11 +22,21 @@ export function FileTab() {
   const exportConfig = useChartStore((s) => s.chartConfig.exportConfig);
   const chartType = useChartStore((s) => s.chartConfig.type);
   const theme = useUiStore((s) => s.theme);
+  const addToast = useToastStore((s) => s.addToast);
 
   const getExportBackground = (): string | undefined => {
     if (exportConfig.background === 'transparent') return undefined;
     if (exportConfig.background === 'white') return '#ffffff';
     return theme === 'dark' ? '#1e1e32' : '#ffffff';
+  };
+
+  const runExport = async (fn: () => Promise<void>) => {
+    try {
+      await fn();
+      addToast(t('toast.exportSuccess'), 'success');
+    } catch {
+      addToast(t('toast.exportFailed'), 'error');
+    }
   };
 
   const handleImport = () => fileInputRef.current?.click();
@@ -40,31 +50,47 @@ export function FileTab() {
       Papa.parse(file, {
         complete: (results) => {
           const rows = results.data as string[][];
-          if (rows.length < 2) return;
+          if (rows.length < 2) {
+            addToast(t('toast.importTooFewRows'), 'warning');
+            return;
+          }
           const headers = rows[0];
           const columns: Dataset['columns'] = headers.map((h, i) => ({
             id: uid(), name: h || `Col${i + 1}`, type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
             values: rows.slice(1).map((row) => row[i] ?? ''),
           }));
           addDataset({ id: uid(), name: file.name.replace(/\.csv$/i, ''), columns });
+          addToast(t('toast.importSuccess', { file: file.name }), 'success');
+        },
+        error: () => {
+          addToast(t('toast.importFailed', { file: file.name }), 'error');
         },
       });
     } else if (ext === 'xlsx' || ext === 'xls') {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        const data = evt.target?.result;
-        const wb = XLSX.read(data, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
-        if (rows.length < 2) return;
-        const headers = rows[0];
-        const columns: Dataset['columns'] = headers.map((h, i) => ({
-          id: uid(), name: String(h || `Col${i + 1}`), type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
-          values: rows.slice(1).map((row) => row[i] ?? ''),
-        }));
-        addDataset({ id: uid(), name: file.name.replace(/\.xlsx?$/i, ''), columns });
+        try {
+          const data = evt.target?.result;
+          const wb = XLSX.read(data, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+          if (rows.length < 2) {
+            addToast(t('toast.importTooFewRows'), 'warning');
+            return;
+          }
+          const headers = rows[0];
+          const columns: Dataset['columns'] = headers.map((h, i) => ({
+            id: uid(), name: String(h || `Col${i + 1}`), type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
+            values: rows.slice(1).map((row) => row[i] ?? ''),
+          }));
+          addDataset({ id: uid(), name: file.name.replace(/\.xlsx?$/i, ''), columns });
+          addToast(t('toast.importSuccess', { file: file.name }), 'success');
+        } catch {
+          addToast(t('toast.importFailed', { file: file.name }), 'error');
+        }
       };
-      reader.readAsBinaryString(file);
+      reader.onerror = () => addToast(t('toast.importFailed', { file: file.name }), 'error');
+      reader.readAsArrayBuffer(file);
     }
     e.target.value = '';
   };
@@ -73,11 +99,11 @@ export function FileTab() {
     return document.querySelector('.js-plotly-plot');
   };
 
-  const handleExportPNG = async () => {
+  const handleExportPNG = async () => runExport(async () => {
     const is3D = is3DChart(chartType);
     const bgColor = getExportBackground();
 
-    if (!is3D) {
+      if (!is3D) {
       // Use Plotly's native PNG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
@@ -137,9 +163,9 @@ export function FileTab() {
       link.href = scaledCanvas.toDataURL('image/png');
       link.click();
     }
-  };
+  });
 
-  const handleExportSVG = async () => {
+  const handleExportSVG = async () => runExport(async () => {
     const is3D = is3DChart(chartType);
 
     if (!is3D) {
@@ -158,65 +184,59 @@ export function FileTab() {
         return;
       }
     }
-  };
+  });
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async () => runExport(async () => {
     const is3D = is3DChart(chartType);
     const bgColor = getExportBackground();
+
+    if (!is3D) {
+      // 2D: export vector SVG from Plotly, embed into a vector PDF
+      const div = getPlotlyDiv();
+      if (div) {
+        const svgDataUrl = await Plotly.toImage(div, {
+          format: 'svg',
+          scale: exportConfig.resolutionMultiplier,
+          bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+        });
+        // svgDataUrl is a data: URL; decode to raw SVG string
+        const svgString = decodeURIComponent(svgDataUrl.split(',')[1] ?? '');
+        const { jsPDF } = await import('jspdf');
+        // Match page size to the chart's aspect ratio
+        const width = div.clientWidth;
+        const height = div.clientHeight;
+        const aspectRatio = width / height;
+        const margin = 10;
+        const pdfWidth = 297;
+        const contentWidth = pdfWidth - 2 * margin;
+        const contentHeight = contentWidth / aspectRatio;
+        const pdfHeight = contentHeight + 2 * margin;
+        const pdf = new jsPDF({
+          orientation: aspectRatio >= 1 ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: [pdfWidth, pdfHeight],
+        });
+        // Embed SVG as a vector image (text stays selectable, scales losslessly)
+        pdf.addSvgAsImage(svgString, margin, margin, contentWidth, contentHeight);
+        pdf.save('chart.pdf');
+        return;
+      }
+    }
+
+    // 3D: fall back to raster PNG embedded in PDF (3D cannot produce vector output)
     let imgData: string;
     let imgWidth: number;
     let imgHeight: number;
-
-    if (!is3D) {
-      // Use Plotly's native export for 2D
-      const div = getPlotlyDiv();
-      if (div) {
-        const scale = exportConfig.resolutionMultiplier;
-        imgData = await Plotly.toImage(div, {
-          format: 'png',
-          scale,
-          bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+    const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
+    if (container3D) {
+      try {
+        imgData = await toPng(container3D, {
+          pixelRatio: exportConfig.resolutionMultiplier,
+          backgroundColor: bgColor ?? undefined,
         });
-        imgWidth = div.clientWidth * scale;
-        imgHeight = div.clientHeight * scale;
-      } else {
-        return;
-      }
-    } else {
-      // 3D: capture entire container (canvas + overlays) using html-to-image
-      const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-      if (container3D) {
-        try {
-          imgData = await toPng(container3D, {
-            pixelRatio: exportConfig.resolutionMultiplier,
-            backgroundColor: bgColor ?? undefined,
-          });
-          imgWidth = container3D.clientWidth * exportConfig.resolutionMultiplier;
-          imgHeight = container3D.clientHeight * exportConfig.resolutionMultiplier;
-        } catch {
-          // Fall through to canvas-only export
-          const canvas = document.querySelector('canvas');
-          if (!canvas) return;
-          const multiplier = exportConfig.resolutionMultiplier;
-          const width = canvas.width;
-          const height = canvas.height;
-          const scaledCanvas = document.createElement('canvas');
-          scaledCanvas.width = width * multiplier;
-          scaledCanvas.height = height * multiplier;
-          const ctx = scaledCanvas.getContext('2d');
-          if (!ctx) return;
-          if (bgColor) {
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, scaledCanvas.width, scaledCanvas.height);
-          }
-          ctx.scale(multiplier, multiplier);
-          ctx.drawImage(canvas, 0, 0, width, height);
-          imgData = scaledCanvas.toDataURL('image/png');
-          imgWidth = scaledCanvas.width;
-          imgHeight = scaledCanvas.height;
-        }
-      } else {
-        // Fallback: canvas-only export
+        imgWidth = container3D.clientWidth * exportConfig.resolutionMultiplier;
+        imgHeight = container3D.clientHeight * exportConfig.resolutionMultiplier;
+      } catch {
         const canvas = document.querySelector('canvas');
         if (!canvas) return;
         const multiplier = exportConfig.resolutionMultiplier;
@@ -237,76 +257,9 @@ export function FileTab() {
         imgWidth = scaledCanvas.width;
         imgHeight = scaledCanvas.height;
       }
-    }
-
-    // Match PDF page size to chart aspect ratio
-    const aspectRatio = imgWidth / imgHeight;
-    const margin = 10;
-    const pdfWidth = 297;
-    const contentWidth = pdfWidth - 2 * margin;
-    const contentHeight = contentWidth / aspectRatio;
-    const pdfHeight = contentHeight + 2 * margin;
-
-    const pdf = new jsPDF({
-      orientation: aspectRatio >= 1 ? 'landscape' : 'portrait',
-      unit: 'mm',
-      format: [pdfWidth, pdfHeight],
-    });
-    pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
-    pdf.save('chart.pdf');
-  };
-
-  const handleExportEPS = async () => {
-    const is3D = is3DChart(chartType);
-    const bgColor = getExportBackground();
-
-    if (!is3D) {
-      // 2D: export SVG via Plotly, then wrap in a basic EPS header
-      const div = getPlotlyDiv();
-      if (div) {
-        const dataUrl = await Plotly.toImage(div, {
-          format: 'svg',
-          scale: exportConfig.resolutionMultiplier,
-          bgcolor: bgColor ?? 'rgba(0,0,0,0)',
-        });
-        // dataUrl is a data URI: data:image/svg+xml;charset=utf-8,...
-        const svgText = decodeURIComponent(dataUrl.split(',')[1]);
-        const epsContent =
-          '%!PS-Adobe-3.0 EPSF-3.0\n' +
-          `%%BoundingBox: 0 0 ${div.clientWidth} ${div.clientHeight}\n` +
-          '%%EndComments\n' +
-          svgText +
-          '\n%%EOF\n';
-        const blob = new Blob([epsContent], { type: 'application/postscript' });
-        const link = document.createElement('a');
-        link.download = 'chart.eps';
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        return;
-      }
-    }
-
-    // 3D: fallback to high-res PNG (3D cannot produce vector EPS)
-    const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-    if (container3D) {
-      try {
-        const dataUrl = await toPng(container3D, {
-          pixelRatio: exportConfig.resolutionMultiplier,
-          backgroundColor: bgColor ?? undefined,
-        });
-        const link = document.createElement('a');
-        link.download = 'chart.eps';
-        link.href = dataUrl;
-        link.click();
-        return;
-      } catch {
-        // Fall through to canvas-only export
-      }
-    }
-
-    // Fallback for 3D: canvas-only export
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
+    } else {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return;
       const multiplier = exportConfig.resolutionMultiplier;
       const width = canvas.width;
       const height = canvas.height;
@@ -321,14 +274,28 @@ export function FileTab() {
       }
       ctx.scale(multiplier, multiplier);
       ctx.drawImage(canvas, 0, 0, width, height);
-      const link = document.createElement('a');
-      link.download = 'chart.eps';
-      link.href = scaledCanvas.toDataURL('image/png');
-      link.click();
+      imgData = scaledCanvas.toDataURL('image/png');
+      imgWidth = scaledCanvas.width;
+      imgHeight = scaledCanvas.height;
     }
-  };
 
-  const handleExportTIFF = async () => {
+    const aspectRatio = imgWidth / imgHeight;
+    const margin = 10;
+    const pdfWidth = 297;
+    const contentWidth = pdfWidth - 2 * margin;
+    const contentHeight = contentWidth / aspectRatio;
+    const pdfHeight = contentHeight + 2 * margin;
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({
+      orientation: aspectRatio >= 1 ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [pdfWidth, pdfHeight],
+    });
+    pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
+    pdf.save('chart.pdf');
+  });
+
+  const handleExportTIFF = async () => runExport(async () => {
     const is3D = is3DChart(chartType);
     const bgColor = getExportBackground();
     const dpi = 300;
@@ -436,37 +403,46 @@ export function FileTab() {
       const rgbaData = rgbaFromCanvas(scaledCanvas);
       saveTiffBlob(rgbaData, scaledCanvas.width, scaledCanvas.height);
     }
-  };
+  });
 
   const handleExportCSV = () => {
     const datasets = useDatasetStore.getState().datasets;
     const ds = datasets.find((d) => d.id === useDatasetStore.getState().activeDatasetId);
-    if (!ds) return;
+    if (!ds) {
+      addToast(t('toast.noDatasetForExport'), 'warning');
+      return;
+    }
     const headers = ds.columns.map((c) => c.name);
     const maxRows = Math.max(...ds.columns.map((c) => c.values.length), 0);
     const rows = Array.from({ length: maxRows }, (_, i) =>
       ds.columns.map((c) => String(c.values[i] ?? ''))
     );
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const csv = Papa.unparse({ fields: headers, data: rows });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.download = `${ds.name}.csv`;
     link.href = URL.createObjectURL(blob);
     link.click();
+    addToast(t('toast.exportSuccess'), 'success');
   };
 
   const handleSaveProject = () => {
-    const dsState = useDatasetStore.getState();
-    const chartState = useChartStore.getState();
-    const uiState = useUiStore.getState();
-    const project = serializeProject({
-      datasets: dsState.datasets,
-      chartConfig: chartState.chartConfig,
-      theme: uiState.theme,
-      lang: uiState.lang,
-    });
-    const title = chartState.chartConfig.title || 'untitled';
-    saveProjectFile(project, title);
+    try {
+      const dsState = useDatasetStore.getState();
+      const chartState = useChartStore.getState();
+      const uiState = useUiStore.getState();
+      const project = serializeProject({
+        datasets: dsState.datasets,
+        chartConfig: chartState.chartConfig,
+        theme: uiState.theme,
+        lang: uiState.lang,
+      });
+      const title = chartState.chartConfig.title || 'untitled';
+      saveProjectFile(project, title);
+      addToast(t('toast.projectSaved'), 'success');
+    } catch {
+      addToast(t('toast.projectSaveFailed'), 'error');
+    }
   };
 
   const handleLoadProject = () => {
@@ -477,7 +453,10 @@ export function FileTab() {
     const file = e.target.files?.[0];
     if (!file) return;
     const project = await loadProjectFile(file);
-    if (!project) return;
+    if (!project) {
+      addToast(t('toast.projectLoadFailed'), 'error');
+      return;
+    }
 
     // Restore all stores
     useDatasetStore.setState({
@@ -490,14 +469,12 @@ export function FileTab() {
     // Clear history after loading a project
     useHistoryStore.setState({ _past: [], _future: [] });
     if (project.theme) {
-      useUiStore.getState().toggleTheme(); // toggle if needed
-      if (useUiStore.getState().theme !== project.theme) {
-        useUiStore.getState().toggleTheme();
-      }
+      useUiStore.getState().setTheme(project.theme);
     }
     if (project.lang) {
       useUiStore.getState().setLang(project.lang);
     }
+    addToast(t('toast.projectLoaded', { file: file.name }), 'success');
     e.target.value = '';
   };
 
@@ -537,10 +514,6 @@ export function FileTab() {
         <button onClick={handleExportCSV} className="ribbon-btn" title={t('file.exportCsv')} aria-label={t('file.exportCsv')}>
           <Download size={16} />
           <span className="text-xs">CSV</span>
-        </button>
-        <button onClick={handleExportEPS} className="ribbon-btn" title={t('file.exportEps')} aria-label={t('file.exportEps')}>
-          <Download size={16} />
-          <span className="text-xs">EPS</span>
         </button>
         <button onClick={handleExportTIFF} className="ribbon-btn" title={t('file.exportTiff')} aria-label={t('file.exportTiff')}>
           <Download size={16} />

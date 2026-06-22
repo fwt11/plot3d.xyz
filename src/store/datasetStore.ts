@@ -15,9 +15,12 @@ interface DatasetStore {
   updateDataset: (id: string, data: Partial<Dataset>) => void;
   setActiveDataset: (id: string) => void;
   updateCellValue: (datasetId: string, columnId: string, rowIndex: number, value: string) => void;
+  /** Update cell without pushing to history (used during typing; commit on blur via updateCellValue) */
+  updateCellValueSilent: (datasetId: string, columnId: string, rowIndex: number, value: string) => void;
   addColumn: (datasetId: string) => void;
   removeColumn: (datasetId: string, columnId: string) => void;
   addRow: (datasetId: string) => void;
+  insertRowAt: (datasetId: string, rowIndex: number, offset: 0 | 1) => void;
   removeRow: (datasetId: string, rowIndex: number) => void;
   setColumnType: (datasetId: string, columnId: string, type: DataColumn['type']) => void;
   renameColumn: (datasetId: string, columnId: string, name: string) => void;
@@ -98,6 +101,13 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       datasets: s.datasets.filter((d) => d.id !== id),
       activeDatasetId: s.activeDatasetId === id ? (s.datasets[0]?.id ?? null) : s.activeDatasetId,
     }));
+    // Remove layers that reference the deleted dataset
+    useChartStore.setState((cs) => ({
+      chartConfig: {
+        ...cs.chartConfig,
+        layers: cs.chartConfig.layers.filter((l) => l.datasetId !== id),
+      },
+    }));
   },
 
   updateDataset: (id, data) => {
@@ -110,6 +120,8 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   setActiveDataset: (id) => set({ activeDatasetId: id }),
 
   updateCellValue: (datasetId, columnId, rowIndex, value) => {
+    // Push a single history snapshot when the user commits a cell edit (on blur).
+    // During typing, updateCellValueSilent is used to avoid flooding the history stack.
     useHistoryStore.getState().pushSnapshot();
     set((s) => ({
       datasets: s.datasets.map((d) =>
@@ -126,6 +138,22 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       ),
     }));
   },
+
+  updateCellValueSilent: (datasetId, columnId, rowIndex, value) =>
+    set((s) => ({
+      datasets: s.datasets.map((d) =>
+        d.id === datasetId
+          ? {
+              ...d,
+              columns: d.columns.map((c) =>
+                c.id === columnId
+                  ? { ...c, values: c.values.map((v, i) => (i === rowIndex ? value : v)) }
+                  : c
+              ),
+            }
+          : d
+      ),
+    })),
 
   addColumn: (datasetId) => {
     useHistoryStore.getState().pushSnapshot();
@@ -158,6 +186,25 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
           : d
       ),
     }));
+    // Clean up layers that depend on the removed column
+    useChartStore.setState((cs) => ({
+      chartConfig: {
+        ...cs.chartConfig,
+        layers: cs.chartConfig.layers
+          .map((l) => {
+            if (l.datasetId !== datasetId) return l;
+            if (l.xColumn === columnId || l.yColumn === columnId) return null;
+            return {
+              ...l,
+              zColumn: l.zColumn === columnId ? undefined : l.zColumn,
+              errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
+              errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
+              errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
+            };
+          })
+          .filter((l): l is typeof l & NonNullable<typeof l> => l !== null),
+      },
+    }));
   },
 
   addRow: (datasetId) => {
@@ -174,6 +221,23 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
             }
           : d
       ),
+    }));
+  },
+
+  insertRowAt: (datasetId, rowIndex, offset) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        const insertIndex = Math.max(0, Math.min(d.columns[0]?.values.length || 0, rowIndex + offset));
+        return {
+          ...d,
+          columns: d.columns.map((c) => ({
+            ...c,
+            values: [...c.values.slice(0, insertIndex), '', ...c.values.slice(insertIndex)],
+          })),
+        };
+      }),
     }));
   },
 

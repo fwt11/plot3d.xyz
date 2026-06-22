@@ -25,7 +25,7 @@ const defaultChartConfig: ChartConfig = {
   xAxis: { ...defaultAxis, label: i18n.t('store.xAxis') },
   yAxis: { ...defaultAxis, label: i18n.t('store.yAxis') },
   legend: { visible: true, position: 'top' },
-  colorMap: 'jet',
+  colorMap: 'viridis',
   annotations: [],
   marginTop: 40,
   marginRight: 40,

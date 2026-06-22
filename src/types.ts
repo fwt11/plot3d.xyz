@@ -7,14 +7,15 @@ export interface DataColumn {
 
 /** Helper to safely convert column values to numbers */
 export function toNumber(v: number | string): number {
-  const n = typeof v === 'number' ? v : Number(v);
-  return isNaN(n) ? NaN : n;
+  if (typeof v === 'number') return isFinite(v) ? v : NaN;
+  if (typeof v === 'string' && v.trim() === '') return NaN;
+  const n = Number(v);
+  return isNaN(n) || !isFinite(n) ? NaN : n;
 }
 
 /** Helper to check if a value is a valid number */
 export function isValidNumber(v: number | string): boolean {
-  const n = typeof v === 'number' ? v : Number(v);
-  return !isNaN(n) && isFinite(n);
+  return !isNaN(toNumber(v));
 }
 
 export interface Dataset {
@@ -25,12 +26,16 @@ export interface Dataset {
 
 export interface AxisConfig {
   label: string;
+  /** Optional unit displayed alongside the label, e.g. "s" or "mol/L" */
+  unit?: string;
   min?: number;
   max?: number;
   autoRange: boolean;
   gridVisible: boolean;
   logScale: boolean;
   scientificNotation: boolean;
+  /** Force categorical axis (e.g. for bar charts). Undefined means auto. */
+  categoryAxis?: boolean;
 }
 
 export interface LegendConfig {
@@ -54,6 +59,12 @@ export interface LayerConfig {
   errorColumn?: string;
   errorPlusColumn?: string;
   errorMinusColumn?: string;
+  /** X-direction error bar column (symmetric) */
+  errorXColumn?: string;
+  /** X-direction error bar plus column (asymmetric) */
+  errorXPlusColumn?: string;
+  /** X-direction error bar minus column (asymmetric) */
+  errorXMinusColumn?: string;
   /** Y-axis side for multi-axis plots */
   yAxisSide?: 'left' | 'right';
   /** Display name for legend (defaults to dataset-column name) */

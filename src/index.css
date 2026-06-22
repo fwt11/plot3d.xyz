@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
-
 :root {
-  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -65,12 +63,12 @@
   --bg-panel: rgba(241, 245, 249, 0.8);
   --bg-surface: #ffffff;
   --bg-surface-hover: #e2e8f0;
-  --bg-input: #ffffff;
-  --border: rgba(203, 213, 225, 0.6);
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
+  --bg-input: #f1f5f9;
+  --border: rgba(148, 163, 184, 0.6);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --text-faint: #64748b;
   --accent: #0284c7;
   --accent-hover: #0369a1;
   --danger: #e11d48;
@@ -85,11 +83,11 @@
   --chart-bg: #ffffff;
   --grid-color: rgba(203, 213, 225, 0.5);
   --axis-color: #94a3b8;
-  --axis-text: #64748b;
+  --axis-text: #475569;
   --axis-x-color: #059669;
   --axis-y-color: #0284c7;
   --axis-z-color: #7c3aed;
-  --colorbar-text: #475569;
+  --colorbar-text: #334155;
   --status-bar-height: 24px;
   --scene-bg-from: #e2e8f0;
   --scene-bg-to: #f1f5f9;
@@ -105,12 +103,18 @@
 }
 
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 *:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Ensure Tailwind outline-none still shows a focus ring for keyboard users */
+.outline-none:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
 }
 
 /* Scrollbar */
@@ -169,5 +173,9 @@ input[type="number"] {
   .ribbon-btn:hover {
     color: var(--accent);
     background: var(--bg-surface-hover);
+  }
+  .ribbon-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
