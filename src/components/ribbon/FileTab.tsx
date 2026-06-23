@@ -103,16 +103,13 @@ export function FileTab() {
     const is3D = is3DChart(chartType);
     const bgColor = getExportBackground();
 
-      if (!is3D) {
+    if (!is3D) {
       // Use Plotly's native PNG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const scale = exportConfig.resolutionMultiplier;
         const dataUrl = await Plotly.toImage(div, {
           format: 'png',
-          scale,
-          width: div.clientWidth * scale / (window.devicePixelRatio || 1),
-          height: div.clientHeight * scale / (window.devicePixelRatio || 1),
+          scale: exportConfig.resolutionMultiplier,
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
         const link = document.createElement('a');
@@ -165,10 +162,15 @@ export function FileTab() {
     }
   });
 
-  const handleExportSVG = async () => runExport(async () => {
+  const handleExportSVG = async () => {
     const is3D = is3DChart(chartType);
 
-    if (!is3D) {
+    if (is3D) {
+      addToast(t('toast.svgNotSupported3d', 'SVG export is not supported for 3D charts'), 'warning');
+      return;
+    }
+
+    runExport(async () => {
       // Use Plotly's native SVG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
@@ -181,10 +183,9 @@ export function FileTab() {
         link.download = 'chart.svg';
         link.href = dataUrl;
         link.click();
-        return;
       }
-    }
-  });
+    });
+  };
 
   const handleExportPDF = async () => runExport(async () => {
     const is3D = is3DChart(chartType);
@@ -217,7 +218,7 @@ export function FileTab() {
           format: [pdfWidth, pdfHeight],
         });
         // Embed SVG as a vector image (text stays selectable, scales losslessly)
-        pdf.addSvgAsImage(svgString, margin, margin, contentWidth, contentHeight);
+        await pdf.addSvgAsImage(svgString, margin, margin, contentWidth, contentHeight);
         pdf.save('chart.pdf');
         return;
       }
@@ -324,8 +325,6 @@ export function FileTab() {
         const dataUrl = await Plotly.toImage(div, {
           format: 'png',
           scale,
-          width: div.clientWidth * scale / (window.devicePixelRatio || 1),
-          height: div.clientHeight * scale / (window.devicePixelRatio || 1),
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
         // Decode PNG via Image + Canvas to get raw RGBA

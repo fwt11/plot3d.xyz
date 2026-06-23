@@ -3,7 +3,7 @@ import type { Annotation } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
 
 /** Read the current X/Y axis ranges from the rendered Plotly chart so annotations in data mode can be positioned. */
-export function readAxisRanges(plotDiv: HTMLElement | null): { xMin: number; xMax: number; yMin: number; yMax: number } | null {
+function readAxisRanges(plotDiv: HTMLElement | null): { xMin: number; xMax: number; yMin: number; yMax: number } | null {
   if (!plotDiv) return null;
   try {
     // Plotly stores layout in _fullLayout; fall back to _layout if unavailable
