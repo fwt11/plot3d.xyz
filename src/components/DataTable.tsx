@@ -315,13 +315,13 @@ export default function DataTable() {
   if (!dataset) return <div className="p-4" style={{ color: 'var(--text-muted)' }}>{t('data.noDataset')}</div>;
 
   const typeColors: Record<DataColumn['type'], { className: string; style: React.CSSProperties }> = {
-    X: { className: 'border', style: { background: 'rgba(16,185,129,0.2)', color: '#34d399', borderColor: 'rgba(16,185,129,0.3)' } },
-    Y: { className: 'border', style: { background: 'rgba(14,165,233,0.2)', color: '#38bdf8', borderColor: 'rgba(14,165,233,0.3)' } },
-    Z: { className: 'border', style: { background: 'rgba(168,85,247,0.2)', color: '#c084fc', borderColor: 'rgba(168,85,247,0.3)' } },
-    label: { className: 'border', style: { background: 'rgba(245,158,11,0.2)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.3)' } },
-    error: { className: 'border', style: { background: 'rgba(244,63,94,0.2)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.3)' } },
-    errorPlus: { className: 'border', style: { background: 'rgba(244,63,94,0.15)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.25)' } },
-    errorMinus: { className: 'border', style: { background: 'rgba(244,63,94,0.15)', color: '#fb7185', borderColor: 'rgba(244,63,94,0.25)' } },
+    X: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-x) 18%, transparent)', color: 'var(--color-x)', borderColor: 'color-mix(in srgb, var(--color-x) 35%, transparent)' } },
+    Y: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-y) 18%, transparent)', color: 'var(--color-y)', borderColor: 'color-mix(in srgb, var(--color-y) 35%, transparent)' } },
+    Z: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-z) 18%, transparent)', color: 'var(--color-z)', borderColor: 'color-mix(in srgb, var(--color-z) 35%, transparent)' } },
+    label: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-label) 18%, transparent)', color: 'var(--color-label)', borderColor: 'color-mix(in srgb, var(--color-label) 35%, transparent)' } },
+    error: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-error) 18%, transparent)', color: 'var(--color-error)', borderColor: 'color-mix(in srgb, var(--color-error) 35%, transparent)' } },
+    errorPlus: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-error) 14%, transparent)', color: 'var(--color-error)', borderColor: 'color-mix(in srgb, var(--color-error) 28%, transparent)' } },
+    errorMinus: { className: 'border', style: { background: 'color-mix(in srgb, var(--color-error) 14%, transparent)', color: 'var(--color-error)', borderColor: 'color-mix(in srgb, var(--color-error) 28%, transparent)' } },
   };
 
   const typeOptions: { value: DataColumn['type']; label: string }[] = [
@@ -344,7 +344,7 @@ export default function DataTable() {
             onClick={() => setActiveDataset(d.id)}
             className="px-3 py-1 rounded text-xs transition-all shrink-0"
             style={d.id === activeDatasetId
-              ? { background: 'rgba(14,165,233,0.2)', color: '#38bdf8' }
+              ? { background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)' }
               : { color: 'var(--text-muted)' }
             }
             onMouseEnter={(e) => { if (d.id !== activeDatasetId) e.currentTarget.style.color = 'var(--text-primary)'; }}
@@ -388,7 +388,7 @@ export default function DataTable() {
                         onClick={() => confirm({ title: t('confirm.deleteColumnTitle'), message: t('confirm.deleteColumnMessage'), danger: true, onConfirm: () => removeColumn(dataset.id, col.id) })}
                         className="transition-colors shrink-0"
                         style={{ color: 'var(--text-faint)' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#fb7185'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--danger)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-faint)'; }}
                       >
                         <Trash2 size={10} />
@@ -409,7 +409,7 @@ export default function DataTable() {
                   onClick={() => addColumn(dataset.id)}
                   className="transition-colors p-1"
                   style={{ color: 'var(--text-faint)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#38bdf8'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-faint)'; }}
                 >
                   <Plus size={12} />
@@ -428,7 +428,7 @@ export default function DataTable() {
               const isSelected = selectedRows.has(rowIdx);
               return (
                 <tr key={rowIdx} className="transition-colors"
-                  style={{ background: isSelected ? 'rgba(14,165,233,0.15)' : 'transparent' }}
+                  style={{ background: isSelected ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'transparent' }}
                   onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
                   onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                 >
@@ -459,8 +459,8 @@ export default function DataTable() {
                         className="w-full px-2 py-0.5 outline-none transition-colors"
                         style={{
                           background: 'transparent',
-                          color: isInvalid ? '#fb7185' : 'var(--text-primary)',
-                          borderBottom: isInvalid ? '2px solid #fb7185' : undefined,
+                          color: isInvalid ? 'var(--color-error)' : 'var(--text-primary)',
+                          borderBottom: isInvalid ? '2px solid var(--color-error)' : undefined,
                         }}
                         title={isInvalid ? t('data.invalidValue', 'Please enter a valid number') : undefined}
                         onFocus={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
@@ -473,7 +473,7 @@ export default function DataTable() {
                       onClick={() => { removeRow(dataset.id, rowIdx); addToast(t('toast.deleted'), 'info'); }}
                       className="transition-colors"
                       style={{ color: 'var(--text-faint)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#fb7185'; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--danger)'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-faint)'; }}
                     >
                       <Trash2 size={10} />
@@ -497,7 +497,7 @@ export default function DataTable() {
           onClick={() => addRow(dataset.id)}
           className="flex items-center gap-1 px-2 py-1 text-xs transition-colors"
           style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#38bdf8'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
         >
           <Plus size={12} />

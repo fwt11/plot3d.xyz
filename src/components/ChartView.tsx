@@ -249,6 +249,31 @@ export default function ChartView() {
           }
         },
       },
+      {
+        label: t('context.copySvg'),
+        icon: <FileCode size={14} />,
+        onClick: async () => {
+          if (is3DType) {
+            addToast(t('toast.svgNotSupported3d'), 'warning');
+            return;
+          }
+          try {
+            const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+            if (!plotlyDiv) return;
+            const Plotly = (await import('plotly.js-dist-min')).default;
+            const dataUrl = await Plotly.toImage(plotlyDiv, {
+              format: 'svg',
+              scale: resolutionMultiplier,
+              bgcolor: exportBg ?? 'rgba(0,0,0,0)',
+            });
+            const svgText = atob(dataUrl.split(',')[1]);
+            await navigator.clipboard.writeText(svgText);
+            addToast(t('toast.copySuccess'), 'success');
+          } catch {
+            addToast(t('toast.copyFailed'), 'error');
+          }
+        },
+      },
       { separator: true },
       {
         label: t('context.resetZoom'),
@@ -257,7 +282,20 @@ export default function ChartView() {
           const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
           if (div) {
             import('plotly.js-dist-min').then((Plotly) => {
-              Plotly.default.relayout(div, { autosize: true });
+              if (is3DType) {
+                Plotly.default.relayout(div, {
+                  scene: {
+                    xaxis: { autorange: true },
+                    yaxis: { autorange: true },
+                    zaxis: { autorange: true },
+                  },
+                });
+              } else {
+                Plotly.default.relayout(div, {
+                  xaxis: { autorange: true },
+                  yaxis: { autorange: true },
+                });
+              }
             });
           }
         },
@@ -313,7 +351,7 @@ export default function ChartView() {
           const yCol = ds.columns.find((c) => c.id === layer.yColumn);
           if (yCol) {
             result.push({
-              label: layer.displayName || `${ds.name} - ${yCol.name}`,
+              label: layer.displayName || ds.name,
               xCol, yCol, zCol: zColForHeatmap, color: layer.color, layer, datasetId: ds.id,
               errorCol, errorPlusCol, errorMinusCol,
               errorXCol, errorXPlusCol, errorXMinusCol,
@@ -322,7 +360,7 @@ export default function ChartView() {
         } else {
           yCols.forEach((yCol, idx) => {
             result.push({
-              label: yCols.length === 1 ? (layer.displayName || `${ds.name} - ${yCol.name}`) : `${ds.name} - ${yCol.name}`,
+              label: layer.displayName || (yCols.length === 1 ? ds.name : `${ds.name} - ${yCol.name}`),
               xCol,
               yCol,
               zCol: zColForHeatmap,
@@ -386,6 +424,8 @@ export default function ChartView() {
             contours: {
               z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: false } },
             },
+            lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5, fresnel: 0.2 },
+            lightposition: { x: 1000, y: 1000, z: 1000 },
           };
         }
 
@@ -459,6 +499,67 @@ export default function ChartView() {
           };
         }
 
+        if (chartType === 'isosurface3d' && zCol) {
+          const zValues = colToNumbers(zCol);
+          const indices = xValues.map((_, i) => i).filter((i) =>
+            isValidNumber(xValues[i]) && isValidNumber(yValues[i]) && isValidNumber(zValues[i])
+          );
+          const vals = indices.map((i) => zValues[i]);
+          const isoMin = Math.min(...vals);
+          const isoMax = Math.max(...vals);
+          return {
+            type: 'isosurface',
+            name: label,
+            x: indices.map((i) => xValues[i]),
+            y: indices.map((i) => yValues[i]),
+            z: indices.map((i) => zValues[i]),
+            value: vals,
+            isomin: isoMin,
+            isomax: isoMax,
+            surface: { show: true, count: 3, fill: 0.7 },
+            caps: { x: { show: true }, y: { show: true }, z: { show: true } },
+            colorscale: colorScale,
+            showscale: true,
+            colorbar: {
+              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
+            },
+            opacity: layer.fill ? 0.8 : 1,
+            lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5 },
+            lightposition: { x: 1000, y: 1000, z: 1000 },
+          };
+        }
+
+        if (chartType === 'volume3d' && zCol) {
+          const zValues = colToNumbers(zCol);
+          const indices = xValues.map((_, i) => i).filter((i) =>
+            isValidNumber(xValues[i]) && isValidNumber(yValues[i]) && isValidNumber(zValues[i])
+          );
+          const vals = indices.map((i) => zValues[i]);
+          const volMin = Math.min(...vals);
+          const volMax = Math.max(...vals);
+          return {
+            type: 'volume',
+            name: label,
+            x: indices.map((i) => xValues[i]),
+            y: indices.map((i) => yValues[i]),
+            z: indices.map((i) => zValues[i]),
+            value: vals,
+            isomin: volMin + (volMax - volMin) * 0.25,
+            isomax: volMax,
+            opacity: 0.3,
+            surface: { show: true, count: 5 },
+            colorscale: colorScale,
+            showscale: true,
+            colorbar: {
+              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
+            },
+            lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5 },
+            lightposition: { x: 1000, y: 1000, z: 1000 },
+          };
+        }
+
         return {
           type: 'scatter3d',
           mode: 'markers',
@@ -514,6 +615,23 @@ export default function ChartView() {
             marker: { color, opacity: 0.7, line: { color, width: 1 } },
             opacity: 0.7,
             nbinsx: Math.max(5, Math.min(50, Math.ceil(Math.sqrt(validY.length)))),
+          };
+        }
+
+        // --- Violin: density distribution of Y values ---
+        if (chartType === 'violin') {
+          const validY = yValues.filter((v) => Number.isFinite(v));
+          return {
+            type: 'violin' as const,
+            name: label,
+            y: validY,
+            x: [label],
+            points: 'outliers',
+            marker: { color, outliercolor: color },
+            line: { color },
+            box: { visible: true },
+            meanline: { visible: true },
+            opacity: 0.7,
           };
         }
 

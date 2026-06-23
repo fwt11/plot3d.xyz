@@ -12,6 +12,7 @@
     "exportPng": "Export as PNG",
     "exportSvg": "Export as SVG",
     "copyToClipboard": "Copy Image to Clipboard",
+    "copySvg": "Copy SVG to Clipboard",
     "resetZoom": "Reset Zoom",
     "hideLayer": "Hide Layer",
     "showLayer": "Show Layer",
@@ -41,6 +42,7 @@
     "import": "Import",
     "importData": "Import Data",
     "importCsvExcel": "Import CSV / Excel",
+    "batchImport": "Batch Import Multiple Files",
     "export": "Export",
     "exportPng": "Export as PNG",
     "exportSvg": "Export as SVG",
@@ -123,6 +125,9 @@
   },
   "chart": {
     "chartType": "Chart Type",
+    "chartType2d": "2D Charts",
+    "chartTypeStat": "Statistical",
+    "chartType3d": "3D Charts",
     "title": "Title",
     "titlePlaceholder": "Chart Title",
     "lighting": "Lighting",
@@ -147,7 +152,10 @@
     "bar3d": "3D Blocks",
     "box": "Box Plot",
     "histogram": "Histogram",
-    "heatmap": "Heatmap"
+    "violin": "Violin",
+    "heatmap": "Heatmap",
+    "isosurface3d": "Isosurface",
+    "volume3d": "Volume"
   },
   "annotation": {
     "annotations": "Annotations",
@@ -174,6 +182,7 @@
     "title": "Title",
     "xAxis": "X Axis",
     "yAxis": "Y Axis",
+    "yAxisRight": "Right Y Axis",
     "zAxis": "Z Axis",
     "legend": "Legend",
     "label": "Label",
@@ -360,6 +369,7 @@
     "chartTitle": "Chart Title",
     "xAxis": "X Axis",
     "yAxis": "Y Axis",
+    "yAxisRight": "Right Y",
     "zAxis": "Z Axis"
   },
   "language": {
@@ -399,13 +409,19 @@
     "descriptive": "Descriptive Statistics",
     "run": "Compute Stats",
     "runTip": "Compute descriptive statistics for all numeric columns in the active dataset",
+    "batch": "Batch Stats",
+    "batchTip": "Run statistics across all datasets",
     "results": "Statistics",
+    "batchResults": "Batch Results",
     "details": "Details",
     "showDetails": "Show statistics details",
     "hideDetails": "Hide statistics details",
     "copy": "Copy",
     "exportCsv": "Export CSV",
     "columns": "columns",
+    "datasets": "datasets",
+    "dataset": "Dataset",
+    "column": "Column",
     "metric": "Metric",
     "count": "Count",
     "mean": "Mean",
@@ -480,7 +496,15 @@
     "deleted": "Deleted",
     "copySuccess": "Copied to clipboard",
     "copyFailed": "Failed to copy",
-    "svgNotSupported3d": "SVG export is not supported for 3D charts"
+    "svgNotSupported3d": "SVG export is not supported for 3D charts",
+    "noZColumnFor3D": "Current dataset has no Z column for 3D charts",
+    "batchImportSuccess": "Imported {{count}} file(s)",
+    "batchImportFailed": "{{count}} file(s) failed to import",
+    "batchStatsDone": "Stats computed for {{count}} dataset(s)",
+    "templateApplied": "Template applied",
+    "templateNameRequired": "Template name is required",
+    "templateSaved": "Template saved",
+    "templateDeleted": "Template deleted"
   },
   "export": {
     "title": "Export",
@@ -543,6 +567,7 @@
     "setChartTitle": "Edit title",
     "setXAxis": "Edit X axis",
     "setYAxis": "Edit Y axis",
+    "setYAxisRight": "Edit right Y axis",
     "setZAxis": "Edit Z axis",
     "setLegend": "Edit legend",
     "setColorMap": "Change color map",
@@ -554,6 +579,7 @@
     "setMargins": "Adjust margins",
     "setExportConfig": "Change export config",
     "setFontSize": "Change font size",
+    "applyTemplate": "Apply template",
     "addAnnotation": "Add annotation",
     "removeAnnotation": "Remove annotation",
     "updateAnnotation": "Update annotation",
@@ -584,5 +610,19 @@
     "close": "Close",
     "collapse": "Collapse",
     "expand": "Expand"
+  },
+  "template": {
+    "title": "Templates",
+    "journalPresets": "Journal Presets",
+    "custom": "Custom Templates",
+    "save": "Save",
+    "saveCurrent": "Save Current as Template",
+    "apply": "Apply",
+    "delete": "Delete",
+    "name": "Name",
+    "width": "W",
+    "height": "H",
+    "confirmSave": "Save",
+    "cancel": "Cancel"
   }
 }

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AxisConfig, ExportBackground } from '@/types';
 import AnnotationPanel from './AnnotationPanel';
+import TemplatePanel from './TemplatePanel';
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -14,7 +15,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1 w-full px-3 py-2 text-sm font-medium transition-colors"
         style={{ color: 'var(--text-primary)' }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(63,63,70,0.3)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
         aria-label={title}
       >
@@ -31,25 +32,25 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
   return (
     <div className="space-y-1.5">
       <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('config.label')}
+      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="truncate">{t('config.label')}</span>
         <input
           type="text"
           value={axis.label}
           onChange={(e) => onChange({ label: e.target.value })}
-          className="flex-1 border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
+          className="w-full border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           aria-label={`${label} ${t('config.label')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('config.unit')}
+      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="truncate">{t('config.unit')}</span>
         <input
           type="text"
           value={axis.unit ?? ''}
           onChange={(e) => onChange({ unit: e.target.value })}
           placeholder="e.g. s, mol/L"
-          className="flex-1 border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
+          className="w-full border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           aria-label={`${label} ${t('config.unit')}`}
         />
@@ -163,14 +164,17 @@ export default function ConfigPanel() {
   const setChartTitle = useChartStore((s) => s.setChartTitle);
   const setXAxis = useChartStore((s) => s.setXAxis);
   const setYAxis = useChartStore((s) => s.setYAxis);
+  const setYAxisRight = useChartStore((s) => s.setYAxisRight);
   const setZAxis = useChartStore((s) => s.setZAxis);
   const setLegend = useChartStore((s) => s.setLegend);
   const setMargins = useChartStore((s) => s.setMargins);
   const setExportConfig = useChartStore((s) => s.setExportConfig);
   const setFontSize = useChartStore((s) => s.setFontSize);
 
+  const hasRightYAxis = !is3D && chartConfig.layers.some((l) => l.yAxisSide === 'right');
+
   return (
-    <div className="h-full overflow-y-auto text-xs">
+    <div className="h-full overflow-y-auto text-xs pb-6">
       <Section title={t('config.title')}>
         <input
           type="text"
@@ -189,6 +193,12 @@ export default function ConfigPanel() {
       <Section title={t('config.yAxis')}>
         <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} is3D={is3D} />
       </Section>
+
+      {hasRightYAxis && chartConfig.yAxisRight && (
+        <Section title={t('config.yAxisRight', 'Right Y Axis')}>
+          <AxisEditor label={t('config.yAxisRight', 'Right Y')} axis={chartConfig.yAxisRight} onChange={setYAxisRight} is3D={is3D} />
+        </Section>
+      )}
 
       {is3D && chartConfig.zAxis && (
         <Section title={t('config.zAxis')}>
@@ -287,6 +297,10 @@ export default function ConfigPanel() {
           <AnnotationPanel />
         </Section>
       )}
+
+      <Section title={t('template.title', { defaultValue: 'Templates' })} defaultOpen={false}>
+        <TemplatePanel />
+      </Section>
     </div>
   );
 }

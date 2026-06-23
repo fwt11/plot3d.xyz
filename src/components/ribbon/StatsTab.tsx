@@ -4,7 +4,7 @@ import { useDatasetStore } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { toValidNumbers, describe, fmt, type DescriptiveStats } from '@/utils/statistics';
 import { RibbonGroup } from './RibbonGroup';
-import { Sigma, ChevronDown, ChevronUp, Copy, Download } from 'lucide-react';
+import { Sigma, ChevronDown, ChevronUp, Copy, Download, Layers } from 'lucide-react';
 
 export function StatsTab() {
   const { t } = useTranslation();
@@ -13,7 +13,9 @@ export function StatsTab() {
   const addToast = useToastStore((s) => s.addToast);
 
   const [statsResult, setStatsResult] = useState<StatsResult | null>(null);
+  const [batchResult, setBatchResult] = useState<BatchStatsResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showBatchDetails, setShowBatchDetails] = useState(false);
 
   const activeDs = datasets.find((d) => d.id === activeDatasetId);
 
@@ -46,6 +48,37 @@ export function StatsTab() {
     setStatsResult({ datasetName: activeDs.name, columns: results });
     setShowDetails(true);
   }, [activeDs, addToast, t]);
+
+  const runBatchStats = useCallback(() => {
+    if (datasets.length === 0) {
+      addToast(t('toast.statsNoData'), 'warning');
+      return;
+    }
+    const batchResults: BatchDatasetStats[] = [];
+    for (const ds of datasets) {
+      const colStats: ColumnStats[] = [];
+      for (const col of ds.columns) {
+        const nums = toValidNumbers(col.values);
+        if (nums.length === 0) continue;
+        colStats.push({
+          columnName: col.name,
+          columnId: col.id,
+          type: col.type,
+          stats: describe(nums),
+        });
+      }
+      if (colStats.length > 0) {
+        batchResults.push({ datasetId: ds.id, datasetName: ds.name, columns: colStats });
+      }
+    }
+    if (batchResults.length === 0) {
+      addToast(t('toast.statsNoData'), 'warning');
+      return;
+    }
+    setBatchResult({ datasets: batchResults });
+    setShowBatchDetails(true);
+    addToast(t('toast.batchStatsDone', { count: batchResults.length, defaultValue: `Stats computed for ${batchResults.length} dataset(s)` }), 'success');
+  }, [datasets, addToast, t]);
 
   const copyToClipboard = useCallback(async () => {
     if (!statsResult) return;
@@ -118,6 +151,46 @@ export function StatsTab() {
     addToast(t('toast.exportSuccess'), 'success');
   }, [statsResult, addToast, t]);
 
+  const exportBatchCSV = useCallback(() => {
+    if (!batchResult) return;
+    const lines = ['Dataset,Column,Count,Mean,StdDev,Variance,StdError,Min,Q1,Median,Q3,Max,Range,IQR,Skewness,Kurtosis,CI95Low,CI95High,Sum'];
+    for (const ds of batchResult.datasets) {
+      for (const col of ds.columns) {
+        const s = col.stats;
+        lines.push([
+          ds.datasetName,
+          col.columnName,
+          s.count,
+          fmt(s.mean),
+          fmt(s.stdDev),
+          fmt(s.variance),
+          fmt(s.stdError),
+          fmt(s.min),
+          fmt(s.q1),
+          fmt(s.median),
+          fmt(s.q3),
+          fmt(s.max),
+          fmt(s.range),
+          fmt(s.iqr),
+          fmt(s.skewness),
+          fmt(s.kurtosis),
+          fmt(s.ci95Low),
+          fmt(s.ci95High),
+          fmt(s.sum),
+        ].join(','));
+      }
+    }
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'batch_stats.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast(t('toast.exportSuccess'), 'success');
+  }, [batchResult, addToast, t]);
+
   return (
     <div className="flex items-stretch">
       <RibbonGroup label={t('stats.descriptive')}>
@@ -130,6 +203,16 @@ export function StatsTab() {
         >
           <Sigma size={16} />
           <span className="text-xs">{t('stats.run')}</span>
+        </button>
+        <button
+          onClick={runBatchStats}
+          className="ribbon-btn"
+          title={t('stats.batchTip', { defaultValue: 'Run statistics across all datasets' })}
+          aria-label={t('stats.batch', { defaultValue: 'Batch Stats' })}
+          disabled={datasets.length === 0}
+        >
+          <Layers size={16} />
+          <span className="text-xs">{t('stats.batch', { defaultValue: 'Batch' })}</span>
         </button>
       </RibbonGroup>
 
@@ -174,6 +257,39 @@ export function StatsTab() {
           </div>
         </RibbonGroup>
       )}
+
+      {batchResult && (
+        <RibbonGroup label={t('stats.batchResults', { defaultValue: 'Batch Results' })}>
+          <div className="flex flex-col gap-0.5 text-xs min-w-0 max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
+            <div className="font-mono text-xs truncate" style={{ color: 'var(--text-primary)' }}>
+              {batchResult.datasets.length} {t('stats.datasets', { defaultValue: 'datasets' })}
+            </div>
+            <div className="flex gap-1 mt-1">
+              <button
+                onClick={() => setShowBatchDetails((v) => !v)}
+                className="ribbon-btn"
+                title={showBatchDetails ? t('stats.hideDetails') : t('stats.showDetails')}
+                aria-label={showBatchDetails ? t('stats.hideDetails') : t('stats.showDetails')}
+              >
+                {showBatchDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                <span className="text-xs">{t('stats.details')}</span>
+              </button>
+              <button
+                onClick={exportBatchCSV}
+                className="ribbon-btn"
+                title={t('stats.exportCsv')}
+                aria-label={t('stats.exportCsv')}
+              >
+                <Download size={14} />
+                <span className="text-xs">{t('stats.exportCsv')}</span>
+              </button>
+            </div>
+            {showBatchDetails && (
+              <BatchStatsTable result={batchResult} t={t} />
+            )}
+          </div>
+        </RibbonGroup>
+      )}
     </div>
   );
 }
@@ -190,6 +306,16 @@ interface ColumnStats {
 interface StatsResult {
   datasetName: string;
   columns: ColumnStats[];
+}
+
+interface BatchDatasetStats {
+  datasetId: string;
+  datasetName: string;
+  columns: ColumnStats[];
+}
+
+interface BatchStatsResult {
+  datasets: BatchDatasetStats[];
 }
 
 // --- Stats Table ---
@@ -239,6 +365,49 @@ function StatsTable({ result, t }: { result: StatsResult; t: (key: string) => st
               ))}
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// --- Batch Stats Table ---
+
+function BatchStatsTable({ result, t }: { result: BatchStatsResult; t: (key: string) => string }) {
+  return (
+    <div className="mt-1 p-2 rounded text-xs overflow-auto max-h-64" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+      <table className="border-collapse" style={{ color: 'var(--text-primary)' }}>
+        <thead>
+          <tr style={{ color: 'var(--text-muted)' }}>
+            <th className="text-left pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.dataset')}</th>
+            <th className="text-left pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.column')}</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>N</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.mean')}</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.stdDev')}</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.min')}</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.median')}</th>
+            <th className="text-right pr-3 pb-1 sticky top-0" style={{ background: 'var(--bg-input)' }}>{t('stats.max')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.datasets.map((ds) =>
+            ds.columns.map((col, ci) => (
+              <tr key={`${ds.datasetId}-${col.columnId}`}>
+                {ci === 0 && (
+                  <td className="pr-3 font-mono align-top" rowSpan={ds.columns.length} style={{ color: 'var(--accent)' }}>
+                    {ds.datasetName}
+                  </td>
+                )}
+                <td className="pr-3 font-mono">{col.columnName}</td>
+                <td className="text-right pr-3 font-mono">{col.stats.count}</td>
+                <td className="text-right pr-3 font-mono">{fmt(col.stats.mean)}</td>
+                <td className="text-right pr-3 font-mono">{fmt(col.stats.stdDev)}</td>
+                <td className="text-right pr-3 font-mono">{fmt(col.stats.min)}</td>
+                <td className="text-right pr-3 font-mono">{fmt(col.stats.median)}</td>
+                <td className="text-right pr-3 font-mono">{fmt(col.stats.max)}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

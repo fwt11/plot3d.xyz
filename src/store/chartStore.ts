@@ -21,7 +21,7 @@ export const sharedDefaultDataset = createSampleSineDataset();
 const defaultChartConfig: ChartConfig = {
   id: uid(),
   type: 'line',
-  title: i18n.t('store.chartTitle'),
+  title: '',
   xAxis: { ...defaultAxis, label: i18n.t('store.xAxis') },
   yAxis: { ...defaultAxis, label: i18n.t('store.yAxis') },
   legend: { visible: true, position: 'top' },
@@ -58,6 +58,7 @@ interface ChartStore {
   setChartTitle: (title: string) => void;
   setXAxis: (axis: Partial<AxisConfig>) => void;
   setYAxis: (axis: Partial<AxisConfig>) => void;
+  setYAxisRight: (axis: Partial<AxisConfig>) => void;
   setZAxis: (axis: Partial<AxisConfig>) => void;
   setLegend: (legend: Partial<ChartConfig['legend']>) => void;
   setColorMap: (colorMap: ColorMapName) => void;
@@ -71,6 +72,8 @@ interface ChartStore {
   setMargins: (margins: { marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number }) => void;
   setExportConfig: (config: Partial<ExportConfig>) => void;
   setFontSize: (fontSize: number) => void;
+  /** Apply a partial chart config patch atomically (used by journal templates). */
+  applyConfigPatch: (patch: Partial<ChartConfig>) => void;
 
   // Annotation actions
   addAnnotation: (annotation: Annotation) => void;
@@ -121,6 +124,16 @@ export const useChartStore = create<ChartStore>()((set) => {
 
     setYAxis: (axis) =>
       setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, yAxis: { ...s.chartConfig.yAxis, ...axis } } }), i18n.t('history.setYAxis', { defaultValue: 'Edit Y axis' })),
+
+    setYAxisRight: (axis) =>
+      setWithHistory((s) => ({
+        chartConfig: {
+          ...s.chartConfig,
+          yAxisRight: s.chartConfig.yAxisRight
+            ? { ...s.chartConfig.yAxisRight, ...axis }
+            : { ...defaultAxis, label: i18n.t('store.yAxisRight', { defaultValue: 'Right Y' }), ...axis },
+        },
+      }), i18n.t('history.setYAxisRight', { defaultValue: 'Edit right Y axis' })),
 
     setZAxis: (axis) =>
       setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, zAxis: s.chartConfig.zAxis ? { ...s.chartConfig.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis } } }), i18n.t('history.setZAxis', { defaultValue: 'Edit Z axis' })),
@@ -174,6 +187,9 @@ export const useChartStore = create<ChartStore>()((set) => {
 
     setFontSize: (fontSize) =>
       setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, fontSize } }), i18n.t('history.setFontSize', { defaultValue: 'Change font size' })),
+
+    applyConfigPatch: (patch) =>
+      setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, ...patch } }), i18n.t('history.applyTemplate', { defaultValue: 'Apply template' })),
 
     addAnnotation: (annotation) =>
       setWithHistory((s) => ({

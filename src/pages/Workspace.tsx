@@ -133,8 +133,8 @@ export default function Workspace() {
   const { t } = useTranslation();
   const [showDataPanel, setShowDataPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
-  const [leftWidth, setLeftWidth] = useState(288);
-  const [rightWidth, setRightWidth] = useState(256);
+  const [leftWidth, setLeftWidth] = useState(260);
+  const [rightWidth, setRightWidth] = useState(280);
   const [layerPanelHeight, setLayerPanelHeight] = useState(220);
   const [resizing, setResizing] = useState<'left' | 'right' | 'layer' | null>(null);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);

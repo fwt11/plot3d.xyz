@@ -1,10 +1,10 @@
 import type { Dataset, ChartConfig, DataColumn, LayerConfig } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 2;
+const PROJECT_VERSION = 3;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
-const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap'];
+const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
 const VALID_COLORMAPS: ChartConfig['colorMap'][] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma', 'cividis', 'inferno', 'magma', 'turbo', 'batlow'];
 
 export interface ProjectFile {
@@ -147,7 +147,8 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     title: typeof c.title === 'string' ? c.title : '',
     xAxis: sanitizeAxis(c.xAxis, 'X'),
     yAxis: sanitizeAxis(c.yAxis, 'Y'),
-    zAxis: type.startsWith('surface') || type === 'scatter3d' || type === 'contour3d' || type === 'bar3d'
+    yAxisRight: c.yAxisRight ? sanitizeAxis(c.yAxisRight, 'Y2') : undefined,
+    zAxis: type.startsWith('surface') || type === 'scatter3d' || type === 'contour3d' || type === 'bar3d' || type === 'isosurface3d' || type === 'volume3d'
       ? sanitizeAxis(c.zAxis, 'Z')
       : undefined,
     legend: {
@@ -252,6 +253,11 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     // Migrate v1 files that had scene3D field
     if (typeof data === 'object' && data !== null && data.version === 1) {
       delete data.scene3D;
+      data.version = PROJECT_VERSION;
+    }
+    // v2 files are compatible with v3 (new chart types and yAxisRight are optional);
+    // just bump the version so saved files use the current version.
+    if (typeof data === 'object' && data !== null && data.version === 2) {
       data.version = PROJECT_VERSION;
     }
     return sanitizeProjectFile(data);

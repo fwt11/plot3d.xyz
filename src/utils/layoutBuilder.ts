@@ -140,21 +140,29 @@ export function buildLayout(
     result.yaxis = yAxisConfig;
 
     if (hasRightYAxis) {
-      result.yaxis2 = {
-        title: { text: '', font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+      const rightAxis = chartConfig.yAxisRight;
+      const yaxis2: Record<string, unknown> = {
+        title: {
+          text: axisLabelText(rightAxis?.label, rightAxis?.unit),
+          font: { size: chartConfig.fontSize, color: cssVars.textSecondary },
+        },
         overlaying: 'y',
         side: 'right',
-        type: chartConfig.yAxis.logScale ? 'log' : 'linear',
-        gridcolor: 'transparent',
+        type: rightAxis?.logScale ? 'log' : 'linear',
+        gridcolor: rightAxis?.gridVisible ? cssVars.gridColor : 'transparent',
+        gridwidth: 1,
         zerolinecolor: cssVars.gridColor,
         linecolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
-        exponentformat: chartConfig.yAxis.scientificNotation ? 'e' : 'none',
-        showgrid: false,
+        exponentformat: rightAxis?.scientificNotation ? 'e' : 'none',
+        showgrid: rightAxis?.gridVisible ?? false,
       };
-      if (chartConfig.yAxis.scientificNotation) {
-        (result.yaxis2 as Record<string, unknown>).tickformat = '.2e';
+      if (rightAxis?.scientificNotation) yaxis2.tickformat = '.2e';
+      if (rightAxis && !rightAxis.autoRange && rightAxis.min !== undefined && rightAxis.max !== undefined) {
+        yaxis2.range = [rightAxis.min, rightAxis.max];
+        yaxis2.autorange = false;
       }
+      result.yaxis2 = yaxis2;
     }
   }
 

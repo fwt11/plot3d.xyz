@@ -12,6 +12,7 @@
     "exportPng": "导出为 PNG",
     "exportSvg": "导出为 SVG",
     "copyToClipboard": "复制图片到剪贴板",
+    "copySvg": "复制 SVG 到剪贴板",
     "resetZoom": "重置缩放",
     "hideLayer": "隐藏图层",
     "showLayer": "显示图层",
@@ -41,6 +42,7 @@
     "import": "导入",
     "importData": "导入数据",
     "importCsvExcel": "导入 CSV / Excel",
+    "batchImport": "批量导入多文件",
     "export": "导出",
     "exportPng": "导出为 PNG",
     "exportSvg": "导出为 SVG",
@@ -123,6 +125,9 @@
   },
   "chart": {
     "chartType": "图表类型",
+    "chartType2d": "2D 图表",
+    "chartTypeStat": "统计图表",
+    "chartType3d": "3D 图表",
     "title": "标题",
     "titlePlaceholder": "图表标题",
     "lighting": "光照",
@@ -147,7 +152,10 @@
     "bar3d": "3D 方块",
     "box": "箱线图",
     "histogram": "直方图",
-    "heatmap": "热力图"
+    "violin": "小提琴图",
+    "heatmap": "热力图",
+    "isosurface3d": "等值面",
+    "volume3d": "体积渲染"
   },
   "annotation": {
     "annotations": "标注",
@@ -174,6 +182,7 @@
     "title": "标题",
     "xAxis": "X 轴",
     "yAxis": "Y 轴",
+    "yAxisRight": "右侧 Y 轴",
     "zAxis": "Z 轴",
     "legend": "图例",
     "label": "标签",
@@ -360,6 +369,7 @@
     "chartTitle": "图表标题",
     "xAxis": "X 轴",
     "yAxis": "Y 轴",
+    "yAxisRight": "右侧 Y 轴",
     "zAxis": "Z 轴"
   },
   "language": {
@@ -399,13 +409,19 @@
     "descriptive": "描述性统计",
     "run": "计算统计",
     "runTip": "对当前数据集所有数值列计算描述性统计",
+    "batch": "批量统计",
+    "batchTip": "对所有数据集计算描述性统计",
     "results": "统计结果",
+    "batchResults": "批量统计结果",
     "details": "详情",
     "showDetails": "展开统计详情",
     "hideDetails": "收起统计详情",
     "copy": "复制",
     "exportCsv": "导出 CSV",
     "columns": "列",
+    "datasets": "数据集",
+    "dataset": "数据集",
+    "column": "列",
     "metric": "指标",
     "count": "数据数",
     "mean": "均值",
@@ -480,7 +496,15 @@
     "deleted": "已删除",
     "copySuccess": "已复制到剪贴板",
     "copyFailed": "复制失败",
-    "svgNotSupported3d": "3D 图表不支持导出 SVG"
+    "svgNotSupported3d": "3D 图表不支持导出 SVG",
+    "noZColumnFor3D": "当前数据集缺少 Z 列，无法创建 3D 图表",
+    "batchImportSuccess": "已导入 {{count}} 个文件",
+    "batchImportFailed": "{{count}} 个文件导入失败",
+    "batchStatsDone": "已计算 {{count}} 个数据集的统计",
+    "templateApplied": "模板已应用",
+    "templateNameRequired": "请输入模板名称",
+    "templateSaved": "模板已保存",
+    "templateDeleted": "模板已删除"
   },
   "export": {
     "title": "导出",
@@ -543,6 +567,7 @@
     "setChartTitle": "修改标题",
     "setXAxis": "修改 X 轴",
     "setYAxis": "修改 Y 轴",
+    "setYAxisRight": "修改右侧 Y 轴",
     "setZAxis": "修改 Z 轴",
     "setLegend": "修改图例",
     "setColorMap": "修改颜色映射",
@@ -554,6 +579,7 @@
     "setMargins": "调整边距",
     "setExportConfig": "修改导出配置",
     "setFontSize": "修改字号",
+    "applyTemplate": "应用模板",
     "addAnnotation": "添加标注",
     "removeAnnotation": "删除标注",
     "updateAnnotation": "更新标注",
@@ -584,5 +610,19 @@
     "close": "关闭",
     "collapse": "折叠",
     "expand": "展开"
+  },
+  "template": {
+    "title": "模板",
+    "journalPresets": "期刊预设",
+    "custom": "自定义模板",
+    "save": "保存",
+    "saveCurrent": "将当前样式保存为模板",
+    "apply": "应用",
+    "delete": "删除",
+    "name": "名称",
+    "width": "宽",
+    "height": "高",
+    "confirmSave": "保存",
+    "cancel": "取消"
   }
 }

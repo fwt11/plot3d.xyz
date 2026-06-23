@@ -35,10 +35,10 @@
   --color-error: #fb7185;
   --scrollbar-thumb: #3f3f46;
   --scrollbar-hover: #52525b;
-  --chart-bg: #1e1e32;
-  --grid-color: rgba(63, 63, 70, 0.5);
-  --axis-color: #52525b;
-  --axis-text: #71717a;
+  --chart-bg: transparent;
+  --grid-color: rgba(148, 148, 170, 0.18);
+  --axis-color: rgba(148, 148, 170, 0.4);
+  --axis-text: #a1a1aa;
   --axis-x-color: #34d399;
   --axis-y-color: #38bdf8;
   --axis-z-color: #c084fc;
@@ -46,8 +46,8 @@
   --status-bar-height: 24px;
   --scene-bg-from: #0f0f1a;
   --scene-bg-to: #1a1a2e;
-  --panel-width-left: 288px;
-  --panel-width-right: 256px;
+  --panel-width-left: 260px;
+  --panel-width-right: 280px;
   --ribbon-height: 80px;
   --z-base: 0;
   --z-panel: 10;
@@ -63,8 +63,8 @@
   --bg-panel: rgba(241, 245, 249, 0.8);
   --bg-surface: #ffffff;
   --bg-surface-hover: #e2e8f0;
-  --bg-input: #f1f5f9;
-  --border: rgba(148, 163, 184, 0.6);
+  --bg-input: #ffffff;
+  --border: rgba(148, 163, 184, 0.85);
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #475569;
@@ -91,8 +91,8 @@
   --status-bar-height: 24px;
   --scene-bg-from: #e2e8f0;
   --scene-bg-to: #f1f5f9;
-  --panel-width-left: 288px;
-  --panel-width-right: 256px;
+  --panel-width-left: 260px;
+  --panel-width-right: 280px;
   --ribbon-height: 80px;
   --z-base: 0;
   --z-panel: 10;

@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen, Settings } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings, Files } from 'lucide-react';
 import type { Dataset } from '@/types';
 import { uid } from '@/utils/sampleData';
 import Papa from 'papaparse';
@@ -15,9 +15,67 @@ import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/proj
 import { encodeTiff } from '@/utils/tiffEncoder';
 import { ExportModal } from '@/components/ExportModal';
 
+/** Parse a single CSV/XLSX file into a Dataset. */
+function parseFileToDataset(file: File): Promise<Dataset> {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const baseName = file.name.replace(/\.(csv|xlsx?)$/i, '');
+
+  return new Promise((resolve, reject) => {
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        complete: (results) => {
+          const rows = results.data as string[][];
+          if (rows.length < 2) {
+            reject(new Error('Too few rows'));
+            return;
+          }
+          const headers = rows[0];
+          const columns: Dataset['columns'] = headers.map((h, i) => ({
+            id: uid(),
+            name: h || `Col${i + 1}`,
+            type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
+            values: rows.slice(1).map((row) => row[i] ?? ''),
+          }));
+          resolve({ id: uid(), name: baseName, columns });
+        },
+        error: (err) => reject(err),
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = evt.target?.result;
+          const wb = XLSX.read(data, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+          if (rows.length < 2) {
+            reject(new Error('Too few rows'));
+            return;
+          }
+          const headers = rows[0];
+          const columns: Dataset['columns'] = headers.map((h, i) => ({
+            id: uid(),
+            name: String(h || `Col${i + 1}`),
+            type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
+            values: rows.slice(1).map((row) => row[i] ?? ''),
+          }));
+          resolve({ id: uid(), name: baseName, columns });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Read error'));
+      reader.readAsArrayBuffer(file);
+    } else {
+      reject(new Error(`Unsupported file type: ${ext}`));
+    }
+  });
+}
+
 export function FileTab() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const batchInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const addDataset = useDatasetStore((s) => s.addDataset);
@@ -43,59 +101,49 @@ export function FileTab() {
 
   const handleImport = () => fileInputRef.current?.click();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop()?.toLowerCase();
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (ext === 'csv') {
-      Papa.parse(file, {
-        complete: (results) => {
-          const rows = results.data as string[][];
-          if (rows.length < 2) {
-            addToast(t('toast.importTooFewRows'), 'warning');
-            return;
-          }
-          const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
-            id: uid(), name: h || `Col${i + 1}`, type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
-            values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
-          addDataset({ id: uid(), name: file.name.replace(/\.csv$/i, ''), columns });
-          addToast(t('toast.importSuccess', { file: file.name }), 'success');
-        },
-        error: () => {
-          addToast(t('toast.importFailed', { file: file.name }), 'error');
-        },
-      });
-    } else if (ext === 'xlsx' || ext === 'xls') {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const data = evt.target?.result;
-          const wb = XLSX.read(data, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-          if (rows.length < 2) {
-            addToast(t('toast.importTooFewRows'), 'warning');
-            return;
-          }
-          const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
-            id: uid(), name: String(h || `Col${i + 1}`), type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
-            values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
-          addDataset({ id: uid(), name: file.name.replace(/\.xlsx?$/i, ''), columns });
-          addToast(t('toast.importSuccess', { file: file.name }), 'success');
-        } catch {
-          addToast(t('toast.importFailed', { file: file.name }), 'error');
+    if (files.length === 1) {
+      // Single file: use original path with toast feedback
+      const file = files[0];
+      try {
+        const ds = await parseFileToDataset(file);
+        addDataset(ds);
+        addToast(t('toast.importSuccess', { file: file.name }), 'success');
+      } catch {
+        addToast(t('toast.importFailed', { file: file.name }), 'error');
+      }
+    } else {
+      // Batch import: parse all files in parallel
+      const results = await Promise.allSettled(Array.from(files).map((f) => parseFileToDataset(f)));
+      let success = 0;
+      let failed = 0;
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          addDataset(r.value);
+          success++;
+        } else {
+          failed++;
         }
-      };
-      reader.onerror = () => addToast(t('toast.importFailed', { file: file.name }), 'error');
-      reader.readAsArrayBuffer(file);
+      }
+      if (success > 0) {
+        addToast(t('toast.batchImportSuccess', { count: success, defaultValue: `Imported ${success} file(s)` }), 'success');
+      }
+      if (failed > 0) {
+        addToast(t('toast.batchImportFailed', { count: failed, defaultValue: `${failed} file(s) failed` }), 'warning');
+      }
     }
     e.target.value = '';
   };
+
+  const handleBatchImport = useCallback(() => {
+    if (batchInputRef.current) {
+      batchInputRef.current.multiple = true;
+      batchInputRef.current.click();
+    }
+  }, []);
 
   const getPlotlyDiv = (): HTMLElement | null => {
     return document.querySelector('.js-plotly-plot');
@@ -481,7 +529,8 @@ export function FileTab() {
 
   return (
     <div className="flex items-stretch">
-      <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" />
+      <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" multiple onChange={handleFileChange} className="hidden" />
+      <input ref={batchInputRef} type="file" accept=".csv,.xlsx,.xls" multiple onChange={handleFileChange} className="hidden" />
       <input ref={projectInputRef} type="file" accept=".plot3d,.json" onChange={handleProjectFileChange} className="hidden" />
       <RibbonGroup label={t('file.project')}>
         <button onClick={handleSaveProject} className="ribbon-btn" title={t('file.saveProject')} aria-label={t('file.saveProject')}>
@@ -497,6 +546,10 @@ export function FileTab() {
         <button onClick={handleImport} className="ribbon-btn" title={t('file.importCsvExcel')} aria-label={t('file.importData')}>
           <FileUp size={16} />
           <span className="text-xs">{t('file.importData')}</span>
+        </button>
+        <button onClick={handleBatchImport} className="ribbon-btn" title={t('file.batchImport', { defaultValue: 'Batch Import Multiple Files' })} aria-label={t('file.batchImport', { defaultValue: 'Batch Import' })}>
+          <Files size={16} />
+          <span className="text-xs">{t('file.batchImport', { defaultValue: 'Batch' })}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('file.export')}>

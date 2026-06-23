@@ -109,7 +109,7 @@ export interface Annotation {
   rectSize?: { w: number; h: number };
 }
 
-export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap';
+export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap' | 'violin' | 'isosurface3d' | 'volume3d';
 
 export type ExportBackground = 'transparent' | 'white' | 'theme';
 
@@ -124,6 +124,8 @@ export interface ChartConfig {
   title: string;
   xAxis: AxisConfig;
   yAxis: AxisConfig;
+  /** Right Y-axis config for dual-axis plots. Used when any layer has yAxisSide='right'. */
+  yAxisRight?: AxisConfig;
   zAxis?: AxisConfig;
   legend: LegendConfig;
   colorMap: ColorMapName;
