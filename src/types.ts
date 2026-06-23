@@ -69,6 +69,26 @@ export interface LayerConfig {
   yAxisSide?: 'left' | 'right';
   /** Display name for legend (defaults to dataset-column name) */
   displayName?: string;
+  /** Error bar configuration: type source + visual style. */
+  errorBarConfig?: ErrorBarConfig;
+}
+
+/** Error bar configuration.
+ *  - type 'custom': use explicit error columns (errorColumn / errorPlusColumn / errorMinusColumn).
+ *  - type 'sd'/'se'/'ci95': compute error from Y values grouped by X (for repeated measurements).
+ */
+export interface ErrorBarConfig {
+  type: 'sd' | 'se' | 'ci95' | 'custom';
+  /** Cap width in pixels. */
+  capWidth: number;
+  /** Cap style: 'line' (default Plotly caps) or 'bracket'. */
+  capStyle: 'line' | 'bracket';
+  /** Whether to show the end caps. */
+  showCap: boolean;
+  /** Whether the error bar is asymmetric (uses errorPlus/errorMinus columns for 'custom'). */
+  asymmetric: boolean;
+  /** Line thickness. */
+  thickness: number;
 }
 
 export type AnnotationType = 'text' | 'arrow' | 'rect' | 'latex';

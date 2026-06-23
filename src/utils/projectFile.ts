@@ -4,7 +4,7 @@ import type { Dataset, ChartConfig, DataColumn, LayerConfig } from '@/types';
 const PROJECT_VERSION = 2;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
-const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d'];
+const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap'];
 const VALID_COLORMAPS: ChartConfig['colorMap'][] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma', 'cividis', 'inferno', 'magma', 'turbo', 'batlow'];
 
 export interface ProjectFile {
@@ -85,6 +85,7 @@ function sanitizeLayer(layer: unknown): LayerConfig | null {
   ) {
     return null;
   }
+  const errorBarConfig = sanitizeErrorBarConfig(l.errorBarConfig);
   return {
     id: l.id,
     datasetId: l.datasetId,
@@ -94,9 +95,9 @@ function sanitizeLayer(layer: unknown): LayerConfig | null {
     color: l.color,
     visible: typeof l.visible === 'boolean' ? l.visible : true,
     lineStyle: ['solid', 'dashed', 'dotted'].includes(l.lineStyle as string) ? (l.lineStyle as LayerConfig['lineStyle']) : 'solid',
-    lineWidth: typeof l.lineWidth === 'number' ? l.lineWidth : 2,
+    lineWidth: typeof l.lineWidth === 'number' ? l.lineWidth : 3,
     pointStyle: ['circle', 'square', 'triangle', 'none'].includes(l.pointStyle as string) ? (l.pointStyle as LayerConfig['pointStyle']) : 'circle',
-    pointSize: typeof l.pointSize === 'number' ? l.pointSize : 3,
+    pointSize: typeof l.pointSize === 'number' ? l.pointSize : 6,
     fill: typeof l.fill === 'boolean' ? l.fill : false,
     errorColumn: typeof l.errorColumn === 'string' ? l.errorColumn : undefined,
     errorPlusColumn: typeof l.errorPlusColumn === 'string' ? l.errorPlusColumn : undefined,
@@ -106,6 +107,21 @@ function sanitizeLayer(layer: unknown): LayerConfig | null {
     errorXMinusColumn: typeof l.errorXMinusColumn === 'string' ? l.errorXMinusColumn : undefined,
     yAxisSide: l.yAxisSide === 'right' ? 'right' : 'left',
     displayName: typeof l.displayName === 'string' ? l.displayName : undefined,
+    errorBarConfig,
+  };
+}
+
+function sanitizeErrorBarConfig(cfg: unknown): LayerConfig['errorBarConfig'] | undefined {
+  if (typeof cfg !== 'object' || cfg === null) return undefined;
+  const c = cfg as Record<string, unknown>;
+  const type = ['sd', 'se', 'ci95', 'custom'].includes(c.type as string) ? (c.type as 'sd' | 'se' | 'ci95' | 'custom') : 'custom';
+  return {
+    type,
+    capWidth: typeof c.capWidth === 'number' ? c.capWidth : 6,
+    capStyle: c.capStyle === 'bracket' ? 'bracket' : 'line',
+    showCap: typeof c.showCap === 'boolean' ? c.showCap : true,
+    asymmetric: typeof c.asymmetric === 'boolean' ? c.asymmetric : false,
+    thickness: typeof c.thickness === 'number' ? c.thickness : 2,
   };
 }
 

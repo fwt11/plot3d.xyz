@@ -1,11 +1,12 @@
 import { useDatasetStore } from '@/store/datasetStore';
 import { useToastStore } from '@/store/toastStore';
 import { confirm } from '@/store/confirmStore';
-import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste } from 'lucide-react';
+import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste, Filter, Sparkles, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DataColumn } from '@/types';
 import { showContextMenu, type MenuItemOrSeparator } from '@/utils/contextMenu';
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { DataProcessingModal, type DataProcessingMode } from '@/components/DataProcessingModal';
 
 /** Approximate row height in pixels (must match the actual rendered row height). */
 const ROW_HEIGHT = 28;
@@ -35,6 +36,7 @@ export default function DataTable() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
+  const [dataModal, setDataModal] = useState<{ mode: DataProcessingMode; columnId: string } | null>(null);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
 
@@ -84,6 +86,10 @@ export default function DataTable() {
       { label: t('context.sortAsc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, true) },
       { label: t('context.sortDesc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, false) },
       { separator: true },
+      { label: t('context.filterRows'), icon: <Filter size={14} />, onClick: () => setDataModal({ mode: 'filter', columnId: colId }) },
+      { label: t('context.fillMissing'), icon: <Sparkles size={14} />, onClick: () => setDataModal({ mode: 'missing', columnId: colId }) },
+      { label: t('context.handleOutliers'), icon: <AlertTriangle size={14} />, onClick: () => setDataModal({ mode: 'outlier', columnId: colId }) },
+      { separator: true },
       {
         label: t('context.copyCell'), icon: <Copy size={14} />,
         onClick: () => {
@@ -111,6 +117,10 @@ export default function DataTable() {
       { separator: true },
       { label: t('context.sortAsc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, true) },
       { label: t('context.sortDesc'), icon: <ArrowUpDown size={14} />, onClick: () => sortDataset(dataset.id, colId, false) },
+      { separator: true },
+      { label: t('context.filterRows'), icon: <Filter size={14} />, onClick: () => setDataModal({ mode: 'filter', columnId: colId }) },
+      { label: t('context.fillMissing'), icon: <Sparkles size={14} />, onClick: () => setDataModal({ mode: 'missing', columnId: colId }) },
+      { label: t('context.handleOutliers'), icon: <AlertTriangle size={14} />, onClick: () => setDataModal({ mode: 'outlier', columnId: colId }) },
       { separator: true },
       {
         label: t('context.copyColumn'), icon: <ClipboardPaste size={14} />,
@@ -289,6 +299,14 @@ export default function DataTable() {
           {t('data.addRow')}
         </button>
       </div>
+
+      {dataModal && (
+        <DataProcessingModal
+          mode={dataModal.mode}
+          columnId={dataModal.columnId}
+          onClose={() => setDataModal(null)}
+        />
+      )}
     </div>
   );
 }

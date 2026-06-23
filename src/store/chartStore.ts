@@ -42,9 +42,9 @@ const defaultChartConfig: ChartConfig = {
       color: '#0ea5e9',
       visible: true,
       lineStyle: 'solid',
-      lineWidth: 2,
+      lineWidth: 3,
       pointStyle: 'circle',
-      pointSize: 3,
+      pointSize: 6,
       fill: false,
     },
   ],
@@ -88,9 +88,10 @@ export const useChartStore = create<ChartStore>()((set) => {
     setChartType: (type) =>
       setWithHistory((s) => {
         const is3D = is3DChart(type);
+        const needsZ = is3D || type === 'heatmap';
         let layers = s.chartConfig.layers;
 
-        if (is3D) {
+        if (needsZ) {
           const datasets = useDatasetStore.getState().datasets;
           layers = layers.map((layer) => {
             if (layer.zColumn) return layer;

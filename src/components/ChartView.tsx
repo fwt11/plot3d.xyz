@@ -601,7 +601,7 @@ export default function ChartView() {
           trace.yaxis = 'y2';
         }
 
-        const errY = buildErrorBar(entry.errorCol, entry.errorPlusCol, entry.errorMinusCol, color);
+        const errY = buildErrorBar(entry.errorCol, entry.errorPlusCol, entry.errorMinusCol, color, layer.errorBarConfig, xCol, yCol);
         if (errY) {
           if (useNumericX && (xLogScale || yLogScale)) {
             const errorArray = errY.array as number[];
@@ -614,7 +614,7 @@ export default function ChartView() {
           trace.error_y = errY;
         }
 
-        const errX = buildErrorBar(entry.errorXCol, entry.errorXPlusCol, entry.errorXMinusCol, color);
+        const errX = buildErrorBar(entry.errorXCol, entry.errorXPlusCol, entry.errorXMinusCol, color, layer.errorBarConfig, xCol, yCol);
         if (errX) {
           if (useNumericX && (xLogScale || yLogScale)) {
             const errorArray = errX.array as number[];

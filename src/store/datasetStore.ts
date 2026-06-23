@@ -4,6 +4,21 @@ import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
 import { sharedDefaultDataset, useChartStore } from './chartStore';
 import { useHistoryStore } from './historyStore';
+import {
+  savitzkyGolay,
+  movingAverage,
+  lowPassFilter,
+  whittakerSmoothing,
+  linearInterp,
+  cubicSplineInterp,
+  akimaInterp,
+  pchipInterp,
+  fillMissingValues as fillMissingFn,
+  type MissingValueStrategy,
+  detectOutliers,
+  replaceOutliers,
+  type FilterCondition,
+} from '@/utils/dataProcessing';
 
 interface DatasetStore {
   datasets: Dataset[];
@@ -28,6 +43,22 @@ interface DatasetStore {
   addComputedColumn: (datasetId: string, name: string, fn: (row: Record<string, number>) => number) => void;
   sortDataset: (datasetId: string, columnId: string, ascending: boolean) => void;
   normalizeColumn: (datasetId: string, columnId: string) => void;
+  /** Normalize a column using the given method: 'minmax' | 'zscore' | 'log'. */
+  normalizeColumnByMethod: (datasetId: string, columnId: string, method: 'minmax' | 'zscore' | 'log') => void;
+  /** Smooth a column in-place using the given method. */
+  smoothColumn: (datasetId: string, columnId: string, method: 'sg' | 'moving' | 'lowpass' | 'whittaker', params: { windowSize?: number; polyOrder?: number; alpha?: number; lambda?: number }) => void;
+  /** Interpolate y values at query x positions and write into a new column. */
+  interpolateColumn: (datasetId: string, xColumnId: string, yColumnId: string, method: 'linear' | 'spline' | 'akima' | 'pchip', queryX: number[], newColumnName?: string) => void;
+  /** Filter rows by a condition on a column; rows failing the condition are removed. */
+  filterRowsByCondition: (datasetId: string, columnId: string, condition: FilterCondition) => void;
+  /** Fill missing values in a column using the given strategy. */
+  fillMissingColumn: (datasetId: string, columnId: string, strategy: MissingValueStrategy) => void;
+  /** Detect outliers in a column (IQR method). */
+  detectColumnOutliers: (datasetId: string, columnId: string, k?: number) => { indices: number[]; lowerFence: number; upperFence: number; q1: number; q3: number; iqr: number };
+  /** Replace outliers in a column with fence values or NaN. */
+  replaceColumnOutliers: (datasetId: string, columnId: string, k: number, strategy: 'nan' | 'fence') => void;
+  /** Remove rows at the given indices. */
+  removeRowsAt: (datasetId: string, rowIndices: number[]) => void;
   acceptChartTypeSuggestion: () => void;
   dismissChartTypeSuggestion: () => void;
 }
@@ -62,9 +93,9 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
           color: `hsl(${Math.random() * 360}, 70%, 55%)`,
           visible: true,
           lineStyle: 'solid' as const,
-          lineWidth: 2,
+          lineWidth: 3,
           pointStyle: 'circle' as const,
-          pointSize: 3,
+          pointSize: 6,
           fill: false,
         }];
       }
@@ -407,6 +438,177 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
           }),
         };
       }),
+    }));
+  },
+
+  normalizeColumnByMethod: (datasetId, columnId, method) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        return {
+          ...d,
+          columns: d.columns.map((c) => {
+            if (c.id !== columnId) return c;
+            const nums = c.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+            const valid = nums.filter((n) => !isNaN(n));
+            if (valid.length === 0) return c;
+            if (method === 'minmax') {
+              const min = Math.min(...valid);
+              const max = Math.max(...valid);
+              const range = max - min || 1;
+              return { ...c, values: nums.map((n) => isNaN(n) ? '' : String((n - min) / range)) };
+            }
+            if (method === 'zscore') {
+              const mean = valid.reduce((s, v) => s + v, 0) / valid.length;
+              const variance = valid.reduce((s, v) => s + (v - mean) ** 2, 0) / valid.length;
+              const sd = Math.sqrt(variance) || 1;
+              return { ...c, values: nums.map((n) => isNaN(n) ? '' : String((n - mean) / sd)) };
+            }
+            // log
+            return { ...c, values: nums.map((n) => isNaN(n) || n <= 0 ? '' : String(Math.log(n))) };
+          }),
+        };
+      }),
+    }));
+  },
+
+  smoothColumn: (datasetId, columnId, method, params) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        return {
+          ...d,
+          columns: d.columns.map((c) => {
+            if (c.id !== columnId) return c;
+            const nums = c.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+            let smoothed: number[];
+            switch (method) {
+              case 'sg':
+                smoothed = savitzkyGolay(nums, params.windowSize ?? 5, params.polyOrder ?? 2);
+                break;
+              case 'moving':
+                smoothed = movingAverage(nums, params.windowSize ?? 5);
+                break;
+              case 'lowpass':
+                smoothed = lowPassFilter(nums, params.alpha ?? 0.2);
+                break;
+              case 'whittaker':
+                smoothed = whittakerSmoothing(nums, params.lambda ?? 10);
+                break;
+              default:
+                return c;
+            }
+            return { ...c, values: smoothed.map((v) => isNaN(v) ? '' : String(v)) };
+          }),
+        };
+      }),
+    }));
+  },
+
+  interpolateColumn: (datasetId, xColumnId, yColumnId, method, queryX, newColumnName) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        const xCol = d.columns.find((c) => c.id === xColumnId);
+        const yCol = d.columns.find((c) => c.id === yColumnId);
+        if (!xCol || !yCol) return d;
+        const xs = xCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+        const ys = yCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+        let result: number[];
+        switch (method) {
+          case 'spline': result = cubicSplineInterp(xs, ys, queryX); break;
+          case 'akima': result = akimaInterp(xs, ys, queryX); break;
+          case 'pchip': result = pchipInterp(xs, ys, queryX); break;
+          default: result = linearInterp(xs, ys, queryX); break;
+        }
+        const name = newColumnName ?? `${yCol.name}_${method}`;
+        const newCol: DataColumn = { id: uid(), name, type: 'Y', values: result.map((v) => isNaN(v) ? '' : String(v)) };
+        return { ...d, columns: [...d.columns, newCol] };
+      }),
+    }));
+  },
+
+  filterRowsByCondition: (datasetId, columnId, condition) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        const col = d.columns.find((c) => c.id === columnId);
+        if (!col) return d;
+        const keep: boolean[] = col.values.map((v) => {
+          const n = Number(v);
+          if (isNaN(n)) return false;
+          switch (condition.operator) {
+            case 'gt': return n > (condition.value ?? 0);
+            case 'lt': return n < (condition.value ?? 0);
+            case 'ge': return n >= (condition.value ?? 0);
+            case 'le': return n <= (condition.value ?? 0);
+            case 'eq': return Math.abs(n - (condition.value ?? 0)) < 1e-12;
+            case 'ne': return Math.abs(n - (condition.value ?? 0)) >= 1e-12;
+            case 'range': return n >= (condition.minValue ?? -Infinity) && n <= (condition.maxValue ?? Infinity);
+            default: return true;
+          }
+        });
+        return {
+          ...d,
+          columns: d.columns.map((c) => ({ ...c, values: c.values.filter((_, i) => keep[i]) })),
+        };
+      }),
+    }));
+  },
+
+  fillMissingColumn: (datasetId, columnId, strategy) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        if (strategy === 'delete') {
+          // Delete rows where this column has missing values
+          const col = d.columns.find((c) => c.id === columnId);
+          if (!col) return d;
+          const keep = col.values.map((v) => { const n = Number(v); return !isNaN(n); });
+          return { ...d, columns: d.columns.map((c) => ({ ...c, values: c.values.filter((_, i) => keep[i]) })) };
+        }
+        return {
+          ...d,
+          columns: d.columns.map((c) => c.id === columnId ? { ...c, values: fillMissingFn(c.values, strategy) } : c),
+        };
+      }),
+    }));
+  },
+
+  detectColumnOutliers: (datasetId, columnId, k = 1.5) => {
+    const ds = get().datasets.find((d) => d.id === datasetId);
+    const col = ds?.columns.find((c) => c.id === columnId);
+    if (!col) return { indices: [], lowerFence: NaN, upperFence: NaN, q1: NaN, q3: NaN, iqr: NaN };
+    return detectOutliers(col.values, k);
+  },
+
+  replaceColumnOutliers: (datasetId, columnId, k, strategy) => {
+    useHistoryStore.getState().pushSnapshot();
+    set((s) => ({
+      datasets: s.datasets.map((d) => {
+        if (d.id !== datasetId) return d;
+        return {
+          ...d,
+          columns: d.columns.map((c) => c.id === columnId ? { ...c, values: replaceOutliers(c.values, k, strategy) } : c),
+        };
+      }),
+    }));
+  },
+
+  removeRowsAt: (datasetId, rowIndices) => {
+    useHistoryStore.getState().pushSnapshot();
+    const indexSet = new Set(rowIndices);
+    set((s) => ({
+      datasets: s.datasets.map((d) =>
+        d.id === datasetId
+          ? { ...d, columns: d.columns.map((c) => ({ ...c, values: c.values.filter((_, i) => !indexSet.has(i)) })) }
+          : d
+      ),
     }));
   },
 

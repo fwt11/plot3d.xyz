@@ -22,10 +22,10 @@ export function ChartTab() {
           <button
             key={type}
             onClick={() => setChartType(type)}
-            className={`ribbon-btn ${chartConfig.type === type ? 'ring-1 ring-sky-500/50' : ''} ${group === '3d' ? 'ml-1 border-l pl-2' : ''}`}
+            className={`ribbon-btn ${chartConfig.type === type ? 'ring-1 ring-sky-500/50' : ''} ${group !== '2d' ? 'ml-1 border-l pl-2' : ''}`}
             style={{
               ...(chartConfig.type === type ? { background: 'rgba(14,165,233,0.2)', color: 'var(--accent)' } : {}),
-              ...(group === '3d' ? { borderColor: 'var(--border)' } : {}),
+              ...(group !== '2d' ? { borderColor: 'var(--border)' } : {}),
             }}
             title={label}
             aria-label={label}

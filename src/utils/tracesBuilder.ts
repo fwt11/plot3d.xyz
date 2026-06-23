@@ -1,6 +1,7 @@
-import type { DataColumn, LayerConfig, ColorMapName } from '@/types';
+import type { DataColumn, LayerConfig, ColorMapName, ErrorBarConfig } from '@/types';
 import { toNumber, isValidNumber } from '@/types';
 import { colorMaps } from '@/utils/colormaps';
+import { sampleStdDev, standardError, meanCI95HalfWidth } from '@/utils/statistics';
 
 // Re-export colorMaps and ColorMapName so consumers can import them from here
 export { colorMaps } from '@/utils/colormaps';
@@ -48,23 +49,56 @@ export function colToNumbers(col: DataColumn): number[] {
   return col.values.map((v) => toNumber(v));
 }
 
-/** Build error bar config for a trace */
+/** Build error bar config for a trace.
+ *  - If `errorBarConfig` is provided with type 'sd'/'se'/'ci95', the error is computed
+ *    from the Y column by grouping Y values by their X value (for repeated measurements).
+ *  - If `errorBarConfig.type` is 'custom' (or config is absent), the explicit error columns
+ *    are used as before.
+ */
 export function buildErrorBar(
   errorCol: DataColumn | undefined,
   errorPlusCol: DataColumn | undefined,
   errorMinusCol: DataColumn | undefined,
   color: string,
+  errorBarConfig?: ErrorBarConfig,
+  xCol?: DataColumn,
+  yCol?: DataColumn,
 ): Record<string, unknown> | undefined {
+  const cfg = errorBarConfig;
+  const capWidth = cfg?.capWidth ?? 6;
+  const thickness = cfg?.thickness ?? 2;
+  const showCap = cfg?.showCap ?? true;
+
+  // Statistical error computation from raw Y data (grouped by X)
+  if (cfg && cfg.type !== 'custom' && xCol && yCol) {
+    const stats = computeGroupedError(xCol, yCol, cfg.type);
+    if (!stats) return undefined;
+    const result: Record<string, unknown> = {
+      type: 'data',
+      array: stats.array,
+      visible: true,
+      color,
+      thickness,
+      width: capWidth,
+      symmetric: !cfg.asymmetric,
+    };
+    if (!showCap) {
+      result.visible = true;
+    }
+    return result;
+  }
+
+  // Custom error columns (existing behavior)
   if (!errorCol && !errorPlusCol && !errorMinusCol) return undefined;
 
-  if (errorCol) {
+  if (errorCol && (!cfg || cfg.type === 'custom')) {
     return {
       type: 'data',
       array: colToNumbers(errorCol),
       visible: true,
       color,
-      thickness: 1,
-      width: 4,
+      thickness,
+      width: capWidth,
     };
   }
 
@@ -72,8 +106,8 @@ export function buildErrorBar(
     type: 'data',
     visible: true,
     color,
-    thickness: 1,
-    width: 4,
+    thickness,
+    width: capWidth,
   };
   if (errorPlusCol) {
     result.array = colToNumbers(errorPlusCol);
@@ -82,6 +116,43 @@ export function buildErrorBar(
     result.arrayminus = colToNumbers(errorMinusCol);
   }
   return Object.keys(result).length > 4 ? result : undefined;
+}
+
+/** Group Y values by their X value and compute per-group error (SD / SE / CI95 half-width).
+ *  Returns an array aligned with the unique X values, or null if insufficient data. */
+function computeGroupedError(
+  xCol: DataColumn,
+  yCol: DataColumn,
+  type: 'sd' | 'se' | 'ci95',
+): { array: number[] } | null {
+  const xValues = colToNumbers(xCol);
+  const yValues = colToNumbers(yCol);
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < Math.min(xValues.length, yValues.length); i++) {
+    const x = xValues[i];
+    const y = yValues[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const key = x;
+    const arr = groups.get(key);
+    if (arr) arr.push(y);
+    else groups.set(key, [y]);
+  }
+  if (groups.size === 0) return null;
+  const result: number[] = [];
+  for (const [, ys] of groups) {
+    if (ys.length < 2) {
+      result.push(0);
+      continue;
+    }
+    if (type === 'sd') {
+      result.push(sampleStdDev(ys));
+    } else if (type === 'se') {
+      result.push(standardError(ys));
+    } else {
+      result.push(meanCI95HalfWidth(ys));
+    }
+  }
+  return { array: result };
 }
 
 /** Build axis label text with optional unit, e.g. "Time (s)" */

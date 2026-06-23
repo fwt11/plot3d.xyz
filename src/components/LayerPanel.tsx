@@ -222,9 +222,9 @@ export default function LayerPanel() {
                     <input
                       type="number"
                       min={1}
-                      max={5}
+                      max={10}
                       value={layer.lineWidth}
-                      onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(5, Number(e.target.value) || 1)) })}
+                      onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
                       className="border rounded px-1 py-0.5 outline-none w-10 text-center"
                       style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                       aria-label={t('layer.lineWidth', 'Line Width')}
@@ -252,9 +252,9 @@ export default function LayerPanel() {
                     <input
                       type="number"
                       min={1}
-                      max={10}
+                      max={20}
                       value={layer.pointSize}
-                      onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+                      onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
                       className="border rounded px-1 py-0.5 outline-none w-10 text-center"
                       style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                       aria-label={t('layer.pointSize', 'Point Size')}
@@ -290,6 +290,122 @@ export default function LayerPanel() {
                     </label>
                   </div>
                 )}
+                {/* Error bar type + style config */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex gap-1.5 items-center">
+                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                      {t('layer.errorBarType', 'Error Bar Type')}
+                      <select
+                        value={layer.errorBarConfig?.type ?? 'custom'}
+                        onChange={(e) => {
+                          const type = e.target.value as 'sd' | 'se' | 'ci95' | 'custom';
+                          updateLayer(layer.id, {
+                            errorBarConfig: {
+                              type,
+                              capWidth: layer.errorBarConfig?.capWidth ?? 6,
+                              capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                              showCap: layer.errorBarConfig?.showCap ?? true,
+                              asymmetric: layer.errorBarConfig?.asymmetric ?? false,
+                              thickness: layer.errorBarConfig?.thickness ?? 2,
+                            },
+                          });
+                        }}
+                        className="border rounded px-1 py-0.5 outline-none flex-1"
+                        style={selectStyle}
+                        aria-label={t('layer.errorBarType', 'Error Bar Type')}
+                      >
+                        <option value="custom">{t('layer.errorBarCustom', 'Custom Column')}</option>
+                        <option value="sd">{t('layer.errorBarSD', 'SD (Std Dev)')}</option>
+                        <option value="se">{t('layer.errorBarSE', 'SE (Std Error)')}</option>
+                        <option value="ci95">{t('layer.errorBarCI95', '95% CI')}</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                      {t('layer.errorBarCapWidth', 'Cap Width')}
+                      <input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={layer.errorBarConfig?.capWidth ?? 6}
+                        onChange={(e) => updateLayer(layer.id, {
+                          errorBarConfig: {
+                            type: layer.errorBarConfig?.type ?? 'custom',
+                            capWidth: Math.max(0, Math.min(20, Number(e.target.value) || 6)),
+                            capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                            showCap: layer.errorBarConfig?.showCap ?? true,
+                            asymmetric: layer.errorBarConfig?.asymmetric ?? false,
+                            thickness: layer.errorBarConfig?.thickness ?? 2,
+                          },
+                        })}
+                        className="border rounded px-1 py-0.5 outline-none w-10 text-center"
+                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                        aria-label={t('layer.errorBarCapWidth', 'Cap Width')}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                      {t('layer.errorBarThickness', 'Thickness')}
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={layer.errorBarConfig?.thickness ?? 2}
+                        onChange={(e) => updateLayer(layer.id, {
+                          errorBarConfig: {
+                            type: layer.errorBarConfig?.type ?? 'custom',
+                            capWidth: layer.errorBarConfig?.capWidth ?? 6,
+                            capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                            showCap: layer.errorBarConfig?.showCap ?? true,
+                            asymmetric: layer.errorBarConfig?.asymmetric ?? false,
+                            thickness: Math.max(1, Math.min(10, Number(e.target.value) || 2)),
+                          },
+                        })}
+                        className="border rounded px-1 py-0.5 outline-none w-10 text-center"
+                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                        aria-label={t('layer.errorBarThickness', 'Thickness')}
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={layer.errorBarConfig?.showCap ?? true}
+                        onChange={(e) => updateLayer(layer.id, {
+                          errorBarConfig: {
+                            type: layer.errorBarConfig?.type ?? 'custom',
+                            capWidth: layer.errorBarConfig?.capWidth ?? 6,
+                            capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                            showCap: e.target.checked,
+                            asymmetric: layer.errorBarConfig?.asymmetric ?? false,
+                            thickness: layer.errorBarConfig?.thickness ?? 2,
+                          },
+                        })}
+                        className="accent-sky-500"
+                        aria-label={t('layer.errorBarShowCap', 'Show Cap')}
+                      />
+                      {t('layer.errorBarShowCap', 'Cap')}
+                    </label>
+                    <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={layer.errorBarConfig?.asymmetric ?? false}
+                        onChange={(e) => updateLayer(layer.id, {
+                          errorBarConfig: {
+                            type: layer.errorBarConfig?.type ?? 'custom',
+                            capWidth: layer.errorBarConfig?.capWidth ?? 6,
+                            capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                            showCap: layer.errorBarConfig?.showCap ?? true,
+                            asymmetric: e.target.checked,
+                            thickness: layer.errorBarConfig?.thickness ?? 2,
+                          },
+                        })}
+                        className="accent-sky-500"
+                        aria-label={t('layer.errorBarAsymmetric', 'Asymmetric')}
+                      />
+                      {t('layer.errorBarAsymmetric', 'Asym')}
+                    </label>
+                  </div>
+                </div>
                 {ds && (
                   <div className="flex flex-col gap-1.5">
                     <div className="flex gap-1.5 items-center">
@@ -418,9 +534,9 @@ export default function LayerPanel() {
                 color: `hsl(${Math.random() * 360}, 70%, 55%)`,
                 visible: true,
                 lineStyle: 'solid',
-                lineWidth: 2,
+                lineWidth: 3,
                 pointStyle: 'circle',
-                pointSize: 3,
+                pointSize: 6,
                 fill: false,
               });
             }
