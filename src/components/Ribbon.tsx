@@ -6,9 +6,10 @@ import { TransformTab } from './ribbon/TransformTab';
 import { ChartTab } from './ribbon/ChartTab';
 import { AnnotationTab } from './ribbon/AnnotationTab';
 import { FitTab } from './ribbon/FitTab';
+import { StatsTab } from './ribbon/StatsTab';
 
 // ─── Ribbon Tab Types ───────────────────────────────────────────
-type RibbonTab = 'file' | 'generate' | 'transform' | 'fit' | 'chart' | 'annotation';
+type RibbonTab = 'file' | 'generate' | 'transform' | 'stats' | 'fit' | 'chart' | 'annotation';
 
 // ─── Main Ribbon Component ──────────────────────────────────────
 export default function Ribbon() {
@@ -19,6 +20,7 @@ export default function Ribbon() {
     { key: 'file', label: t('ribbon.file') },
     { key: 'generate', label: t('ribbon.generate') },
     { key: 'transform', label: t('ribbon.transform') },
+    { key: 'stats', label: t('ribbon.stats') },
     { key: 'fit', label: t('ribbon.fit') },
     { key: 'chart', label: t('ribbon.chart') },
     { key: 'annotation', label: t('ribbon.annotation') },
@@ -57,6 +59,7 @@ export default function Ribbon() {
         {activeTab === 'file' && <FileTab />}
         {activeTab === 'generate' && <GenerateTab />}
         {activeTab === 'transform' && <TransformTab />}
+        {activeTab === 'stats' && <StatsTab />}
         {activeTab === 'fit' && <FitTab />}
         {activeTab === 'chart' && <ChartTab />}
         {activeTab === 'annotation' && <AnnotationTab />}

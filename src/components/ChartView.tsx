@@ -148,75 +148,104 @@ export default function ChartView() {
 
   const handleChartContextMenu = useCallback((e: React.MouseEvent) => {
     const { resolutionMultiplier, background } = chartConfig.exportConfig;
-    const baseWidth = 1200;
-    const baseHeight = 800;
-    const exportWidth = baseWidth * resolutionMultiplier;
-    const exportHeight = baseHeight * resolutionMultiplier;
     const exportBg = background === 'white'
       ? '#ffffff'
       : background === 'theme'
         ? (theme === 'dark' ? '#18181b' : '#ffffff')
-        : 'transparent';
+        : undefined;
 
     const items: MenuItemOrSeparator[] = [
       {
         label: t('context.exportPng'),
         icon: <Image size={14} />,
-        onClick: () => {
-          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
-          if (div) {
-            import('plotly.js-dist-min').then((Plotly) => {
-              Plotly.default.downloadImage(div, {
-                format: 'png',
-                width: exportWidth,
-                height: exportHeight,
-                filename: chartConfig.title || 'chart',
-                bgcolor: exportBg,
+        onClick: async () => {
+          try {
+            if (is3DType) {
+              // 3D: use html-to-image to capture the entire container
+              const { toPng } = await import('html-to-image');
+              const dataUrl = await toPng(containerRef.current!, {
+                pixelRatio: resolutionMultiplier,
+                backgroundColor: exportBg,
               });
-            });
+              const link = document.createElement('a');
+              link.download = (chartConfig.title || 'chart') + '.png';
+              link.href = dataUrl;
+              link.click();
+              addToast(t('toast.exportSuccess'), 'success');
+            } else {
+              // 2D: use Plotly's native export with scale for high-res
+              const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+              if (!plotlyDiv) return;
+              const Plotly = (await import('plotly.js-dist-min')).default;
+              await Plotly.downloadImage(plotlyDiv, {
+                format: 'png',
+                scale: resolutionMultiplier,
+                bgcolor: exportBg ?? 'rgba(0,0,0,0)',
+                filename: chartConfig.title || 'chart',
+              });
+              addToast(t('toast.exportSuccess'), 'success');
+            }
+          } catch {
+            addToast(t('toast.exportFailed'), 'error');
           }
         },
       },
       {
         label: t('context.exportSvg'),
         icon: <FileCode size={14} />,
-        onClick: () => {
-          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
-          if (div) {
-            import('plotly.js-dist-min').then((Plotly) => {
-              Plotly.default.downloadImage(div, {
-                format: 'svg',
-                width: exportWidth,
-                height: exportHeight,
-                filename: chartConfig.title || 'chart',
-                bgcolor: exportBg,
-              });
+        onClick: async () => {
+          if (is3DType) {
+            addToast(t('toast.svgNotSupported3d'), 'warning');
+            return;
+          }
+          try {
+            const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+            if (!plotlyDiv) return;
+            const Plotly = (await import('plotly.js-dist-min')).default;
+            await Plotly.downloadImage(plotlyDiv, {
+              format: 'svg',
+              scale: resolutionMultiplier,
+              bgcolor: exportBg ?? 'rgba(0,0,0,0)',
+              filename: chartConfig.title || 'chart',
             });
+            addToast(t('toast.exportSuccess'), 'success');
+          } catch {
+            addToast(t('toast.exportFailed'), 'error');
           }
         },
       },
       {
         label: t('context.copyToClipboard'),
         icon: <Camera size={14} />,
-        onClick: () => {
-          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
-          if (div) {
-            import('plotly.js-dist-min').then(async (Plotly) => {
-              try {
-                const dataUrl = await Plotly.default.toImage(div, {
-                  format: 'png',
-                  width: exportWidth,
-                  height: exportHeight,
-                  bgcolor: exportBg,
-                });
-                const response = await fetch(dataUrl);
-                const blob = await response.blob();
-                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                addToast(t('toast.copySuccess'), 'success');
-              } catch {
-                addToast(t('toast.copyFailed'), 'error');
-              }
-            });
+        onClick: async () => {
+          try {
+            if (is3DType) {
+              // 3D: use html-to-image
+              const { toPng } = await import('html-to-image');
+              const dataUrl = await toPng(containerRef.current!, {
+                pixelRatio: resolutionMultiplier,
+                backgroundColor: exportBg,
+              });
+              const response = await fetch(dataUrl);
+              const blob = await response.blob();
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            } else {
+              // 2D: use Plotly's toImage
+              const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+              if (!plotlyDiv) return;
+              const Plotly = (await import('plotly.js-dist-min')).default;
+              const dataUrl = await Plotly.toImage(plotlyDiv, {
+                format: 'png',
+                scale: resolutionMultiplier,
+                bgcolor: exportBg ?? 'rgba(0,0,0,0)',
+              });
+              const response = await fetch(dataUrl);
+              const blob = await response.blob();
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            }
+            addToast(t('toast.copySuccess'), 'success');
+          } catch {
+            addToast(t('toast.copyFailed'), 'error');
           }
         },
       },
@@ -235,7 +264,7 @@ export default function ChartView() {
       },
     ];
     showContextMenu(e, items);
-  }, [chartConfig.title, chartConfig.exportConfig, theme, t, addToast]);
+  }, [chartConfig.title, chartConfig.exportConfig, is3DType, theme, t, addToast]);
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
@@ -276,12 +305,16 @@ export default function ChartView() {
         });
       } else {
         const yCols = ds.columns.filter((c) => c.type === 'Y');
+        // For heatmap, also resolve the Z column
+        const zColForHeatmap = chartType === 'heatmap'
+          ? (layer.zColumn ? ds.columns.find((c) => c.id === layer.zColumn) : ds.columns.find((c) => c.type === 'Z'))
+          : undefined;
         if (yCols.length === 0) {
           const yCol = ds.columns.find((c) => c.id === layer.yColumn);
           if (yCol) {
             result.push({
               label: layer.displayName || `${ds.name} - ${yCol.name}`,
-              xCol, yCol, color: layer.color, layer, datasetId: ds.id,
+              xCol, yCol, zCol: zColForHeatmap, color: layer.color, layer, datasetId: ds.id,
               errorCol, errorPlusCol, errorMinusCol,
               errorXCol, errorXPlusCol, errorXMinusCol,
             });
@@ -292,6 +325,7 @@ export default function ChartView() {
               label: yCols.length === 1 ? (layer.displayName || `${ds.name} - ${yCol.name}`) : `${ds.name} - ${yCol.name}`,
               xCol,
               yCol,
+              zCol: zColForHeatmap,
               color: yCols.length === 1 ? layer.color : allYColors[idx % allYColors.length],
               layer,
               datasetId: ds.id,
@@ -307,7 +341,7 @@ export default function ChartView() {
       }
     }
     return result;
-  }, [chartConfig.layers, datasets, is3DType]);
+  }, [chartConfig.layers, datasets, is3DType, chartType]);
 
   // --- Read CSS variables (cached, re-read only when theme triggers re-render) ---
   const cssVars = useMemo(() => {
@@ -437,7 +471,7 @@ export default function ChartView() {
       });
     } else {
       return expandedDatasets.map((entry) => {
-        const { label, xCol, yCol, color, layer } = entry;
+        const { label, xCol, yCol, zCol, color, layer } = entry;
         const xValues = colToNumbers(xCol);
         const yValues = colToNumbers(yCol);
 
@@ -454,6 +488,53 @@ export default function ChartView() {
 
         const pointSymbol = pointStyleToSymbol(layer.pointStyle);
         const showPoints = layer.pointStyle !== 'none';
+
+        // --- Box plot: distribution of Y values ---
+        if (chartType === 'box') {
+          const validY = yValues.filter((v) => Number.isFinite(v));
+          return {
+            type: 'box' as const,
+            name: label,
+            y: validY,
+            x: [label],
+            marker: { color, outliercolor: color },
+            boxpoints: 'outliers',
+            line: { color },
+            boxmean: 'sd',
+          };
+        }
+
+        // --- Histogram: frequency distribution of Y values ---
+        if (chartType === 'histogram') {
+          const validY = yValues.filter((v) => Number.isFinite(v));
+          return {
+            type: 'histogram' as const,
+            name: label,
+            x: validY,
+            marker: { color, opacity: 0.7, line: { color, width: 1 } },
+            opacity: 0.7,
+            nbinsx: Math.max(5, Math.min(50, Math.ceil(Math.sqrt(validY.length)))),
+          };
+        }
+
+        // --- Heatmap: Z values over X/Y grid ---
+        if (chartType === 'heatmap' && zCol) {
+          const zValues = colToNumbers(zCol);
+          const { x: uniqueX, y: uniqueY, z: zMatrix } = extractGridData(xValues, yValues, zValues);
+          return {
+            type: 'heatmap' as const,
+            name: label,
+            x: uniqueX,
+            y: uniqueY,
+            z: zMatrix,
+            colorscale: colorScale,
+            showscale: true,
+            colorbar: {
+              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
+            },
+          };
+        }
 
         if (isPie) {
           return {
@@ -552,10 +633,13 @@ export default function ChartView() {
   }, [expandedDatasets, chartType, is3DType, isPie, isPolar, isScatter, useNumericX, chartConfig, colorScale, cssVars]);
 
   // --- Build Plotly layout (memoized) ---
-  const layout = useMemo<Record<string, unknown>>(
-    () => buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX),
-    [chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX],
-  );
+  const layout = useMemo<Record<string, unknown>>(() => {
+    const base = buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX);
+    // Overlay bars/boxes when multiple datasets are present
+    if (chartType === 'histogram') base.barmode = 'overlay';
+    if (chartType === 'box') base.boxmode = 'group';
+    return base;
+  }, [chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX, chartType]);
 
   const plotlyConfig = useMemo(() => ({
     responsive: true,

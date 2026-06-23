@@ -87,7 +87,7 @@ export interface Annotation {
   rectSize?: { w: number; h: number };
 }
 
-export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d';
+export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap';
 
 export type ExportBackground = 'transparent' | 'white' | 'theme';
 

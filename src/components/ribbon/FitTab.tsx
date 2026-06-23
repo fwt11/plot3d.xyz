@@ -7,7 +7,9 @@ import type { FitStatistics } from '@/utils/curveFitting';
 import { toNumber } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { RibbonGroup } from './RibbonGroup';
-import { TrendingUp, BarChart3, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { TrendingUp, BarChart3, ChevronDown, ChevronUp, X, Activity, Copy, Download, FileText } from 'lucide-react';
+import { MultiPeakFitModal } from '@/components/MultiPeakFitModal';
+import { fitResultToCSV, fitResultToText, equationToLatex, downloadTextFile, type FitExportData } from '@/utils/fitExport';
 
 type FitType = 'linear' | 'poly2' | 'poly3' | 'poly4' | 'poly5' | 'poly6' | 'exponential' | 'logarithmic' | 'power' | 'gaussian' | 'logistic';
 
@@ -39,6 +41,7 @@ export function FitTab() {
   const [showResidualPlot, setShowResidualPlot] = useState(false);
   const [residualMode, setResidualMode] = useState<'fitted' | 'x'>('fitted');
   const [isFitting, setIsFitting] = useState(false);
+  const [showMultiPeak, setShowMultiPeak] = useState(false);
 
   const activeDs = datasets.find((d) => d.id === activeDatasetId);
   const xCol = activeDs?.columns.find((c) => c.type === 'X') ?? activeDs?.columns[0];
@@ -89,7 +92,7 @@ export function FitTab() {
         stats: result.stats,
       });
       setShowStats(true);
-    } catch (err) {
+    } catch {
       addToast(t('toast.fitInsufficientData'), 'warning');
     } finally {
       setIsFitting(false);
@@ -121,7 +124,7 @@ export function FitTab() {
       updateLayer(autoLayer.id, {
         color: '#ef4444',
         lineStyle: 'dashed',
-        lineWidth: 2,
+        lineWidth: 3,
         pointStyle: 'none',
         pointSize: 0,
         fill: false,
@@ -130,6 +133,47 @@ export function FitTab() {
       addToast(t('toast.fitCurveAdded'), 'success');
     }
   }, [fitResult, activeDs, addDataset, updateLayer, addToast, t]);
+
+  const buildExportData = useCallback((): FitExportData | null => {
+    if (!fitResult) return null;
+    return {
+      type: fitResult.type,
+      equation: fitResult.equation,
+      rSquared: fitResult.rSquared,
+      adjustedRSquared: fitResult.adjustedRSquared,
+      rmse: fitResult.rmse,
+      mae: fitResult.mae,
+      residualSE: fitResult.residualSE,
+      n: fitResult.n,
+      dof: fitResult.dof,
+      stats: fitResult.stats,
+    };
+  }, [fitResult]);
+
+  const copyFitResult = useCallback(async () => {
+    const data = buildExportData();
+    if (!data) return;
+    try {
+      await navigator.clipboard.writeText(fitResultToText(data));
+      addToast(t('toast.copySuccess'), 'success');
+    } catch {
+      addToast(t('toast.copyFailed'), 'warning');
+    }
+  }, [buildExportData, addToast, t]);
+
+  const exportFitCSV = useCallback(() => {
+    const data = buildExportData();
+    if (!data) return;
+    downloadTextFile(fitResultToCSV(data), `fit_${data.type}.csv`, 'text/csv;charset=utf-8');
+    addToast(t('toast.exportSuccess'), 'success');
+  }, [buildExportData, addToast, t]);
+
+  const exportFitLatex = useCallback(() => {
+    if (!fitResult) return;
+    const latex = equationToLatex(fitResult.equation);
+    downloadTextFile(latex, `fit_${fitResult.type}.tex`, 'application/x-tex;charset=utf-8');
+    addToast(t('toast.exportSuccess'), 'success');
+  }, [fitResult, addToast, t]);
 
   const fitButtons: { type: FitType; label: string }[] = [
     { type: 'linear', label: t('fit.linear') },
@@ -161,6 +205,17 @@ export function FitTab() {
             <span className="text-sm font-mono">{isFitting ? '…' : label}</span>
           </button>
         ))}
+        <button
+          onClick={() => setShowMultiPeak(true)}
+          className="ribbon-btn ml-1 border-l pl-2"
+          title={t('multipeak.title')}
+          aria-label={t('multipeak.title')}
+          disabled={!xCol || !yCol}
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <Activity size={16} />
+          <span className="text-xs">{t('multipeak.button')}</span>
+        </button>
       </RibbonGroup>
 
       {fitResult && (
@@ -203,6 +258,33 @@ export function FitTab() {
               >
                 <TrendingUp size={14} />
                 <span className="text-xs">{t('fit.addCurve')}</span>
+              </button>
+              <button
+                onClick={copyFitResult}
+                className="ribbon-btn"
+                title={t('fit.copyResult')}
+                aria-label={t('fit.copyResult')}
+              >
+                <Copy size={14} />
+                <span className="text-xs">{t('fit.copy')}</span>
+              </button>
+              <button
+                onClick={exportFitCSV}
+                className="ribbon-btn"
+                title={t('fit.exportCsv')}
+                aria-label={t('fit.exportCsv')}
+              >
+                <Download size={14} />
+                <span className="text-xs">CSV</span>
+              </button>
+              <button
+                onClick={exportFitLatex}
+                className="ribbon-btn"
+                title={t('fit.exportLatex')}
+                aria-label={t('fit.exportLatex')}
+              >
+                <FileText size={14} />
+                <span className="text-xs">LaTeX</span>
               </button>
             </div>
             {showStats && (
@@ -248,6 +330,10 @@ export function FitTab() {
           onClose={() => setShowResidualPlot(false)}
           t={t}
         />
+      )}
+
+      {showMultiPeak && (
+        <MultiPeakFitModal onClose={() => setShowMultiPeak(false)} />
       )}
     </div>
   );
