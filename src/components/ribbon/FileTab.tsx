@@ -1,9 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings } from 'lucide-react';
 import type { Dataset } from '@/types';
 import { uid } from '@/utils/sampleData';
 import Papa from 'papaparse';
@@ -13,11 +13,13 @@ import { toPng } from 'html-to-image';
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
+import { ExportModal } from '@/components/ExportModal';
 
 export function FileTab() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const addDataset = useDatasetStore((s) => s.addDataset);
   const exportConfig = useChartStore((s) => s.chartConfig.exportConfig);
   const chartType = useChartStore((s) => s.chartConfig.type);
@@ -518,7 +520,12 @@ export function FileTab() {
           <Download size={16} />
           <span className="text-xs">TIFF</span>
         </button>
+        <button onClick={() => setShowExportModal(true)} className="ribbon-btn" title={t('file.exportAdvanced', 'Advanced Export')} aria-label={t('file.exportAdvanced', 'Advanced Export')}>
+          <Settings size={16} />
+          <span className="text-xs">{t('file.exportAdvanced', 'Advanced')}</span>
+        </button>
       </RibbonGroup>
+      {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
     </div>
   );
 }

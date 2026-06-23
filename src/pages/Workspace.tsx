@@ -5,14 +5,16 @@ import { useChartStore } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
 import { useTranslation } from 'react-i18next';
+import type { ChartType } from '@/types';
 import DataTable from '@/components/DataTable';
 import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
+import { HistoryPanel } from '@/components/HistoryPanel';
 import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2, History } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
 function ChartTypeSuggestionBar() {
@@ -135,6 +137,7 @@ export default function Workspace() {
   const [rightWidth, setRightWidth] = useState(256);
   const [layerPanelHeight, setLayerPanelHeight] = useState(220);
   const [resizing, setResizing] = useState<'left' | 'right' | 'layer' | null>(null);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const lang = useUiStore((s) => s.lang);
@@ -175,16 +178,25 @@ export default function Workspace() {
     };
   }, [resizing]);
 
-  // Keyboard shortcuts for undo/redo and save
+  // Keyboard shortcuts for undo/redo, save, and common actions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      const target = e.target as HTMLElement;
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      // Undo / Redo / Save (work everywhere)
+      if (isCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (pastLength > 0) undo();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        return;
+      }
+      if (isCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         if (futureLength > 0) redo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        return;
+      }
+      if (isCtrl && e.key === 's') {
         e.preventDefault();
         const dsState = useDatasetStore.getState();
         const chartState = useChartStore.getState();
@@ -197,6 +209,140 @@ export default function Workspace() {
         });
         const title = chartState.chartConfig.title || 'untitled';
         saveProjectFile(project, title);
+        return;
+      }
+
+      // Ctrl+O: Import data (trigger file input)
+      if (isCtrl && e.key === 'o') {
+        e.preventDefault();
+        const input = document.querySelector<HTMLInputElement>('input[accept=".csv,.xlsx,.xls"]');
+        input?.click();
+        return;
+      }
+
+      // Ctrl+E: Quick export PNG (trigger the quick toolbar export button)
+      if (isCtrl && e.key === 'e') {
+        e.preventDefault();
+        const btn = document.querySelector<HTMLButtonElement>('[data-quick-export-png]');
+        btn?.click();
+        return;
+      }
+
+      // Ctrl+L: Add new layer
+      if (isCtrl && e.key === 'l') {
+        e.preventDefault();
+        const dsState = useDatasetStore.getState();
+        const chartState = useChartStore.getState();
+        const ds = dsState.datasets.find((d) => d.id === dsState.activeDatasetId) ?? dsState.datasets[0];
+        if (ds) {
+          const xCol = ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
+          const yCol = ds.columns.find((c) => c.type === 'Y') ?? ds.columns[1];
+          if (xCol && yCol) {
+            chartState.addLayer({
+              id: Math.random().toString(36).slice(2),
+              datasetId: ds.id,
+              xColumn: xCol.id,
+              yColumn: yCol.id,
+              color: `hsl(${Math.random() * 360}, 70%, 55%)`,
+              visible: true,
+              lineStyle: 'solid',
+              lineWidth: 3,
+              pointStyle: 'circle',
+              pointSize: 6,
+              fill: false,
+            });
+          }
+        }
+        return;
+      }
+
+      // Ctrl+F: Open find dialog (dispatch custom event for DataTable)
+      if (isCtrl && e.key === 'f') {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('datatable-find-open'));
+        return;
+      }
+
+      // Ctrl+0: Reset chart zoom
+      if (isCtrl && e.key === '0') {
+        e.preventDefault();
+        const plotDiv = document.querySelector('.js-plotly-plot');
+        if (plotDiv) {
+          import('plotly.js-dist-min').then((Plotly) => {
+            Plotly.default.relayout(plotDiv, {
+              'xaxis.autorange': true,
+              'yaxis.autorange': true,
+            });
+          });
+        }
+        return;
+      }
+
+      // Ctrl++ / Ctrl+=: Zoom in chart
+      if (isCtrl && (e.key === '+' || e.key === '=')) {
+        e.preventDefault();
+        const plotDiv = document.querySelector('.js-plotly-plot');
+        if (plotDiv) {
+          import('plotly.js-dist-min').then((Plotly) => {
+            // Zoom in by 20% around center
+            const layout = (plotDiv as any).layout;
+            if (layout?.xaxis?.range && layout?.yaxis?.range) {
+              const [x0, x1] = layout.xaxis.range;
+              const [y0, y1] = layout.yaxis.range;
+              const xMid = (x0 + x1) / 2;
+              const yMid = (y0 + y1) / 2;
+              const xRange = (x1 - x0) * 0.4;
+              const yRange = (y1 - y0) * 0.4;
+              Plotly.default.relayout(plotDiv, {
+                'xaxis.range': [xMid - xRange, xMid + xRange],
+                'yaxis.range': [yMid - yRange, yMid + yRange],
+              });
+            }
+          });
+        }
+        return;
+      }
+
+      // Ctrl+-: Zoom out chart
+      if (isCtrl && e.key === '-') {
+        e.preventDefault();
+        const plotDiv = document.querySelector('.js-plotly-plot');
+        if (plotDiv) {
+          import('plotly.js-dist-min').then((Plotly) => {
+            const layout = (plotDiv as any).layout;
+            if (layout?.xaxis?.range && layout?.yaxis?.range) {
+              const [x0, x1] = layout.xaxis.range;
+              const [y0, y1] = layout.yaxis.range;
+              const xMid = (x0 + x1) / 2;
+              const yMid = (y0 + y1) / 2;
+              const xRange = (x1 - x0) * 0.625;
+              const yRange = (y1 - y0) * 0.625;
+              Plotly.default.relayout(plotDiv, {
+                'xaxis.range': [xMid - xRange, xMid + xRange],
+                'yaxis.range': [yMid - yRange, yMid + yRange],
+              });
+            }
+          });
+        }
+        return;
+      }
+
+      // Ctrl+1~9: Switch chart type
+      if (isCtrl && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const chartTypes: ChartType[] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d'];
+        const idx = parseInt(e.key, 10) - 1;
+        if (idx < chartTypes.length) {
+          useChartStore.getState().setChartType(chartTypes[idx]);
+        }
+        return;
+      }
+
+      // Ctrl+A: Select all (only when not in an input, or when in the data table)
+      if (isCtrl && e.key === 'a' && !isInputFocused) {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent('datatable-select-all'));
+        return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -227,6 +373,15 @@ export default function Workspace() {
           aria-label={t('workspace.redo', 'Redo')}
         >
           <Redo2 size={15} />
+        </button>
+        <button
+          onClick={() => setShowHistoryPanel(true)}
+          className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+          style={{ color: 'var(--text-secondary)' }}
+          title={t('history.title', 'History')}
+          aria-label={t('history.title', 'History')}
+        >
+          <History size={15} />
         </button>
         <div style={{ width: '1px', height: '14px', background: 'var(--border)' }} />
         <button
@@ -344,6 +499,7 @@ export default function Workspace() {
       )}
       <StatusBar />
       <ToastContainer />
+      {showHistoryPanel && <HistoryPanel onClose={() => setShowHistoryPanel(false)} />}
     </div>
   );
 }

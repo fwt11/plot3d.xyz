@@ -7,6 +7,7 @@ import type { DataColumn } from '@/types';
 import { showContextMenu, type MenuItemOrSeparator } from '@/utils/contextMenu';
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { DataProcessingModal, type DataProcessingMode } from '@/components/DataProcessingModal';
+import { FindReplaceModal } from '@/components/FindReplaceModal';
 
 /** Approximate row height in pixels (must match the actual rendered row height). */
 const ROW_HEIGHT = 28;
@@ -14,6 +15,25 @@ const ROW_HEIGHT = 28;
 const OVERSCAN = 5;
 /** Threshold above which virtual scrolling kicks in. */
 const VIRTUAL_THRESHOLD = 200;
+/** Default column width in pixels. */
+const DEFAULT_COL_WIDTH = 120;
+/** Minimum column width in pixels. */
+const MIN_COL_WIDTH = 60;
+
+/** Column types that should contain numeric values. */
+const NUMERIC_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'error', 'errorPlus', 'errorMinus'];
+
+/** Check if a column type expects numeric values. */
+function isNumericColumn(type: DataColumn['type']): boolean {
+  return NUMERIC_COLUMN_TYPES.includes(type);
+}
+
+/** Check if a value is a valid number (or empty, which is allowed). */
+function isValidNumericInput(value: string): boolean {
+  if (value.trim() === '') return true;
+  const n = Number(value);
+  return !isNaN(n) && isFinite(n);
+}
 
 export default function DataTable() {
   const { t } = useTranslation();
@@ -37,8 +57,152 @@ export default function DataTable() {
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
   const [dataModal, setDataModal] = useState<{ mode: DataProcessingMode; columnId: string } | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const resizingColRef = useRef<{ colId: string; startX: number; startWidth: number } | null>(null);
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [lastSelectedRow, setLastSelectedRow] = useState<number | null>(null);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
+
+  // Listen for Ctrl+F find/replace open event
+  useEffect(() => {
+    const handleFindOpen = () => setShowFindReplace(true);
+    document.addEventListener('datatable-find-open', handleFindOpen);
+    return () => document.removeEventListener('datatable-find-open', handleFindOpen);
+  }, []);
+
+  // Listen for Ctrl+A select all event
+  useEffect(() => {
+    const handleSelectAll = () => {
+      if (!dataset) return;
+      const maxRows = Math.max(...dataset.columns.map((c) => c.values.length), 0);
+      setSelectedRows(new Set(Array.from({ length: maxRows }, (_, i) => i)));
+    };
+    document.addEventListener('datatable-select-all', handleSelectAll);
+    return () => document.removeEventListener('datatable-select-all', handleSelectAll);
+  }, [dataset]);
+
+  // Clear selection when dataset changes
+  useEffect(() => {
+    setSelectedRows(new Set());
+    setLastSelectedRow(null);
+  }, [activeDatasetId]);
+
+  /** Handle row header click for selection (Ctrl/Shift multi-select). */
+  const handleRowSelect = useCallback((e: React.MouseEvent, rowIdx: number) => {
+    e.preventDefault();
+    if (e.shiftKey && lastSelectedRow !== null) {
+      // Range select
+      const start = Math.min(lastSelectedRow, rowIdx);
+      const end = Math.max(lastSelectedRow, rowIdx);
+      setSelectedRows((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) next.add(i);
+        return next;
+      });
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle single row
+      setSelectedRows((prev) => {
+        const next = new Set(prev);
+        if (next.has(rowIdx)) next.delete(rowIdx);
+        else next.add(rowIdx);
+        return next;
+      });
+      setLastSelectedRow(rowIdx);
+    } else {
+      // Single select
+      setSelectedRows(new Set([rowIdx]));
+      setLastSelectedRow(rowIdx);
+    }
+  }, [lastSelectedRow]);
+
+  /** Batch delete selected rows. */
+  const handleBatchDelete = useCallback(() => {
+    if (!dataset || selectedRows.size === 0) return;
+    const rowsToDelete = Array.from(selectedRows).sort((a, b) => b - a); // descending to preserve indices
+    confirm({
+      title: t('findReplace.batchDeleteTitle', 'Delete Selected Rows'),
+      message: t('findReplace.batchDeleteMessage', { count: selectedRows.size, defaultValue: `Delete ${selectedRows.size} selected rows? This can be undone with Ctrl+Z.` }),
+      danger: true,
+      onConfirm: () => {
+        useDatasetStore.getState().removeRowsAt(dataset.id, rowsToDelete);
+        setSelectedRows(new Set());
+        setLastSelectedRow(null);
+        addToast(t('toast.deleted'), 'info');
+      },
+    });
+  }, [dataset, selectedRows, t, addToast]);
+
+  /** Batch fill selected cells in a column with a value. */
+  const handleBatchFill = useCallback((colId: string) => {
+    if (!dataset || selectedRows.size === 0) return;
+    const value = window.prompt(t('findReplace.fillValue', 'Enter value to fill:'), '');
+    if (value === null) return;
+    selectedRows.forEach((rowIdx) => {
+      updateCellValueSilent(dataset.id, colId, rowIdx, value);
+    });
+    addToast(t('findReplace.filled', { count: selectedRows.size, defaultValue: `Filled ${selectedRows.size} cells` }), 'success');
+  }, [dataset, selectedRows, updateCellValueSilent, t, addToast]);
+
+  /** Get the width for a column, falling back to the default. */
+  const getColWidth = useCallback((colId: string) => columnWidths[colId] ?? DEFAULT_COL_WIDTH, [columnWidths]);
+
+  /** Start dragging a column's resize handle. */
+  const startColResize = useCallback((e: React.MouseEvent, colId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startWidth = getColWidth(colId);
+    resizingColRef.current = { colId, startX: e.clientX, startWidth };
+  }, [getColWidth]);
+
+  // Track column resize drag globally
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const ref = resizingColRef.current;
+      if (!ref) return;
+      const delta = e.clientX - ref.startX;
+      const newWidth = Math.max(MIN_COL_WIDTH, ref.startWidth + delta);
+      setColumnWidths((prev) => ({ ...prev, [ref.colId]: newWidth }));
+    };
+    const handleMouseUp = () => { resizingColRef.current = null; };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  /** Focus a cell input by row and column index using data attributes. */
+  const focusCell = useCallback((rowIdx: number, colIdx: number) => {
+    const el = scrollContainerRef.current?.querySelector(
+      `input[data-row="${rowIdx}"][data-col="${colIdx}"]`
+    ) as HTMLInputElement | null;
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  }, []);
+
+  /** Handle keyboard navigation within a cell input. */
+  const handleCellKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number, _totalCols: number, totalRows: number) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (rowIdx < totalRows - 1) focusCell(rowIdx + 1, colIdx);
+    } else if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      if (rowIdx > 0) focusCell(rowIdx - 1, colIdx);
+    } else if (e.key === 'ArrowDown' && e.altKey) {
+      e.preventDefault();
+      if (rowIdx < totalRows - 1) focusCell(rowIdx + 1, colIdx);
+    } else if (e.key === 'ArrowUp' && e.altKey) {
+      e.preventDefault();
+      if (rowIdx > 0) focusCell(rowIdx - 1, colIdx);
+    }
+    // Tab / Shift+Tab are handled natively by the browser for focus order,
+    // but we ensure the next cell input is within the rendered viewport.
+  }, [focusCell]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -89,24 +253,39 @@ export default function DataTable() {
       { label: t('context.filterRows'), icon: <Filter size={14} />, onClick: () => setDataModal({ mode: 'filter', columnId: colId }) },
       { label: t('context.fillMissing'), icon: <Sparkles size={14} />, onClick: () => setDataModal({ mode: 'missing', columnId: colId }) },
       { label: t('context.handleOutliers'), icon: <AlertTriangle size={14} />, onClick: () => setDataModal({ mode: 'outlier', columnId: colId }) },
-      { separator: true },
-      {
-        label: t('context.copyCell'), icon: <Copy size={14} />,
-        onClick: () => {
-          const col = dataset.columns.find((c) => c.id === colId);
-          if (col) navigator.clipboard.writeText(String(col.values[rowIdx] ?? ''));
-        },
-      },
-      {
-        label: t('context.copyColumn'), icon: <ClipboardPaste size={14} />,
-        onClick: () => {
-          const col = dataset.columns.find((c) => c.id === colId);
-          if (col) navigator.clipboard.writeText(col.values.join('\n'));
-        },
-      },
     ];
+    // Add batch operations when rows are selected
+    if (selectedRows.size > 0) {
+      items.push({ separator: true });
+      items.push({
+        label: t('findReplace.batchDelete', { count: selectedRows.size, defaultValue: `Delete ${selectedRows.size} Selected Rows` }),
+        icon: <Trash2 size={14} />,
+        onClick: handleBatchDelete,
+        danger: true,
+      });
+      items.push({
+        label: t('findReplace.batchFill', 'Fill Selected Cells'),
+        icon: <Sparkles size={14} />,
+        onClick: () => handleBatchFill(colId),
+      });
+    }
+    items.push({ separator: true });
+    items.push({
+      label: t('context.copyCell'), icon: <Copy size={14} />,
+      onClick: () => {
+        const col = dataset.columns.find((c) => c.id === colId);
+        if (col) navigator.clipboard.writeText(String(col.values[rowIdx] ?? ''));
+      },
+    });
+    items.push({
+      label: t('context.copyColumn'), icon: <ClipboardPaste size={14} />,
+      onClick: () => {
+        const col = dataset.columns.find((c) => c.id === colId);
+        if (col) navigator.clipboard.writeText(col.values.join('\n'));
+      },
+    });
     showContextMenu(e, items);
-  }, [dataset, insertRowAt, removeRow, addColumn, removeColumn, sortDataset, t, addToast]);
+  }, [dataset, insertRowAt, removeRow, addColumn, removeColumn, sortDataset, t, addToast, selectedRows, handleBatchDelete, handleBatchFill]);
 
   const handleHeaderContextMenu = useCallback((e: React.MouseEvent, colId: string) => {
     if (!dataset) return;
@@ -183,7 +362,7 @@ export default function DataTable() {
             <tr style={{ background: 'var(--bg-surface)' }}>
               <th className="px-2 py-1 font-normal border-b border-r w-10" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>#</th>
               {dataset.columns.map((col) => (
-                <th key={col.id} className="border-b border-r min-w-[80px]" style={{ borderColor: 'var(--border)' }}
+                <th key={col.id} className="border-b border-r min-w-[80px] relative" style={{ borderColor: 'var(--border)', width: getColWidth(col.id) }}
                   onContextMenu={(e) => handleHeaderContextMenu(e, col.id)}
                 >
                   <div className="flex flex-col items-center gap-0.5 px-1 py-1">
@@ -216,6 +395,13 @@ export default function DataTable() {
                       </button>
                     </div>
                   </div>
+                  {/* Column resize handle */}
+                  <div
+                    onMouseDown={(e) => startColResize(e, col.id)}
+                    className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-sky-500/40 transition-colors"
+                    style={{ zIndex: 1 }}
+                    title={t('data.dragToResize', 'Drag to resize column')}
+                  />
                 </th>
               ))}
               <th className="border-b w-8" style={{ borderColor: 'var(--border)' }}>
@@ -239,30 +425,49 @@ export default function DataTable() {
             )}
             {Array.from({ length: (useVirtual ? endIndex - startIndex : maxRows) }).map((_, i) => {
               const rowIdx = useVirtual ? startIndex + i : i;
+              const isSelected = selectedRows.has(rowIdx);
               return (
                 <tr key={rowIdx} className="transition-colors"
-                  style={{ background: 'transparent' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  style={{ background: isSelected ? 'rgba(14,165,233,0.15)' : 'transparent' }}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                  onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <td className="px-2 py-0.5 border-r text-right" style={{ color: 'var(--text-faint)', borderColor: 'var(--border)' }}>
+                  <td
+                    className="px-2 py-0.5 border-r text-right cursor-pointer select-none"
+                    style={{ color: isSelected ? 'var(--accent)' : 'var(--text-faint)', borderColor: 'var(--border)', fontWeight: isSelected ? 600 : 400 }}
+                    onClick={(e) => handleRowSelect(e, rowIdx)}
+                    onContextMenu={(e) => { handleRowSelect(e, rowIdx); }}
+                  >
                     {rowIdx + 1}
                   </td>
-                  {dataset.columns.map((col) => (
+                  {dataset.columns.map((col, colIdx) => {
+                    const cellValue = String(col.values[rowIdx] ?? '');
+                    const isNumeric = isNumericColumn(col.type);
+                    const isInvalid = isNumeric && !isValidNumericInput(cellValue);
+                    return (
                     <td key={col.id} className="border-r" style={{ borderColor: 'var(--border)' }}
                       onContextMenu={(e) => handleCellContextMenu(e, col.id, rowIdx)}
                     >
                       <input
                         type="text"
-                        value={col.values[rowIdx] ?? ''}
+                        value={cellValue}
+                        data-row={rowIdx}
+                        data-col={colIdx}
                         onChange={(e) => updateCellValueSilent(dataset.id, col.id, rowIdx, e.target.value)}
                         onBlur={(e) => updateCellValue(dataset.id, col.id, rowIdx, e.target.value)}
+                        onKeyDown={(e) => handleCellKeyDown(e, rowIdx, colIdx, dataset.columns.length, maxRows)}
                         className="w-full px-2 py-0.5 outline-none transition-colors"
-                        style={{ background: 'transparent', color: 'var(--text-primary)' }}
+                        style={{
+                          background: 'transparent',
+                          color: isInvalid ? '#fb7185' : 'var(--text-primary)',
+                          borderBottom: isInvalid ? '2px solid #fb7185' : undefined,
+                        }}
+                        title={isInvalid ? t('data.invalidValue', 'Please enter a valid number') : undefined}
                         onFocus={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
                       />
                     </td>
-                  ))}
+                    );
+                  })}
                   <td className="text-center">
                     <button
                       onClick={() => { removeRow(dataset.id, rowIdx); addToast(t('toast.deleted'), 'info'); }}
@@ -306,6 +511,10 @@ export default function DataTable() {
           columnId={dataModal.columnId}
           onClose={() => setDataModal(null)}
         />
+      )}
+
+      {showFindReplace && (
+        <FindReplaceModal onClose={() => setShowFindReplace(false)} />
       )}
     </div>
   );

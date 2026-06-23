@@ -19,6 +19,7 @@ import {
   replaceOutliers,
   type FilterCondition,
 } from '@/utils/dataProcessing';
+import i18n from '@/i18n';
 
 interface DatasetStore {
   datasets: Dataset[];
@@ -78,7 +79,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       const zCol = dataset.columns.find((c) => c.type === 'Z');
 
       // Push history before cross-store mutation
-      useHistoryStore.getState().pushSnapshot();
+      useHistoryStore.getState().pushSnapshot(i18n.t('history.addDataset', { defaultValue: 'Add dataset' }));
 
       // Auto-create layer for this dataset via chartStore
       const chartState = useChartStore.getState();
@@ -127,7 +128,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
     }),
 
   removeDataset: (id) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.removeDataset', { defaultValue: 'Remove dataset' }));
     set((s) => ({
       datasets: s.datasets.filter((d) => d.id !== id),
       activeDatasetId: s.activeDatasetId === id ? (s.datasets[0]?.id ?? null) : s.activeDatasetId,
@@ -142,7 +143,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   updateDataset: (id, data) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.updateDataset', { defaultValue: 'Update dataset' }));
     set((s) => ({
       datasets: s.datasets.map((d) => (d.id === id ? { ...d, ...data } : d)),
     }));
@@ -153,7 +154,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   updateCellValue: (datasetId, columnId, rowIndex, value) => {
     // Push a single history snapshot when the user commits a cell edit (on blur).
     // During typing, updateCellValueSilent is used to avoid flooding the history stack.
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.editCell', { defaultValue: 'Edit cell' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -187,7 +188,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
     })),
 
   addColumn: (datasetId) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.addColumn', { defaultValue: 'Add column' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -209,7 +210,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   removeColumn: (datasetId, columnId) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.removeColumn', { defaultValue: 'Remove column' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -239,7 +240,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   addRow: (datasetId) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.addRow', { defaultValue: 'Add row' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -256,7 +257,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   insertRowAt: (datasetId, rowIndex, offset) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.insertRow', { defaultValue: 'Insert row' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -273,7 +274,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   removeRow: (datasetId, rowIndex) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.removeRow', { defaultValue: 'Remove row' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -290,7 +291,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   setColumnType: (datasetId, columnId, type) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.setColumnType', { defaultValue: 'Set column type' }));
 
     set((s) => {
       const newType = type as DataColumn['type'];
@@ -353,7 +354,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   renameColumn: (datasetId, columnId, name) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.renameColumn', { defaultValue: 'Rename column' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -364,7 +365,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   transformColumn: (datasetId, columnId, fn) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.transformColumn', { defaultValue: 'Transform column' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>
         d.id === datasetId
@@ -382,7 +383,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   addComputedColumn: (datasetId, name, fn) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.addComputedColumn', { defaultValue: 'Add computed column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -402,7 +403,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   sortDataset: (datasetId, columnId, ascending) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.sortDataset', { defaultValue: 'Sort data' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -422,7 +423,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   normalizeColumn: (datasetId, columnId) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.normalizeColumn', { defaultValue: 'Normalize column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -442,7 +443,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   normalizeColumnByMethod: (datasetId, columnId, method) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.normalizeColumn', { defaultValue: 'Normalize column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -474,7 +475,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   smoothColumn: (datasetId, columnId, method, params) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.smoothColumn', { defaultValue: 'Smooth column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -508,7 +509,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   interpolateColumn: (datasetId, xColumnId, yColumnId, method, queryX, newColumnName) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.interpolateColumn', { defaultValue: 'Interpolate column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -532,7 +533,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   filterRowsByCondition: (datasetId, columnId, condition) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.filterRows', { defaultValue: 'Filter rows' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -561,7 +562,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   fillMissingColumn: (datasetId, columnId, strategy) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.fillMissing', { defaultValue: 'Fill missing values' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -588,7 +589,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   replaceColumnOutliers: (datasetId, columnId, k, strategy) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.replaceOutliers', { defaultValue: 'Replace outliers' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
@@ -601,7 +602,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   removeRowsAt: (datasetId, rowIndices) => {
-    useHistoryStore.getState().pushSnapshot();
+    useHistoryStore.getState().pushSnapshot(i18n.t('history.removeRows', { defaultValue: 'Remove rows' }));
     const indexSet = new Set(rowIndices);
     set((s) => ({
       datasets: s.datasets.map((d) =>
@@ -615,7 +616,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   acceptChartTypeSuggestion: () => {
     const suggestion = get().pendingChartTypeSuggestion;
     if (suggestion) {
-      useHistoryStore.getState().pushSnapshot();
+      useHistoryStore.getState().pushSnapshot(i18n.t('history.acceptChartType', { defaultValue: 'Accept chart type suggestion' }));
       useChartStore.getState().setChartType(suggestion);
       set({ pendingChartTypeSuggestion: null });
     }

@@ -69,6 +69,8 @@ export interface LayerConfig {
   yAxisSide?: 'left' | 'right';
   /** Display name for legend (defaults to dataset-column name) */
   displayName?: string;
+  /** Whether the layer is locked (cannot be edited/deleted). */
+  locked?: boolean;
   /** Error bar configuration: type source + visual style. */
   errorBarConfig?: ErrorBarConfig;
 }
