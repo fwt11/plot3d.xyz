@@ -1,4 +1,4 @@
-import type { ChartConfig } from '@/types';
+import type { ChartConfig, ExportBackground } from '@/types';
 import { axisLabelText, type ExpandedEntry } from '@/utils/tracesBuilder';
 
 export interface ChartCssVars {
@@ -19,6 +19,7 @@ export function buildLayout(
   isPolar: boolean,
   expandedDatasets: ExpandedEntry[],
   useNumericX: boolean,
+  exportBackground: ExportBackground = 'transparent',
 ): Record<string, unknown> {
   const legendPositionMap: Record<string, { x: number; y: number; xanchor: string; yanchor: string }> = {
     top: { x: 0.5, y: 1.05, xanchor: 'center', yanchor: 'bottom' },
@@ -42,8 +43,8 @@ export function buildLayout(
       y: 0.98,
       yanchor: 'top',
     },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'transparent',
+    paper_bgcolor: exportBackground === 'transparent' ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
+    plot_bgcolor: exportBackground === 'transparent' ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
     font: {
       color: cssVars.textSecondary,
       size: chartConfig.fontSize,

@@ -30,11 +30,11 @@ let plotlyLoadPromise: Promise<PlotComponentType> | null = null;
 /** CSS variables used for the chart when exporting to a white background.
  *  This ensures text and grid colors remain readable regardless of app theme. */
 const LIGHT_CHART_CSS_VARS = {
-  textColor: '#0f172a',
-  textSecondary: '#334155',
-  textMuted: '#475569',
-  borderColor: 'rgba(71, 85, 105, 0.9)',
-  gridColor: 'rgba(148, 163, 184, 0.55)',
+  textColor: '#000000',
+  textSecondary: '#000000',
+  textMuted: '#333333',
+  borderColor: '#000000',
+  gridColor: 'rgba(0, 0, 0, 0.18)',
   bgSurface: '#ffffff',
 };
 
@@ -769,7 +769,7 @@ export default function ChartView() {
 
   // --- Build Plotly layout (memoized) ---
   const layout = useMemo<Record<string, unknown>>(() => {
-    const base = buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX);
+    const base = buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX, chartConfig.exportConfig.background);
     // Overlay bars/boxes when multiple datasets are present
     if (chartType === 'histogram') base.barmode = 'overlay';
     if (chartType === 'box') base.boxmode = 'group';
