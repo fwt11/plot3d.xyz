@@ -215,6 +215,7 @@
     "bgTransparent": "Transparent",
     "bgWhite": "White",
     "bgTheme": "Current Theme",
+    "tickAngle": "Tick Angle",
     "fontSize": "Font Size"
   },
   "data": {

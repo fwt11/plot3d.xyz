@@ -56,6 +56,9 @@ function scaleTraceLineWidths(data: Record<string, unknown>[], scale: number): v
     }
     const marker = trace.marker as Record<string, unknown> | undefined;
     if (marker) {
+      if (typeof marker.size === 'number') {
+        marker.size = marker.size * scale;
+      }
       const markerLine = marker.line as Record<string, unknown> | undefined;
       if (markerLine && typeof markerLine.width === 'number') {
         markerLine.width = markerLine.width * scale;

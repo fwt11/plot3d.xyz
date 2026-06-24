@@ -732,7 +732,7 @@ export default function ChartView() {
           },
           marker: {
             symbol: pointSymbol,
-            size: showPoints ? layer.pointSize : 0,
+            size: showPoints ? (isScatter ? Math.max(layer.pointSize * 1.5, 8) : layer.pointSize) : 0,
             color: color,
             line: chartType === 'bar' ? { width: 1, color } : undefined,
           },

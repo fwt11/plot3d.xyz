@@ -215,6 +215,7 @@
     "bgTransparent": "透明",
     "bgWhite": "白色",
     "bgTheme": "当前主题",
+    "tickAngle": "刻度角度",
     "fontSize": "字体大小"
   },
   "data": {

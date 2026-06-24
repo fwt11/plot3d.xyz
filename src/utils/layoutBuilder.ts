@@ -140,6 +140,8 @@ export function buildLayout(
       tickcolor: cssVars.borderColor,
       tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       exponentformat: chartConfig.xAxis.scientificNotation ? 'e' : 'none',
+      tickangle: chartConfig.xAxis.tickAngle ?? 0,
+      automargin: true,
     };
     if (chartConfig.xAxis.scientificNotation) xAxisConfig.tickformat = '.2e';
     if (!chartConfig.xAxis.autoRange && chartConfig.xAxis.min !== undefined && chartConfig.xAxis.max !== undefined) {
@@ -163,6 +165,7 @@ export function buildLayout(
       tickcolor: cssVars.borderColor,
       tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       exponentformat: chartConfig.yAxis.scientificNotation ? 'e' : 'none',
+      tickangle: chartConfig.yAxis.tickAngle ?? 0,
     };
     if (chartConfig.yAxis.scientificNotation) yAxisConfig.tickformat = '.2e';
     if (!chartConfig.yAxis.autoRange && chartConfig.yAxis.min !== undefined && chartConfig.yAxis.max !== undefined) {
@@ -197,6 +200,7 @@ export function buildLayout(
         tickcolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
         exponentformat: rightAxis?.scientificNotation ? 'e' : 'none',
+        tickangle: rightAxis?.tickAngle ?? 0,
         showgrid: rightAxis?.gridVisible ?? false,
       };
       if (rightAxis?.scientificNotation) yaxis2.tickformat = '.2e';

@@ -123,6 +123,18 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
               aria-label={`${label} ${t('config.scientificNotation')}`}
             />
           </label>
+          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {t('config.tickAngle', 'Tick Angle')}
+            <input
+              type="number"
+              value={axis.tickAngle ?? 0}
+              onChange={(e) => onChange({ tickAngle: Number(e.target.value) })}
+              className="w-16 border rounded px-1.5 py-0.5 outline-none focus:border-sky-500/50"
+              style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              aria-label={`${label} ${t('config.tickAngle', 'Tick Angle')}`}
+            />
+            <span style={{ color: 'var(--text-muted)' }}>°</span>
+          </label>
         </>
       )}
       {allowCategory && (

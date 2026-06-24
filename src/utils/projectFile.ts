@@ -70,6 +70,7 @@ function sanitizeAxis(axis: unknown, fallbackLabel: string): ChartConfig['xAxis'
     min: typeof a.min === 'number' ? a.min : undefined,
     max: typeof a.max === 'number' ? a.max : undefined,
     categoryAxis: typeof a.categoryAxis === 'boolean' ? a.categoryAxis : undefined,
+    tickAngle: typeof a.tickAngle === 'number' ? a.tickAngle : undefined,
   };
 }
 

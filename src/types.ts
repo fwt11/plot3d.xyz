@@ -36,6 +36,8 @@ export interface AxisConfig {
   scientificNotation: boolean;
   /** Force categorical axis (e.g. for bar charts). Undefined means auto. */
   categoryAxis?: boolean;
+  /** Tick label rotation angle in degrees. */
+  tickAngle?: number;
 }
 
 export interface LegendConfig {
