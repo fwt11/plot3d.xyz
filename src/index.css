@@ -167,7 +167,7 @@ input[type="number"] {
   }
 
   .ribbon-btn {
-    @apply flex flex-col items-center gap-0.5 px-3 py-1.5 rounded transition-colors;
+    @apply flex flex-col items-center gap-0.5 px-2 py-1 rounded transition-colors;
     color: var(--text-muted);
   }
   .ribbon-btn:hover {

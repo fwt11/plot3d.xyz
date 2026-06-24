@@ -11,10 +11,10 @@ import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
-import { HistoryPanel } from '@/components/HistoryPanel';
+
 import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Sun, Moon, Languages, Undo2, Redo2, History } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
 function ChartTypeSuggestionBar() {
@@ -137,11 +137,7 @@ export default function Workspace() {
   const [rightWidth, setRightWidth] = useState(280);
   const [layerPanelHeight, setLayerPanelHeight] = useState(220);
   const [resizing, setResizing] = useState<'left' | 'right' | 'layer' | null>(null);
-  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const theme = useUiStore((s) => s.theme);
-  const toggleTheme = useUiStore((s) => s.toggleTheme);
-  const lang = useUiStore((s) => s.lang);
-  const setLang = useUiStore((s) => s.setLang);
   const undo = useHistoryStore((s) => s.undo);
   const redo = useHistoryStore((s) => s.redo);
   const pastLength = useHistoryStore((s) => s._past.length);
@@ -352,61 +348,6 @@ export default function Workspace() {
   return (
     <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }} onContextMenu={(e) => e.preventDefault()}>
       <ContextMenuOverlay />
-      {/* Theme & Language controls - page top right */}
-      <div role="toolbar" aria-label={t('workspace.toolbar', 'Toolbar')} className="absolute top-2 right-2 flex items-center gap-1 rounded-md px-1.5 py-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', zIndex: 'var(--z-top)' }}>
-        <button
-          onClick={undo}
-          disabled={pastLength === 0}
-          className="flex items-center justify-center w-7 h-7 rounded transition-colors disabled:opacity-30"
-          style={{ color: 'var(--text-secondary)' }}
-          title={t('workspace.undo', 'Undo') + ' (Ctrl+Z)'}
-          aria-label={t('workspace.undo', 'Undo')}
-        >
-          <Undo2 size={15} />
-        </button>
-        <button
-          onClick={redo}
-          disabled={futureLength === 0}
-          className="flex items-center justify-center w-7 h-7 rounded transition-colors disabled:opacity-30"
-          style={{ color: 'var(--text-secondary)' }}
-          title={t('workspace.redo', 'Redo') + ' (Ctrl+Y)'}
-          aria-label={t('workspace.redo', 'Redo')}
-        >
-          <Redo2 size={15} />
-        </button>
-        <button
-          onClick={() => setShowHistoryPanel(true)}
-          className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
-          title={t('history.title', 'History')}
-          aria-label={t('history.title', 'History')}
-        >
-          <History size={15} />
-        </button>
-        <div style={{ width: '1px', height: '14px', background: 'var(--border)' }} />
-        <button
-          onClick={toggleTheme}
-          className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
-          title={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}
-          aria-label={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}
-        >
-          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
-        <button
-          onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-          className="flex items-center justify-center w-7 h-7 rounded transition-colors"
-          style={{ color: 'var(--text-secondary)' }}
-          title={t('language.switch')}
-          aria-label={t('language.switch')}
-        >
-          <Languages size={15} />
-        </button>
-        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-          {lang === 'zh' ? '中' : 'EN'}
-        </span>
-      </div>
-
       {/* Ribbon toolbar */}
       <Ribbon />
 
@@ -499,7 +440,6 @@ export default function Workspace() {
       )}
       <StatusBar />
       <ToastContainer />
-      {showHistoryPanel && <HistoryPanel onClose={() => setShowHistoryPanel(false)} />}
     </div>
   );
 }

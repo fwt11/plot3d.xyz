@@ -7,12 +7,15 @@ import { ChartTab } from './ribbon/ChartTab';
 import { AnnotationTab } from './ribbon/AnnotationTab';
 import { FitTab } from './ribbon/FitTab';
 import { StatsTab } from './ribbon/StatsTab';
+import { HistoryPanel } from './HistoryPanel';
+import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
 import { useChartStore } from '@/store/chartStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { uid } from '@/utils/sampleData';
-import { Download, FileUp, Plus, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { Download, FileUp, Plus, ChevronsDownUp, ChevronsUpDown, Undo2, Redo2, History, Sun, Moon, Languages } from 'lucide-react';
 import Plotly from 'plotly.js-dist-min';
 
 // ─── Ribbon Tab Types ───────────────────────────────────────────
@@ -102,33 +105,33 @@ function QuickToolbar() {
   };
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+    <div className="flex items-center gap-0.5">
       <button
         onClick={handleQuickImport}
-        className="ribbon-btn"
+        className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+        style={{ color: 'var(--text-secondary)' }}
         title={t('file.importData') + ' (Ctrl+O)'}
         aria-label={t('file.importData')}
       >
-        <FileUp size={16} />
-        <span className="text-xs">{t('file.importData')}</span>
+        <FileUp size={14} />
       </button>
       <button
         onClick={handleQuickExportPNG}
-        className="ribbon-btn"
+        className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+        style={{ color: 'var(--text-secondary)' }}
         title={t('file.exportPng') + ' (Ctrl+E)'}
         aria-label={t('file.exportPng')}
       >
-        <Download size={16} />
-        <span className="text-xs">PNG</span>
+        <Download size={14} />
       </button>
       <button
         onClick={handleQuickAddLayer}
-        className="ribbon-btn"
+        className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+        style={{ color: 'var(--text-secondary)' }}
         title={t('layer.addLayer') + ' (Ctrl+L)'}
         aria-label={t('layer.addLayer')}
       >
-        <Plus size={16} />
-        <span className="text-xs">{t('layer.addLayer')}</span>
+        <Plus size={14} />
       </button>
     </div>
   );
@@ -139,6 +142,17 @@ export default function Ribbon() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<RibbonTab>(readStoredTab);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Global controls state
+  const theme = useUiStore((s) => s.theme);
+  const toggleTheme = useUiStore((s) => s.toggleTheme);
+  const lang = useUiStore((s) => s.lang);
+  const setLang = useUiStore((s) => s.setLang);
+  const undo = useHistoryStore((s) => s.undo);
+  const redo = useHistoryStore((s) => s.redo);
+  const pastLength = useHistoryStore((s) => s._past.length);
+  const futureLength = useHistoryStore((s) => s._future.length);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   // Persist active tab to localStorage
   useEffect(() => {
@@ -161,52 +175,107 @@ export default function Ribbon() {
 
   return (
     <div style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)' }} className="select-none">
-      {/* Quick toolbar */}
-      <QuickToolbar />
-
-      {/* Tab headers */}
-      <div className="flex items-end px-2 pt-1">
-        {tabs.map((tab) => (
+      {/* Tab headers + Quick toolbar + Global controls */}
+      <div className="flex items-center px-2" style={{ height: 32 }}>
+        <div className="flex items-end">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (collapsed) setCollapsed(false);
+              }}
+              onDoubleClick={() => setCollapsed((c) => !c)}
+              className={`px-3 py-1 text-xs font-medium rounded-t transition-colors ${
+                activeTab === tab.key && !collapsed
+                  ? 'border-t border-x -mb-px'
+                  : 'hover:opacity-80'
+              }`}
+              style={activeTab === tab.key && !collapsed ? {
+                background: 'var(--bg-input)',
+                color: 'var(--accent)',
+                borderColor: 'var(--border)',
+                borderBottomColor: 'var(--bg-input)',
+              } : {
+                color: 'var(--text-muted)',
+              }}
+              aria-label={tab.label}
+              title={t('ribbon.doubleClickToCollapse', 'Double-click to collapse/expand')}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-0.5">
+          <QuickToolbar />
+          <div style={{ width: '1px', height: '16px', background: 'var(--border)' }} className="mx-1" />
           <button
-            key={tab.key}
-            onClick={() => {
-              setActiveTab(tab.key);
-              if (collapsed) setCollapsed(false);
-            }}
-            onDoubleClick={() => setCollapsed((c) => !c)}
-            className={`px-4 py-1.5 text-xs font-medium rounded-t transition-colors ${
-              activeTab === tab.key && !collapsed
-                ? 'border-t border-x -mb-px'
-                : 'hover:opacity-80'
-            }`}
-            style={activeTab === tab.key && !collapsed ? {
-              background: 'var(--bg-input)',
-              color: 'var(--accent)',
-              borderColor: 'var(--border)',
-              borderBottomColor: 'var(--bg-input)',
-            } : {
-              color: 'var(--text-muted)',
-            }}
-            aria-label={tab.label}
-            title={t('ribbon.doubleClickToCollapse', 'Double-click to collapse/expand')}
+            onClick={undo}
+            disabled={pastLength === 0}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors disabled:opacity-30"
+            style={{ color: 'var(--text-secondary)' }}
+            title={t('workspace.undo', 'Undo') + ' (Ctrl+Z)'}
+            aria-label={t('workspace.undo', 'Undo')}
           >
-            {tab.label}
+            <Undo2 size={14} />
           </button>
-        ))}
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto px-2 py-1 transition-colors"
-          style={{ color: 'var(--text-faint)' }}
-          title={collapsed ? t('ribbon.expand', 'Expand') : t('ribbon.collapse', 'Collapse')}
-          aria-label={collapsed ? t('ribbon.expand', 'Expand') : t('ribbon.collapse', 'Collapse')}
-        >
-          {collapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
-        </button>
+          <button
+            onClick={redo}
+            disabled={futureLength === 0}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors disabled:opacity-30"
+            style={{ color: 'var(--text-secondary)' }}
+            title={t('workspace.redo', 'Redo') + ' (Ctrl+Y)'}
+            aria-label={t('workspace.redo', 'Redo')}
+          >
+            <Redo2 size={14} />
+          </button>
+          <button
+            onClick={() => setShowHistoryPanel(true)}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            title={t('history.title', 'History')}
+            aria-label={t('history.title', 'History')}
+          >
+            <History size={14} />
+          </button>
+          <div style={{ width: '1px', height: '16px', background: 'var(--border)' }} className="mx-1" />
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            title={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}
+            aria-label={theme === 'dark' ? t('file.switchLight') : t('file.switchDark')}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+          <button
+            onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+            title={t('language.switch')}
+            aria-label={t('language.switch')}
+          >
+            <Languages size={14} />
+          </button>
+          <span className="text-xs font-medium px-1" style={{ color: 'var(--text-muted)' }}>
+            {lang === 'zh' ? '中' : 'EN'}
+          </span>
+          <div style={{ width: '1px', height: '16px', background: 'var(--border)' }} className="mx-1" />
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="flex items-center justify-center w-6 h-6 rounded transition-colors"
+            style={{ color: 'var(--text-faint)' }}
+            title={collapsed ? t('ribbon.expand', 'Expand') : t('ribbon.collapse', 'Collapse')}
+            aria-label={collapsed ? t('ribbon.expand', 'Expand') : t('ribbon.collapse', 'Collapse')}
+          >
+            {collapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+          </button>
+        </div>
       </div>
 
       {/* Tab content */}
       {!collapsed && (
-        <div className="px-2 py-1 min-h-[56px] flex items-center" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border)' }}>
+        <div className="px-2 py-1 min-h-[52px] flex items-center" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border)' }}>
           {activeTab === 'file' && <FileTab />}
           {activeTab === 'generate' && <GenerateTab />}
           {activeTab === 'transform' && <TransformTab />}
@@ -215,6 +284,11 @@ export default function Ribbon() {
           {activeTab === 'chart' && <ChartTab />}
           {activeTab === 'annotation' && <AnnotationTab />}
         </div>
+      )}
+
+      {/* History panel overlay inside ribbon area */}
+      {showHistoryPanel && (
+        <HistoryPanel onClose={() => setShowHistoryPanel(false)} />
       )}
     </div>
   );

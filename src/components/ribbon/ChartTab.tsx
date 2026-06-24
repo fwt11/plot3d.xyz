@@ -48,7 +48,7 @@ export function ChartTab() {
       aria-label={label}
     >
       {icon}
-      <span className="text-xs">{label}</span>
+      <span className="text-[11px] leading-4">{label}</span>
     </button>
   );
 
