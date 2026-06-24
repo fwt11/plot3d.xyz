@@ -32,7 +32,7 @@ const defaultChartConfig: ChartConfig = {
   marginBottom: 70,
   marginLeft: 72,
   exportConfig: { resolutionMultiplier: 2, background: 'white' },
-  fontSize: 13,
+  fontSize: 16,
   layers: [
     {
       id: uid(),
@@ -42,7 +42,7 @@ const defaultChartConfig: ChartConfig = {
       color: '#1f77b4',
       visible: true,
       lineStyle: 'solid',
-      lineWidth: 2,
+      lineWidth: 3,
       pointStyle: 'none',
       pointSize: 5,
       fill: false,

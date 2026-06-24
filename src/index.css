@@ -36,8 +36,8 @@
   --scrollbar-thumb: #3f3f46;
   --scrollbar-hover: #52525b;
   --chart-bg: transparent;
-  --grid-color: rgba(148, 148, 170, 0.18);
-  --axis-color: rgba(148, 148, 170, 0.4);
+  --grid-color: rgba(148, 148, 170, 0.35);
+  --axis-color: rgba(148, 148, 170, 0.55);
   --axis-text: #a1a1aa;
   --axis-x-color: #34d399;
   --axis-y-color: #38bdf8;
@@ -81,7 +81,7 @@
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-hover: #94a3b8;
   --chart-bg: #ffffff;
-  --grid-color: rgba(0, 0, 0, 0.18);
+  --grid-color: rgba(0, 0, 0, 0.35);
   --axis-color: #000000;
   --axis-text: #475569;
   --axis-x-color: #059669;

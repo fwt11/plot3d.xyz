@@ -15,6 +15,7 @@ import { useHistoryStore } from '@/store/historyStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { uid } from '@/utils/sampleData';
+import { buildExportPayload } from '@/utils/exportLayout';
 import { Download, FileUp, Plus, ChevronsDownUp, ChevronsUpDown, Undo2, Redo2, History, Sun, Moon, Languages } from 'lucide-react';
 import Plotly from 'plotly.js-dist-min';
 
@@ -57,11 +58,14 @@ function QuickToolbar() {
     const bgColor = exportConfig.background === 'transparent' ? undefined : exportConfig.background === 'white' ? '#ffffff' : undefined;
     try {
       if (!is3D) {
-        const div = document.querySelector('.js-plotly-plot');
+        const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const dataUrl = await Plotly.toImage(div, {
+          const { data, layout, width, height } = buildExportPayload(div, 2);
+          const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale: exportConfig.resolutionMultiplier,
+            width,
+            height,
             bgcolor: bgColor ?? 'rgba(0,0,0,0)',
           });
           const link = document.createElement('a');

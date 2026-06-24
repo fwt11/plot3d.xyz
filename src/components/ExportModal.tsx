@@ -8,6 +8,7 @@ import { Download, X, Eye } from 'lucide-react';
 import Plotly from 'plotly.js-dist-min';
 import { toPng } from 'html-to-image';
 import { encodeTiff } from '@/utils/tiffEncoder';
+import { buildExportPayload } from '@/utils/exportLayout';
 
 type PdfPageSize = 'a4' | 'a3' | 'letter' | 'legal' | 'auto';
 type ExportFormat = 'png' | 'svg' | 'pdf' | 'tiff';
@@ -77,9 +78,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       const scale = Math.min(options.dpi / 96, 2); // Limit preview scale for performance
 
       if (!is3D) {
-        const div = document.querySelector('.js-plotly-plot');
+        const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const dataUrl = await Plotly.toImage(div, {
+          const { data, layout } = buildExportPayload(div, 2);
+          const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
             width: options.width,
@@ -115,9 +117,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
 
     if (format === 'png') {
       if (!is3D) {
-        const div = document.querySelector('.js-plotly-plot');
+        const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const dataUrl = await Plotly.toImage(div, {
+          const { data, layout } = buildExportPayload(div, 2);
+          const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
             width: options.width,
@@ -147,9 +150,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         addToast(t('toast.svgNotSupported3d'), 'warning');
         return;
       }
-      const div = document.querySelector('.js-plotly-plot');
+      const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
       if (div) {
-        const dataUrl = await Plotly.toImage(div, {
+        const { data, layout } = buildExportPayload(div, 2);
+        const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale,
           width: options.width,
@@ -171,9 +175,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       let imgData: string;
 
       if (!is3D) {
-        const div = document.querySelector('.js-plotly-plot');
+        const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          imgData = await Plotly.toImage(div, {
+          const { data, layout } = buildExportPayload(div, 2);
+          imgData = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
             width: options.width,
@@ -253,9 +258,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
 
       let pngDataUrl: string;
       if (!is3D) {
-        const div = document.querySelector('.js-plotly-plot');
+        const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (!div) return;
-        pngDataUrl = await Plotly.toImage(div, {
+        const { data, layout } = buildExportPayload(div, 2);
+        pngDataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale,
           width: options.width,

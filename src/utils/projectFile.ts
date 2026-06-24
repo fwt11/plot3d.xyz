@@ -168,7 +168,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
       resolutionMultiplier: [1, 2, 4].includes(exportConfig.resolutionMultiplier as number) ? (exportConfig.resolutionMultiplier as 1 | 2 | 4) : 2,
       background: ['transparent', 'white', 'theme'].includes(exportConfig.background as string) ? (exportConfig.background as 'transparent' | 'white' | 'theme') : 'transparent',
     },
-    fontSize: typeof c.fontSize === 'number' ? c.fontSize : 12,
+    fontSize: typeof c.fontSize === 'number' ? c.fontSize : 16,
   };
 }
 

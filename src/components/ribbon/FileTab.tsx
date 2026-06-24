@@ -13,6 +13,7 @@ import { toPng } from 'html-to-image';
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
+import { buildExportPayload } from '@/utils/exportLayout';
 import { ExportModal } from '@/components/ExportModal';
 
 /** Parse a single CSV/XLSX file into a Dataset. */
@@ -157,9 +158,12 @@ export function FileTab() {
       // Use Plotly's native PNG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const dataUrl = await Plotly.toImage(div, {
+        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale: exportConfig.resolutionMultiplier,
+          width,
+          height,
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
         const link = document.createElement('a');
@@ -224,9 +228,12 @@ export function FileTab() {
       // Use Plotly's native SVG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const dataUrl = await Plotly.toImage(div, {
+        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
+          width,
+          height,
           bgcolor: getExportBackground() ?? 'rgba(0,0,0,0)',
         });
         const link = document.createElement('a');
@@ -245,17 +252,18 @@ export function FileTab() {
       // 2D: export vector SVG from Plotly, embed into a vector PDF
       const div = getPlotlyDiv();
       if (div) {
-        const svgDataUrl = await Plotly.toImage(div, {
+        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const svgDataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
+          width,
+          height,
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
         // svgDataUrl is a data: URL; decode to raw SVG string
         const svgString = decodeURIComponent(svgDataUrl.split(',')[1] ?? '');
         const { jsPDF } = await import('jspdf');
         // Match page size to the chart's aspect ratio
-        const width = div.clientWidth;
-        const height = div.clientHeight;
         const aspectRatio = width / height;
         const margin = 10;
         const pdfWidth = 297;
@@ -372,9 +380,12 @@ export function FileTab() {
       const div = getPlotlyDiv();
       if (div) {
         const scale = dpi / 96; // 96 DPI is screen default
-        const dataUrl = await Plotly.toImage(div, {
+        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale,
+          width,
+          height,
           bgcolor: bgColor ?? 'rgba(0,0,0,0)',
         });
         // Decode PNG via Image + Canvas to get raw RGBA

@@ -333,7 +333,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
               color: `hsl(${Math.random() * 360}, 70%, 55%)`,
               visible: true,
               lineStyle: 'solid' as const,
-              lineWidth: 2,
+              lineWidth: 3,
               pointStyle: 'circle' as const,
               pointSize: 3,
               fill: false,

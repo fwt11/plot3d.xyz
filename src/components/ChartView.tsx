@@ -21,6 +21,7 @@ import {
   type ExpandedEntry,
 } from '@/utils/tracesBuilder';
 import { buildLayout } from '@/utils/layoutBuilder';
+import { buildExportPayload } from '@/utils/exportLayout';
 
 // Lazy-load Plotly.js to avoid blocking initial page load
 type PlotComponentType = React.ComponentType<Record<string, unknown>>;
@@ -34,7 +35,7 @@ const LIGHT_CHART_CSS_VARS = {
   textSecondary: '#000000',
   textMuted: '#333333',
   borderColor: '#000000',
-  gridColor: 'rgba(0, 0, 0, 0.18)',
+  gridColor: 'rgba(0, 0, 0, 0.35)',
   bgSurface: '#ffffff',
 };
 
@@ -188,9 +189,12 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              await Plotly.downloadImage(plotlyDiv, {
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+              await Plotly.downloadImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
+                width,
+                height,
                 bgcolor: exportBg ?? 'rgba(0,0,0,0)',
                 filename: chartConfig.title || 'chart',
               });
@@ -213,9 +217,12 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            await Plotly.downloadImage(plotlyDiv, {
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+            await Plotly.downloadImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,
+              width,
+              height,
               bgcolor: exportBg ?? 'rgba(0,0,0,0)',
               filename: chartConfig.title || 'chart',
             });
@@ -245,9 +252,12 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              const dataUrl = await Plotly.toImage(plotlyDiv, {
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+              const dataUrl = await Plotly.toImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
+                width,
+                height,
                 bgcolor: exportBg ?? 'rgba(0,0,0,0)',
               });
               const response = await fetch(dataUrl);
@@ -272,9 +282,12 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            const dataUrl = await Plotly.toImage(plotlyDiv, {
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+            const dataUrl = await Plotly.toImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,
+              width,
+              height,
               bgcolor: exportBg ?? 'rgba(0,0,0,0)',
             });
             const svgText = atob(dataUrl.split(',')[1]);
@@ -295,16 +308,14 @@ export default function ChartView() {
             import('plotly.js-dist-min').then((Plotly) => {
               if (is3DType) {
                 Plotly.default.relayout(div, {
-                  scene: {
-                    xaxis: { autorange: true },
-                    yaxis: { autorange: true },
-                    zaxis: { autorange: true },
-                  },
+                  'scene.xaxis.autorange': true,
+                  'scene.yaxis.autorange': true,
+                  'scene.zaxis.autorange': true,
                 });
               } else {
                 Plotly.default.relayout(div, {
-                  xaxis: { autorange: true },
-                  yaxis: { autorange: true },
+                  'xaxis.autorange': true,
+                  'yaxis.autorange': true,
                 });
               }
             });

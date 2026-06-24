@@ -41,7 +41,7 @@ const STYLE_PRESETS: StylePreset[] = [
     id: 'area-fill',
     nameKey: 'layer.presetAreaFill',
     defaultName: 'Area Fill',
-    apply: () => ({ lineStyle: 'solid', lineWidth: 2, pointStyle: 'none', pointSize: 4, fill: true }),
+    apply: () => ({ lineStyle: 'solid', lineWidth: 3, pointStyle: 'none', pointSize: 4, fill: true }),
   },
   {
     id: 'bold',

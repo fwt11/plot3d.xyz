@@ -109,7 +109,7 @@ export function MultiPeakFitModal({ onClose }: MultiPeakFitModalProps) {
       updateLayer(autoLayer.id, {
         color: '#ef4444',
         lineStyle: 'solid',
-        lineWidth: 2,
+        lineWidth: 3,
         pointStyle: 'none',
         pointSize: 0,
         fill: false,
