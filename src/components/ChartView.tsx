@@ -20,24 +20,13 @@ import {
   extractGridData,
   type ExpandedEntry,
 } from '@/utils/tracesBuilder';
-import { buildLayout } from '@/utils/layoutBuilder';
-import { buildExportPayload } from '@/utils/exportLayout';
+import { buildLayout, getThemeCssVars } from '@/utils/layoutBuilder';
+import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
 
 // Lazy-load Plotly.js to avoid blocking initial page load
 type PlotComponentType = React.ComponentType<Record<string, unknown>>;
 let PlotComponent: PlotComponentType | null = null;
 let plotlyLoadPromise: Promise<PlotComponentType> | null = null;
-
-/** CSS variables used for the chart when exporting to a white background.
- *  This ensures text and grid colors remain readable regardless of app theme. */
-const LIGHT_CHART_CSS_VARS = {
-  textColor: '#000000',
-  textSecondary: '#000000',
-  textMuted: '#333333',
-  borderColor: '#000000',
-  gridColor: 'rgba(0, 0, 0, 0.35)',
-  bgSurface: '#ffffff',
-};
 
 function loadPlotly(): Promise<PlotComponentType> {
   if (PlotComponent) return Promise.resolve(PlotComponent);
@@ -173,10 +162,11 @@ export default function ChartView() {
         onClick: async () => {
           try {
             if (is3DType) {
-              // 3D: use html-to-image to capture the entire container
-              const { toPng } = await import('html-to-image');
-              const dataUrl = await toPng(containerRef.current!, {
-                pixelRatio: resolutionMultiplier,
+              // 3D: render off-screen with export colors and capture
+              const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+              if (!plotlyDiv) return;
+              const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
+                scale: resolutionMultiplier,
                 backgroundColor: exportBg,
               });
               const link = document.createElement('a');
@@ -189,7 +179,7 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
               await Plotly.downloadImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
@@ -217,7 +207,7 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
             await Plotly.downloadImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,
@@ -238,10 +228,11 @@ export default function ChartView() {
         onClick: async () => {
           try {
             if (is3DType) {
-              // 3D: use html-to-image
-              const { toPng } = await import('html-to-image');
-              const dataUrl = await toPng(containerRef.current!, {
-                pixelRatio: resolutionMultiplier,
+              // 3D: render off-screen with export colors and capture
+              const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+              if (!plotlyDiv) return;
+              const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
+                scale: resolutionMultiplier,
                 backgroundColor: exportBg,
               });
               const response = await fetch(dataUrl);
@@ -252,7 +243,7 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
               const dataUrl = await Plotly.toImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
@@ -282,7 +273,7 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, 2);
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
             const dataUrl = await Plotly.toImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,
@@ -324,7 +315,7 @@ export default function ChartView() {
       },
     ];
     showContextMenu(e, items);
-  }, [chartConfig.title, chartConfig.exportConfig, is3DType, theme, t, addToast]);
+  }, [chartConfig, is3DType, theme, t, addToast]);
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
@@ -404,23 +395,8 @@ export default function ChartView() {
   }, [chartConfig.layers, datasets, is3DType, chartType]);
 
   // --- Read CSS variables (cached, re-read only when theme triggers re-render) ---
-  const cssVars = useMemo(() => {
-    // For white-background exports, force a light color scheme so the exported image
-    // matches a print-ready appearance even when the app is in dark mode.
-    if (chartConfig.exportConfig.background === 'white') {
-      return LIGHT_CHART_CSS_VARS;
-    }
-    const cs = getComputedStyle(document.documentElement);
-    return {
-      textColor: cs.getPropertyValue('--text-primary').trim() || '#e4e4e7',
-      textSecondary: cs.getPropertyValue('--text-secondary').trim() || '#a1a1aa',
-      textMuted: cs.getPropertyValue('--text-muted').trim() || '#71717a',
-      borderColor: cs.getPropertyValue('--border').trim() || '#3f3f46',
-      gridColor: cs.getPropertyValue('--grid-color').trim() || '#27272a',
-      bgSurface: cs.getPropertyValue('--bg-surface').trim() || '#27272a',
-    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, chartConfig.exportConfig.background]);
+  const cssVars = useMemo(() => getThemeCssVars(), [theme]);
 
   const colorScale = useMemo(() => toPlotlyColorScale(chartConfig.colorMap), [chartConfig.colorMap]);
 
@@ -780,7 +756,7 @@ export default function ChartView() {
 
   // --- Build Plotly layout (memoized) ---
   const layout = useMemo<Record<string, unknown>>(() => {
-    const base = buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX, chartConfig.exportConfig.background);
+    const base = buildLayout(chartConfig, cssVars, is3DType, isNoAxes, isPolar, expandedDatasets, useNumericX, false);
     // Overlay bars/boxes when multiple datasets are present
     if (chartType === 'histogram') base.barmode = 'overlay';
     if (chartType === 'box') base.boxmode = 'group';
@@ -814,9 +790,7 @@ export default function ChartView() {
       ref={containerRef}
       className="relative w-full h-full"
       style={{
-        background: chartConfig.exportConfig.background === 'white'
-          ? '#ffffff'
-          : 'var(--chart-bg)',
+        background: cssVars.bgSurface,
       }}
       onContextMenu={handleChartContextMenu}
       data-chart-area

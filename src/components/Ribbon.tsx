@@ -39,8 +39,9 @@ function readStoredTab(): RibbonTab {
 // ─── Quick Toolbar ──────────────────────────────────────────────
 function QuickToolbar() {
   const { t } = useTranslation();
-  const chartType = useChartStore((s) => s.chartConfig.type);
-  const exportConfig = useChartStore((s) => s.chartConfig.exportConfig);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartType = chartConfig.type;
+  const exportConfig = chartConfig.exportConfig;
   const addToast = useToastStore((s) => s.addToast);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
@@ -60,7 +61,7 @@ function QuickToolbar() {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout, width, height } = buildExportPayload(div, 2);
+          const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
           const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale: exportConfig.resolutionMultiplier,

@@ -9,11 +9,11 @@ import { uid } from '@/utils/sampleData';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import Plotly from 'plotly.js-dist-min';
-import { toPng } from 'html-to-image';
+
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
-import { buildExportPayload } from '@/utils/exportLayout';
+import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
 import { ExportModal } from '@/components/ExportModal';
 
 /** Parse a single CSV/XLSX file into a Dataset. */
@@ -80,8 +80,9 @@ export function FileTab() {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const addDataset = useDatasetStore((s) => s.addDataset);
-  const exportConfig = useChartStore((s) => s.chartConfig.exportConfig);
-  const chartType = useChartStore((s) => s.chartConfig.type);
+  const chartConfig = useChartStore((s) => s.chartConfig);
+  const exportConfig = chartConfig.exportConfig;
+  const chartType = chartConfig.type;
   const theme = useUiStore((s) => s.theme);
   const addToast = useToastStore((s) => s.addToast);
 
@@ -158,7 +159,7 @@ export function FileTab() {
       // Use Plotly's native PNG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale: exportConfig.resolutionMultiplier,
@@ -174,12 +175,13 @@ export function FileTab() {
       }
     }
 
-    // 3D: capture entire container (canvas + overlays) using html-to-image
+    // 3D: render off-screen with export colors and capture
     const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-    if (container3D) {
+    const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+    if (plotlyDiv3D) {
       try {
-        const dataUrl = await toPng(container3D, {
-          pixelRatio: exportConfig.resolutionMultiplier,
+        const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale: exportConfig.resolutionMultiplier,
           backgroundColor: bgColor ?? undefined,
         });
         const link = document.createElement('a');
@@ -228,7 +230,7 @@ export function FileTab() {
       // Use Plotly's native SVG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
@@ -252,7 +254,7 @@ export function FileTab() {
       // 2D: export vector SVG from Plotly, embed into a vector PDF
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
         const svgDataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
@@ -287,14 +289,15 @@ export function FileTab() {
     let imgWidth: number;
     let imgHeight: number;
     const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-    if (container3D) {
+    const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+    if (plotlyDiv3D) {
       try {
-        imgData = await toPng(container3D, {
-          pixelRatio: exportConfig.resolutionMultiplier,
+        imgData = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale: exportConfig.resolutionMultiplier,
           backgroundColor: bgColor ?? undefined,
         });
-        imgWidth = container3D.clientWidth * exportConfig.resolutionMultiplier;
-        imgHeight = container3D.clientHeight * exportConfig.resolutionMultiplier;
+        imgWidth = plotlyDiv3D.clientWidth * exportConfig.resolutionMultiplier;
+        imgHeight = plotlyDiv3D.clientHeight * exportConfig.resolutionMultiplier;
       } catch {
         const canvas = document.querySelector('canvas');
         if (!canvas) return;
@@ -380,7 +383,7 @@ export function FileTab() {
       const div = getPlotlyDiv();
       if (div) {
         const scale = dpi / 96; // 96 DPI is screen default
-        const { data, layout, width, height } = buildExportPayload(div, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale,
@@ -411,12 +414,13 @@ export function FileTab() {
       }
     }
 
-    // 3D: capture via html-to-image or canvas, then encode as TIFF
+    // 3D: render off-screen with export colors and capture, then encode as TIFF
     const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-    if (container3D) {
+    const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+    if (plotlyDiv3D) {
       try {
-        const dataUrl = await toPng(container3D, {
-          pixelRatio: dpi / 96,
+        const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale: dpi / 96,
           backgroundColor: bgColor ?? undefined,
         });
         const img = new Image();

@@ -6,9 +6,9 @@ import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { Download, X, Eye } from 'lucide-react';
 import Plotly from 'plotly.js-dist-min';
-import { toPng } from 'html-to-image';
+
 import { encodeTiff } from '@/utils/tiffEncoder';
-import { buildExportPayload } from '@/utils/exportLayout';
+import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
 
 type PdfPageSize = 'a4' | 'a3' | 'letter' | 'legal' | 'auto';
 type ExportFormat = 'png' | 'svg' | 'pdf' | 'tiff';
@@ -80,7 +80,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, 2);
+          const { data, layout } = buildExportPayload(div, chartConfig, 2);
           const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
@@ -95,9 +95,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
 
       // 3D preview
       const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-      if (container3D) {
-        const dataUrl = await toPng(container3D, {
-          pixelRatio: scale,
+      const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+      if (plotlyDiv3D) {
+        const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale,
           width: options.width,
           height: options.height,
           backgroundColor: bgColor ?? undefined,
@@ -119,7 +120,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, 2);
+          const { data, layout } = buildExportPayload(div, chartConfig, 2);
           const dataUrl = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
@@ -133,9 +134,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       }
       // 3D PNG
       const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-      if (container3D) {
-        const dataUrl = await toPng(container3D, {
-          pixelRatio: scale,
+      const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+      if (plotlyDiv3D) {
+        const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale,
           width: options.width,
           height: options.height,
           backgroundColor: bgColor ?? undefined,
@@ -152,7 +154,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       }
       const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
       if (div) {
-        const { data, layout } = buildExportPayload(div, 2);
+        const { data, layout } = buildExportPayload(div, chartConfig, 2);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale,
@@ -177,7 +179,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, 2);
+          const { data, layout } = buildExportPayload(div, chartConfig, 2);
           imgData = await Plotly.toImage({ data, layout }, {
             format: 'png',
             scale,
@@ -190,9 +192,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         }
       } else {
         const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-        if (container3D) {
-          imgData = await toPng(container3D, {
-            pixelRatio: scale,
+        const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+        if (plotlyDiv3D) {
+          imgData = await export3DToPng(plotlyDiv3D, chartConfig, {
+            scale,
             width: options.width,
             height: options.height,
             backgroundColor: bgColor ?? undefined,
@@ -260,7 +263,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (!div) return;
-        const { data, layout } = buildExportPayload(div, 2);
+        const { data, layout } = buildExportPayload(div, chartConfig, 2);
         pngDataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale,
@@ -270,9 +273,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         });
       } else {
         const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;
-        if (!container3D) return;
-        pngDataUrl = await toPng(container3D, {
-          pixelRatio: scale,
+        const plotlyDiv3D = container3D?.querySelector('.js-plotly-plot') as HTMLElement | null;
+        if (!plotlyDiv3D) return;
+        pngDataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
+          scale,
           width: options.width,
           height: options.height,
           backgroundColor: bgColor ?? undefined,

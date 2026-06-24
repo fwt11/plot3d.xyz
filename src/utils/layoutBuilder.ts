@@ -1,4 +1,4 @@
-import type { ChartConfig, ExportBackground } from '@/types';
+import type { ChartConfig } from '@/types';
 import { axisLabelText, type ExpandedEntry } from '@/utils/tracesBuilder';
 
 export interface ChartCssVars {
@@ -10,6 +10,29 @@ export interface ChartCssVars {
   bgSurface: string;
 }
 
+/** Light color scheme used for exports with a white background. */
+export const LIGHT_CHART_CSS_VARS: ChartCssVars = {
+  textColor: '#000000',
+  textSecondary: '#000000',
+  textMuted: '#333333',
+  borderColor: '#000000',
+  gridColor: 'rgba(0, 0, 0, 0.35)',
+  bgSurface: '#ffffff',
+};
+
+/** Read the current theme's CSS variables for chart styling. */
+export function getThemeCssVars(): ChartCssVars {
+  const cs = getComputedStyle(document.documentElement);
+  return {
+    textColor: cs.getPropertyValue('--text-primary').trim() || '#d4d4d8',
+    textSecondary: cs.getPropertyValue('--text-secondary').trim() || '#a1a1aa',
+    textMuted: cs.getPropertyValue('--text-muted').trim() || '#9ca3af',
+    borderColor: cs.getPropertyValue('--border').trim() || 'rgba(63, 63, 70, 0.5)',
+    gridColor: cs.getPropertyValue('--grid-color').trim() || 'rgba(148, 148, 170, 0.35)',
+    bgSurface: cs.getPropertyValue('--bg-surface').trim() || '#27272a',
+  };
+}
+
 /** Build the Plotly layout object from chart config, CSS variables, and other params. */
 export function buildLayout(
   chartConfig: ChartConfig,
@@ -19,7 +42,7 @@ export function buildLayout(
   isPolar: boolean,
   expandedDatasets: ExpandedEntry[],
   useNumericX: boolean,
-  exportBackground: ExportBackground = 'transparent',
+  transparentBackground: boolean = false,
 ): Record<string, unknown> {
   const legendPositionMap: Record<string, { x: number; y: number; xanchor: string; yanchor: string }> = {
     top: { x: 0.5, y: 1.05, xanchor: 'center', yanchor: 'bottom' },
@@ -43,8 +66,8 @@ export function buildLayout(
       y: 0.98,
       yanchor: 'top',
     },
-    paper_bgcolor: exportBackground === 'transparent' ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
-    plot_bgcolor: exportBackground === 'transparent' ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
+    paper_bgcolor: transparentBackground ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
+    plot_bgcolor: transparentBackground ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
     font: {
       color: cssVars.textSecondary,
       size: chartConfig.fontSize,
