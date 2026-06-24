@@ -7,6 +7,7 @@ export interface ChartCssVars {
   textMuted: string;
   borderColor: string;
   gridColor: string;
+  bgSurface: string;
 }
 
 /** Build the Plotly layout object from chart config, CSS variables, and other params. */
@@ -62,22 +63,34 @@ export function buildLayout(
       xaxis: {
         title: { text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
         gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
+        gridwidth: 3,
         zerolinecolor: cssVars.gridColor,
         showgrid: chartConfig.xAxis.gridVisible,
+        showbackground: true,
+        backgroundcolor: cssVars.bgSurface,
+        linecolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       },
       yaxis: {
         title: { text: axisLabelText(chartConfig.yAxis.label, chartConfig.yAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
         gridcolor: chartConfig.yAxis.gridVisible ? cssVars.gridColor : 'transparent',
+        gridwidth: 3,
         zerolinecolor: cssVars.gridColor,
         showgrid: chartConfig.yAxis.gridVisible,
+        showbackground: true,
+        backgroundcolor: cssVars.bgSurface,
+        linecolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       },
       zaxis: {
         title: { text: axisLabelText(chartConfig.zAxis?.label, chartConfig.zAxis?.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
         gridcolor: chartConfig.zAxis?.gridVisible !== false ? cssVars.gridColor : 'transparent',
+        gridwidth: 3,
         zerolinecolor: cssVars.gridColor,
         showgrid: chartConfig.zAxis?.gridVisible !== false,
+        showbackground: true,
+        backgroundcolor: cssVars.bgSurface,
+        linecolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       },
       bgcolor: 'transparent',

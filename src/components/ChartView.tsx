@@ -390,6 +390,7 @@ export default function ChartView() {
       textMuted: cs.getPropertyValue('--text-muted').trim() || '#71717a',
       borderColor: cs.getPropertyValue('--border').trim() || '#3f3f46',
       gridColor: cs.getPropertyValue('--grid-color').trim() || '#27272a',
+      bgSurface: cs.getPropertyValue('--bg-surface').trim() || '#27272a',
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
