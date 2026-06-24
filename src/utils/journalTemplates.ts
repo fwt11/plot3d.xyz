@@ -54,7 +54,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 36,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#E64B35', '#4DBBD5', '#00A087', '#3C5488', '#F39B7F', '#8491B4', '#91D1C2', '#DC0000'],
   },
   {
@@ -70,7 +70,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 40,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#E64B35', '#4DBBD5', '#00A087', '#3C5488', '#F39B7F', '#8491B4', '#91D1C2', '#DC0000'],
   },
   {
@@ -86,7 +86,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 36,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0173B2', '#DE8F05', '#029E73', '#CC78BC', '#CA9161', '#FBAFE4', '#949494', '#ECE133'],
   },
   {
@@ -102,7 +102,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 40,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0173B2', '#DE8F05', '#029E73', '#CC78BC', '#CA9161', '#FBAFE4', '#949494', '#ECE133'],
   },
   {
@@ -118,7 +118,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 34,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0C5DA5', '#00B5B8', '#FF9500', '#FF2A00', '#845B97', '#4795D2', '#FF2A6A', '#3D4B5A'],
   },
   {
@@ -134,7 +134,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 40,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0C5DA5', '#00B5B8', '#FF9500', '#FF2A00', '#845B97', '#4795D2', '#FF2A6A', '#3D4B5A'],
   },
   {
@@ -150,7 +150,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 36,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#1F77B4', '#FF7F0E', '#2CA02C', '#D62728', '#9467BD', '#8C564B', '#E377C2', '#7F7F7F'],
   },
   {
@@ -166,7 +166,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 40,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#1F77B4', '#FF7F0E', '#2CA02C', '#D62728', '#9467BD', '#8C564B', '#E377C2', '#7F7F7F'],
   },
   {
@@ -182,7 +182,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 36,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0072BD', '#D95319', '#EDB120', '#7E2F8E', '#77AC30', '#4DBEEE', '#A2142F', '#000000'],
   },
   {
@@ -198,7 +198,7 @@ export const JOURNAL_TEMPLATES: JournalTemplate[] = [
     marginLeft: 40,
     gridVisible: true,
     scientificNotation: false,
-    background: 'transparent',
+    background: 'white',
     colorPalette: ['#0072BD', '#D95319', '#EDB120', '#7E2F8E', '#77AC30', '#4DBEEE', '#A2142F', '#000000'],
   },
 ];

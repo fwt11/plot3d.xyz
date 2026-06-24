@@ -27,6 +27,17 @@ type PlotComponentType = React.ComponentType<Record<string, unknown>>;
 let PlotComponent: PlotComponentType | null = null;
 let plotlyLoadPromise: Promise<PlotComponentType> | null = null;
 
+/** CSS variables used for the chart when exporting to a white background.
+ *  This ensures text and grid colors remain readable regardless of app theme. */
+const LIGHT_CHART_CSS_VARS = {
+  textColor: '#0f172a',
+  textSecondary: '#334155',
+  textMuted: '#475569',
+  borderColor: 'rgba(71, 85, 105, 0.9)',
+  gridColor: 'rgba(148, 163, 184, 0.55)',
+  bgSurface: '#ffffff',
+};
+
 function loadPlotly(): Promise<PlotComponentType> {
   if (PlotComponent) return Promise.resolve(PlotComponent);
   if (plotlyLoadPromise) return plotlyLoadPromise;
@@ -336,7 +347,7 @@ export default function ChartView() {
         if (!yCol) continue;
 
         result.push({
-          label: layer.displayName || `${ds.name}`,
+          label: layer.displayName || yCol.name,
           xCol, yCol, zCol, color: layer.color, layer, datasetId: ds.id,
           errorCol, errorPlusCol, errorMinusCol,
           errorXCol, errorXPlusCol, errorXMinusCol,
@@ -351,7 +362,7 @@ export default function ChartView() {
           const yCol = ds.columns.find((c) => c.id === layer.yColumn);
           if (yCol) {
             result.push({
-              label: layer.displayName || ds.name,
+              label: layer.displayName || yCol.name,
               xCol, yCol, zCol: zColForHeatmap, color: layer.color, layer, datasetId: ds.id,
               errorCol, errorPlusCol, errorMinusCol,
               errorXCol, errorXPlusCol, errorXMinusCol,
@@ -360,7 +371,7 @@ export default function ChartView() {
         } else {
           yCols.forEach((yCol, idx) => {
             result.push({
-              label: layer.displayName || (yCols.length === 1 ? ds.name : `${ds.name} - ${yCol.name}`),
+              label: layer.displayName || yCol.name,
               xCol,
               yCol,
               zCol: zColForHeatmap,
@@ -383,6 +394,11 @@ export default function ChartView() {
 
   // --- Read CSS variables (cached, re-read only when theme triggers re-render) ---
   const cssVars = useMemo(() => {
+    // For white-background exports, force a light color scheme so the exported image
+    // matches a print-ready appearance even when the app is in dark mode.
+    if (chartConfig.exportConfig.background === 'white') {
+      return LIGHT_CHART_CSS_VARS;
+    }
     const cs = getComputedStyle(document.documentElement);
     return {
       textColor: cs.getPropertyValue('--text-primary').trim() || '#e4e4e7',
@@ -393,7 +409,7 @@ export default function ChartView() {
       bgSurface: cs.getPropertyValue('--bg-surface').trim() || '#27272a',
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme]);
+  }, [theme, chartConfig.exportConfig.background]);
 
   const colorScale = useMemo(() => toPlotlyColorScale(chartConfig.colorMap), [chartConfig.colorMap]);
 
@@ -786,7 +802,11 @@ export default function ChartView() {
     <div
       ref={containerRef}
       className="relative w-full h-full"
-      style={{ background: 'var(--chart-bg)' }}
+      style={{
+        background: chartConfig.exportConfig.background === 'white'
+          ? '#ffffff'
+          : 'var(--chart-bg)',
+      }}
       onContextMenu={handleChartContextMenu}
       data-chart-area
       {...(is3DType ? { 'data-chart-area-3d': 'true' } : {})}

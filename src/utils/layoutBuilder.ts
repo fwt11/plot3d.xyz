@@ -21,10 +21,14 @@ export function buildLayout(
   useNumericX: boolean,
 ): Record<string, unknown> {
   const legendPositionMap: Record<string, { x: number; y: number; xanchor: string; yanchor: string }> = {
-    top: { x: 0.5, y: 1.1, xanchor: 'center', yanchor: 'bottom' },
-    bottom: { x: 0.5, y: -0.1, xanchor: 'center', yanchor: 'top' },
-    left: { x: -0.1, y: 0.5, xanchor: 'right', yanchor: 'middle' },
-    right: { x: 1.1, y: 0.5, xanchor: 'left', yanchor: 'middle' },
+    top: { x: 0.5, y: 1.05, xanchor: 'center', yanchor: 'bottom' },
+    bottom: { x: 0.5, y: -0.05, xanchor: 'center', yanchor: 'top' },
+    left: { x: -0.05, y: 0.5, xanchor: 'right', yanchor: 'middle' },
+    right: { x: 1.05, y: 0.5, xanchor: 'left', yanchor: 'middle' },
+    'inside-top-right': { x: 0.98, y: 0.98, xanchor: 'right', yanchor: 'top' },
+    'inside-top-left': { x: 0.02, y: 0.98, xanchor: 'left', yanchor: 'top' },
+    'inside-bottom-right': { x: 0.98, y: 0.02, xanchor: 'right', yanchor: 'bottom' },
+    'inside-bottom-left': { x: 0.02, y: 0.02, xanchor: 'left', yanchor: 'bottom' },
   };
 
   const legendPos = legendPositionMap[chartConfig.legend.position] || legendPositionMap.top;
@@ -32,9 +36,11 @@ export function buildLayout(
   const result: Record<string, unknown> = {
     title: {
       text: chartConfig.title || '',
-      font: { size: 14, color: cssVars.textColor },
+      font: { size: chartConfig.fontSize + 2, color: cssVars.textColor },
       xref: 'paper',
       x: 0.5,
+      y: 0.98,
+      yanchor: 'top',
     },
     paper_bgcolor: 'transparent',
     plot_bgcolor: 'transparent',
@@ -118,12 +124,19 @@ export function buildLayout(
     const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
 
     const xAxisConfig: Record<string, unknown> = {
-      title: { text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+      title: { text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary }, standoff: 10 },
       type: chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category'),
       gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
-      gridwidth: 1,
-      zerolinecolor: cssVars.gridColor,
+      gridwidth: 0.5,
+      zeroline: false,
+      showline: true,
+      linewidth: 1,
       linecolor: cssVars.borderColor,
+      mirror: 'allticks',
+      ticks: 'outside',
+      ticklen: 4,
+      tickwidth: 1,
+      tickcolor: cssVars.borderColor,
       tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       exponentformat: chartConfig.xAxis.scientificNotation ? 'e' : 'none',
     };
@@ -134,12 +147,19 @@ export function buildLayout(
     }
 
     const yAxisConfig: Record<string, unknown> = {
-      title: { text: axisLabelText(chartConfig.yAxis.label, chartConfig.yAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+      title: { text: axisLabelText(chartConfig.yAxis.label, chartConfig.yAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary }, standoff: 10 },
       type: chartConfig.yAxis.logScale ? 'log' : 'linear',
       gridcolor: chartConfig.yAxis.gridVisible ? cssVars.gridColor : 'transparent',
-      gridwidth: 1,
-      zerolinecolor: cssVars.gridColor,
+      gridwidth: 0.5,
+      zeroline: false,
+      showline: true,
+      linewidth: 1,
       linecolor: cssVars.borderColor,
+      mirror: 'allticks',
+      ticks: 'outside',
+      ticklen: 4,
+      tickwidth: 1,
+      tickcolor: cssVars.borderColor,
       tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
       exponentformat: chartConfig.yAxis.scientificNotation ? 'e' : 'none',
     };
@@ -158,14 +178,22 @@ export function buildLayout(
         title: {
           text: axisLabelText(rightAxis?.label, rightAxis?.unit),
           font: { size: chartConfig.fontSize, color: cssVars.textSecondary },
+          standoff: 10,
         },
         overlaying: 'y',
         side: 'right',
         type: rightAxis?.logScale ? 'log' : 'linear',
         gridcolor: rightAxis?.gridVisible ? cssVars.gridColor : 'transparent',
-        gridwidth: 1,
-        zerolinecolor: cssVars.gridColor,
+        gridwidth: 0.5,
+        zeroline: false,
+        showline: true,
+        linewidth: 1,
         linecolor: cssVars.borderColor,
+        mirror: 'allticks',
+        ticks: 'outside',
+        ticklen: 4,
+        tickwidth: 1,
+        tickcolor: cssVars.borderColor,
         tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
         exponentformat: rightAxis?.scientificNotation ? 'e' : 'none',
         showgrid: rightAxis?.gridVisible ?? false,

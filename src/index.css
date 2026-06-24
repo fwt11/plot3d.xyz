@@ -64,7 +64,7 @@
   --bg-surface: #ffffff;
   --bg-surface-hover: #e2e8f0;
   --bg-input: #ffffff;
-  --border: rgba(148, 163, 184, 0.85);
+  --border: rgba(71, 85, 105, 0.9);
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #475569;
@@ -81,8 +81,8 @@
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-hover: #94a3b8;
   --chart-bg: #ffffff;
-  --grid-color: rgba(71, 85, 105, 0.55);
-  --axis-color: #94a3b8;
+  --grid-color: rgba(148, 163, 184, 0.55);
+  --axis-color: #475569;
   --axis-text: #475569;
   --axis-x-color: #059669;
   --axis-y-color: #0284c7;

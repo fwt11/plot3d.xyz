@@ -281,10 +281,12 @@ export default function Workspace() {
         if (plotDiv) {
           import('plotly.js-dist-min').then((Plotly) => {
             // Zoom in by 20% around center
-            const layout = (plotDiv as any).layout;
-            if (layout?.xaxis?.range && layout?.yaxis?.range) {
-              const [x0, x1] = layout.xaxis.range;
-              const [y0, y1] = layout.yaxis.range;
+            const layout = (plotDiv as HTMLElement & { layout?: Record<string, unknown> }).layout;
+            const xaxis = layout?.xaxis as { range?: [number, number] } | undefined;
+            const yaxis = layout?.yaxis as { range?: [number, number] } | undefined;
+            if (xaxis?.range && yaxis?.range) {
+              const [x0, x1] = xaxis.range;
+              const [y0, y1] = yaxis.range;
               const xMid = (x0 + x1) / 2;
               const yMid = (y0 + y1) / 2;
               const xRange = (x1 - x0) * 0.4;
@@ -305,10 +307,12 @@ export default function Workspace() {
         const plotDiv = document.querySelector('.js-plotly-plot');
         if (plotDiv) {
           import('plotly.js-dist-min').then((Plotly) => {
-            const layout = (plotDiv as any).layout;
-            if (layout?.xaxis?.range && layout?.yaxis?.range) {
-              const [x0, x1] = layout.xaxis.range;
-              const [y0, y1] = layout.yaxis.range;
+            const layout = (plotDiv as HTMLElement & { layout?: Record<string, unknown> }).layout;
+            const xaxis = layout?.xaxis as { range?: [number, number] } | undefined;
+            const yaxis = layout?.yaxis as { range?: [number, number] } | undefined;
+            if (xaxis?.range && yaxis?.range) {
+              const [x0, x1] = xaxis.range;
+              const [y0, y1] = yaxis.range;
               const xMid = (x0 + x1) / 2;
               const yMid = (y0 + y1) / 2;
               const xRange = (x1 - x0) * 0.625;

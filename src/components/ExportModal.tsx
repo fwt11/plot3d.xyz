@@ -169,8 +169,6 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       const pageDims = PDF_PAGE_SIZES[pageSize];
 
       let imgData: string;
-      let imgW: number;
-      let imgH: number;
 
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot');
@@ -199,8 +197,8 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         }
       }
 
-      imgW = options.width;
-      imgH = options.height;
+      const imgW = options.width;
+      const imgH = options.height;
       const aspectRatio = imgW / imgH;
 
       let pdf;

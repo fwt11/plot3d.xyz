@@ -227,6 +227,10 @@ export default function ConfigPanel() {
               style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               aria-label={t('config.position')}
             >
+              <option value="inside-top-right">{t('config.legendInsideTopRight', { defaultValue: 'Inside Top Right' })}</option>
+              <option value="inside-top-left">{t('config.legendInsideTopLeft', { defaultValue: 'Inside Top Left' })}</option>
+              <option value="inside-bottom-right">{t('config.legendInsideBottomRight', { defaultValue: 'Inside Bottom Right' })}</option>
+              <option value="inside-bottom-left">{t('config.legendInsideBottomLeft', { defaultValue: 'Inside Bottom Left' })}</option>
               <option value="top">{t('config.top')}</option>
               <option value="bottom">{t('config.bottom')}</option>
               <option value="left">{t('config.left')}</option>

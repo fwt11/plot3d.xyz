@@ -40,7 +40,7 @@ export interface AxisConfig {
 
 export interface LegendConfig {
   visible: boolean;
-  position: 'top' | 'bottom' | 'left' | 'right';
+  position: 'top' | 'bottom' | 'left' | 'right' | 'inside-top-right' | 'inside-top-left' | 'inside-bottom-right' | 'inside-bottom-left';
 }
 
 export interface LayerConfig {
