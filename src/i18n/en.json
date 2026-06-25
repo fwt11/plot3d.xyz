@@ -58,6 +58,7 @@
     "exportAdvanced": "Advanced Export"
   },
   "generate": {
+    "sampleData": "Sample Data",
     "functionCurve": "Function Curve",
     "sine": "Sine",
     "sincSurface": "Sinc Surface",

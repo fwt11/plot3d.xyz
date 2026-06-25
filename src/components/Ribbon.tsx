@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileTab } from './ribbon/FileTab';
-import { GenerateTab } from './ribbon/GenerateTab';
 import { TransformTab } from './ribbon/TransformTab';
 import { ChartTab } from './ribbon/ChartTab';
 import { AnnotationTab } from './ribbon/AnnotationTab';
@@ -20,14 +19,14 @@ import { Download, FileUp, Plus, ChevronsDownUp, ChevronsUpDown, Undo2, Redo2, H
 import Plotly from 'plotly.js-dist-min';
 
 // ─── Ribbon Tab Types ───────────────────────────────────────────
-type RibbonTab = 'file' | 'generate' | 'transform' | 'stats' | 'fit' | 'chart' | 'annotation';
+type RibbonTab = 'file' | 'transform' | 'stats' | 'fit' | 'chart' | 'annotation';
 
 const RIBBON_TAB_KEY = 'plot3d-ribbon-tab';
 
 function readStoredTab(): RibbonTab {
   try {
     const stored = localStorage.getItem(RIBBON_TAB_KEY);
-    if (stored && ['file', 'generate', 'transform', 'stats', 'fit', 'chart', 'annotation'].includes(stored)) {
+    if (stored && ['file', 'transform', 'stats', 'fit', 'chart', 'annotation'].includes(stored)) {
       return stored as RibbonTab;
     }
   } catch {
@@ -170,7 +169,6 @@ export default function Ribbon() {
 
   const tabs: { key: RibbonTab; label: string }[] = [
     { key: 'file', label: t('ribbon.file') },
-    { key: 'generate', label: t('ribbon.generate') },
     { key: 'transform', label: t('ribbon.transform') },
     { key: 'stats', label: t('ribbon.stats') },
     { key: 'fit', label: t('ribbon.fit') },
@@ -282,7 +280,6 @@ export default function Ribbon() {
       {!collapsed && (
         <div className="px-2 py-1 min-h-[52px] flex items-center" style={{ background: 'var(--bg-input)', borderTop: '1px solid var(--border)' }}>
           {activeTab === 'file' && <FileTab />}
-          {activeTab === 'generate' && <GenerateTab />}
           {activeTab === 'transform' && <TransformTab />}
           {activeTab === 'stats' && <StatsTab />}
           {activeTab === 'fit' && <FitTab />}

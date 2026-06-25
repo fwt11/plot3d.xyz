@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen, Settings, Files } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube } from 'lucide-react';
 import type { Dataset } from '@/types';
-import { uid } from '@/utils/sampleData';
+import { uid, createSampleSineDataset, createSampleSurfaceDataset, createSampleScatter3DDataset, createSampleBarDataset } from '@/utils/sampleData';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import Plotly from 'plotly.js-dist-min';
@@ -565,6 +565,24 @@ export function FileTab() {
         <button onClick={handleBatchImport} className="ribbon-btn" title={t('file.batchImport', { defaultValue: 'Batch Import Multiple Files' })} aria-label={t('file.batchImport', { defaultValue: 'Batch Import' })}>
           <Files size={16} />
           <span className="text-xs">{t('file.batchImport', { defaultValue: 'Batch' })}</span>
+        </button>
+      </RibbonGroup>
+      <RibbonGroup label={t('generate.sampleData', 'Sample Data')}>
+        <button onClick={() => addDataset(createSampleSineDataset())} className="ribbon-btn" aria-label={t('generate.sine')}>
+          <TestTube size={16} />
+          <span className="text-xs">{t('generate.sine')}</span>
+        </button>
+        <button onClick={() => addDataset(createSampleSurfaceDataset())} className="ribbon-btn" aria-label={t('generate.sincSurface')}>
+          <TestTube size={16} />
+          <span className="text-xs">{t('generate.sincSurface')}</span>
+        </button>
+        <button onClick={() => addDataset(createSampleScatter3DDataset())} className="ribbon-btn" aria-label={t('generate.sphere')}>
+          <TestTube size={16} />
+          <span className="text-xs">{t('generate.sphere')}</span>
+        </button>
+        <button onClick={() => addDataset(createSampleBarDataset())} className="ribbon-btn" aria-label={t('generate.bar')}>
+          <TestTube size={16} />
+          <span className="text-xs">{t('generate.bar')}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('file.export')}>

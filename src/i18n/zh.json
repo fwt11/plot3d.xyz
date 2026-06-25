@@ -58,6 +58,7 @@
     "exportAdvanced": "高级导出"
   },
   "generate": {
+    "sampleData": "示例数据",
     "functionCurve": "函数曲线",
     "sine": "正弦",
     "sincSurface": "Sinc 曲面",
