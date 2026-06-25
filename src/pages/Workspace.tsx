@@ -10,6 +10,7 @@ import DataTable from '@/components/DataTable';
 import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
+import { FitResultsBar } from '@/components/FitResultsBar';
 import LayerPanel from '@/components/LayerPanel';
 import FloatingPanel from '@/components/FloatingPanel';
 
@@ -349,6 +350,9 @@ export default function Workspace() {
       <ContextMenuOverlay />
       {/* Ribbon toolbar */}
       <Ribbon />
+
+      {/* Fit results summary bar (separate from ribbon to keep ribbon height fixed) */}
+      <FitResultsBar />
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">

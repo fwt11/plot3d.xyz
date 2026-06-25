@@ -428,7 +428,8 @@
     "copyResult": "Copy fit result to clipboard",
     "copy": "Copy",
     "exportCsv": "Export fit parameters as CSV",
-    "exportLatex": "Export LaTeX equation"
+    "exportLatex": "Export LaTeX equation",
+    "clearResult": "Clear fit results"
   },
   "stats": {
     "descriptive": "Descriptive Statistics",

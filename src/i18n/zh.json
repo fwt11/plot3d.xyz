@@ -428,7 +428,8 @@
     "copyResult": "复制拟合结果到剪贴板",
     "copy": "复制",
     "exportCsv": "导出拟合参数为 CSV",
-    "exportLatex": "导出 LaTeX 方程"
+    "exportLatex": "导出 LaTeX 方程",
+    "clearResult": "清除拟合结果"
   },
   "stats": {
     "descriptive": "描述性统计",
