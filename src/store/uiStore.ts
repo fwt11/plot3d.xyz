@@ -19,7 +19,7 @@ function readStoredTheme(): 'light' | 'dark' {
   } catch {
     // localStorage may be unavailable (private mode, SSR, etc.)
   }
-  return 'dark';
+  return 'light';
 }
 
 function readStoredLang(): 'zh' | 'en' {
