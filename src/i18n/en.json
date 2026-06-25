@@ -347,6 +347,7 @@
     "resetView": "Reset View"
   },
   "workspace": {
+    "chart": "Chart",
     "dataTable": "Data Table",
     "layerManage": "Layer Manager",
     "chartConfig": "Chart Config",
@@ -355,6 +356,8 @@
     "dismiss": "Dismiss",
     "undo": "Undo",
     "redo": "Redo",
+    "closeLayerPanel": "Close layer panel",
+    "openLayerPanel": "Open layer panel",
     "closeDataPanel": "Close data panel",
     "closeConfigPanel": "Close config panel",
     "openDataPanel": "Open data panel",

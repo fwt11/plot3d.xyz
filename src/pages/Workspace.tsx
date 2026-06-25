@@ -15,7 +15,7 @@ import FloatingPanel from '@/components/FloatingPanel';
 
 import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Maximize2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
 function ChartTypeSuggestionBar() {
@@ -132,13 +132,13 @@ function StatusBar() {
 
 export default function Workspace() {
   const { t } = useTranslation();
-  const [showDataPanel, setShowDataPanel] = useState(true);
+  const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const [dataTablePopout, setDataTablePopout] = useState(false);
-  const [leftWidth, setLeftWidth] = useState(260);
+  const [mainTab, setMainTab] = useState<'chart' | 'data'>('chart');
+  const [layerPanelWidth, setLayerPanelWidth] = useState(180);
   const [rightWidth, setRightWidth] = useState(280);
-  const [layerPanelHeight, setLayerPanelHeight] = useState(220);
-  const [resizing, setResizing] = useState<'left' | 'right' | 'layer' | null>(null);
+  const [resizing, setResizing] = useState<'layerPanel' | 'configPanel' | null>(null);
   const theme = useUiStore((s) => s.theme);
   const undo = useHistoryStore((s) => s.undo);
   const redo = useHistoryStore((s) => s.redo);
@@ -154,17 +154,10 @@ export default function Workspace() {
   useEffect(() => {
     if (!resizing) return;
     const handleMouseMove = (e: MouseEvent) => {
-      if (resizing === 'left') {
-        setLeftWidth(Math.max(200, Math.min(500, e.clientX)));
-      } else if (resizing === 'right') {
+      if (resizing === 'layerPanel') {
+        setLayerPanelWidth(Math.max(120, Math.min(400, e.clientX)));
+      } else if (resizing === 'configPanel') {
         setRightWidth(Math.max(200, Math.min(500, window.innerWidth - e.clientX)));
-      } else if (resizing === 'layer') {
-        // Distance from viewport bottom to the layer panel top
-        const dataPanelEl = document.getElementById('data-panel-container');
-        if (!dataPanelEl) return;
-        const rect = dataPanelEl.getBoundingClientRect();
-        const newHeight = Math.max(120, Math.min(rect.height - 120, rect.bottom - e.clientY));
-        setLayerPanelHeight(newHeight);
       }
     };
     const handleMouseUp = () => setResizing(null);
@@ -359,27 +352,90 @@ export default function Workspace() {
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Data panel */}
-        {showDataPanel && (
-          <div id="data-panel-container" className="flex flex-col shrink-0" style={{ width: leftWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
-            <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.dataTable')}</span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setDataTablePopout(true)}
-                  style={{ color: 'var(--text-faint)' }}
-                  className="hover:opacity-80"
-                  aria-label={t('workspace.popoutDataTable', 'Pop out Data Table')}
-                >
-                  <Maximize2 size={14} />
-                </button>
-                <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeDataPanel', 'Close data panel')}>
-                  <PanelLeftClose size={14} />
-                </button>
-              </div>
+        {/* Layer panel (left) */}
+        {showLayerPanel && (
+          <div className="flex flex-col shrink-0" style={{ width: layerPanelWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
+            <div className="flex items-center justify-between px-2 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.layerManage')}</span>
+              <button onClick={() => setShowLayerPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeLayerPanel', 'Close layer panel')}>
+                <PanelLeftClose size={14} />
+              </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              {dataTablePopout ? (
+              <LayerPanel />
+            </div>
+          </div>
+        )}
+        {showLayerPanel && (
+          <div
+            className="w-1 cursor-col-resize hover:bg-sky-500/30 transition-colors shrink-0"
+            onMouseDown={() => setResizing('layerPanel')}
+          />
+        )}
+
+        {/* Main content with Chart | Data tabs */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Tab strip */}
+          <div className="flex items-center shrink-0 px-1 py-1" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+            <button
+              onClick={() => setMainTab('chart')}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+              style={{
+                color: mainTab === 'chart' ? 'var(--accent)' : 'var(--text-muted)',
+                background: mainTab === 'chart' ? 'var(--bg-surface-hover)' : 'transparent',
+              }}
+              onMouseEnter={(e) => { if (mainTab !== 'chart') e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={(e) => { if (mainTab !== 'chart') e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              {t('workspace.chart')}
+            </button>
+            <button
+              onClick={() => setMainTab('data')}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+              style={{
+                color: mainTab === 'data' ? 'var(--accent)' : 'var(--text-muted)',
+                background: mainTab === 'data' ? 'var(--bg-surface-hover)' : 'transparent',
+              }}
+              onMouseEnter={(e) => { if (mainTab !== 'data') e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={(e) => { if (mainTab !== 'data') e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              {t('workspace.dataTable')}
+            </button>
+            <div className="flex-1" />
+            {mainTab === 'data' && (
+              <button
+                onClick={() => setDataTablePopout(true)}
+                style={{ color: 'var(--text-faint)' }}
+                className="p-1 rounded hover:opacity-80"
+                aria-label={t('workspace.popoutDataTable', 'Pop out Data Table')}
+              >
+                <Maximize2 size={14} />
+              </button>
+            )}
+            {!showLayerPanel && mainTab === 'chart' && (
+              <button
+                onClick={() => setShowLayerPanel(true)}
+                style={{ color: 'var(--text-faint)' }}
+                className="p-1 rounded hover:opacity-80"
+                aria-label={t('workspace.openLayerPanel', 'Open layer panel')}
+              >
+                <PanelLeftOpen size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Chart type suggestion bar */}
+          <ChartTypeSuggestionBar />
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden">
+            {mainTab === 'chart' && (
+              <div className="w-full h-full">
+                <ChartView />
+              </div>
+            )}
+            {mainTab === 'data' && (
+              dataTablePopout ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                   <span>{t('workspace.dataTablePoppedOut', 'Data Table is open in floating window')}</span>
                   <button
@@ -393,55 +449,17 @@ export default function Workspace() {
                   </button>
                 </div>
               ) : (
-                <DataTable />
-              )}
-            </div>
-            <div style={{ borderTop: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
-                <Layers size={12} style={{ color: 'var(--text-faint)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.layerManage')}</span>
-              </div>
-              <div style={{ height: layerPanelHeight }} className="overflow-y-auto p-2">
-                <LayerPanel />
-              </div>
-              <div
-                className="h-1 cursor-row-resize hover:bg-sky-500/30 transition-colors"
-                onMouseDown={() => setResizing('layer')}
-                style={{ borderTop: '1px solid var(--border)' }}
-              />
-            </div>
-          </div>
-        )}
-        {showDataPanel && (
-          <div
-            className="w-1 cursor-col-resize hover:bg-sky-500/30 transition-colors shrink-0"
-            onMouseDown={() => setResizing('left')}
-          />
-        )}
-
-        {/* Chart canvas */}
-        <div className="flex-1 relative overflow-hidden" data-chart-area>
-          {!showDataPanel && (
-            <button
-              onClick={() => setShowDataPanel(true)}
-              className="absolute top-2 left-2 transition-colors"
-              style={{ color: 'var(--text-faint)', zIndex: 'var(--z-panel)' }}
-              aria-label={t('workspace.openDataPanel', 'Open data panel')}
-            >
-              <PanelLeftOpen size={16} />
-            </button>
-          )}
-          <ChartTypeSuggestionBar />
-          <div className="w-full h-full">
-            <ChartView />
+                <DataTable showToolbar />
+              )
+            )}
           </div>
         </div>
 
-        {/* Config panel */}
+        {/* Config panel (right) */}
         {showConfigPanel && (
           <div
             className="w-1 cursor-col-resize hover:bg-sky-500/30 transition-colors shrink-0"
-            onMouseDown={() => setResizing('right')}
+            onMouseDown={() => setResizing('configPanel')}
           />
         )}
         {showConfigPanel && (

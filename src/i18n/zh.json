@@ -347,6 +347,7 @@
     "resetView": "重置视角"
   },
   "workspace": {
+    "chart": "图表",
     "dataTable": "数据表格",
     "layerManage": "图层管理",
     "chartConfig": "图表配置",
@@ -355,6 +356,8 @@
     "dismiss": "忽略",
     "undo": "撤销",
     "redo": "重做",
+    "closeLayerPanel": "关闭图层面板",
+    "openLayerPanel": "打开图层面板",
     "closeDataPanel": "关闭数据面板",
     "closeConfigPanel": "关闭配置面板",
     "openDataPanel": "打开数据面板",
