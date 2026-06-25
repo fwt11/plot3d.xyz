@@ -345,7 +345,7 @@ function ResidualPlotModal({ fitResult, mode, onModeChange, onClose, t }: Residu
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'var(--bg-base)' }}
+      style={{ background: 'transparent' }}
       onClick={onClose}
     >
       <div

@@ -61,7 +61,7 @@ export function HistoryPanel({ onClose }: HistoryPanelProps) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center"
-      style={{ zIndex: 1000, background: 'var(--bg-base)' }}
+      style={{ zIndex: 1000, background: 'transparent' }}
       onClick={onClose}
     >
       <div

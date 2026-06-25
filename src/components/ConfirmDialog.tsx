@@ -16,7 +16,7 @@ export function ConfirmDialog() {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: 'var(--bg-base)' }}
+      style={{ background: 'transparent' }}
       onClick={() => resolve(false)}
     >
       <div
