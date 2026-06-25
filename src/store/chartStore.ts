@@ -103,6 +103,11 @@ export const useChartStore = create<ChartStore>()((set) => {
         const needsZ = is3D || type === 'heatmap';
         let layers = s.chartConfig.layers;
 
+        let zAxis = s.chartConfig.zAxis;
+        if (needsZ && !zAxis) {
+          zAxis = { ...defaultAxis, label: i18n.t('store.zAxis') };
+        }
+
         if (needsZ) {
           const datasets = useDatasetStore.getState().datasets;
           layers = layers.map((layer) => {
@@ -115,7 +120,7 @@ export const useChartStore = create<ChartStore>()((set) => {
           });
         }
 
-        return { chartConfig: { ...s.chartConfig, type, layers } };
+        return { chartConfig: { ...s.chartConfig, type, layers, zAxis } };
       }, i18n.t('history.setChartType', { defaultValue: 'Change chart type' })),
 
     setChartTitle: (title) =>
