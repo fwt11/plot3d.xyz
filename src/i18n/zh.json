@@ -221,7 +221,16 @@
     "figureSizeDouble": "两倍",
     "figureSizeTriple": "三倍",
     "tickAngle": "刻度角度",
-    "fontSize": "字体大小"
+    "fontSize": "字体大小",
+    "scene3D": "3D 场景",
+    "aspectMode": "比例模式",
+    "aspectModeCube": "等轴立方体",
+    "aspectModeData": "按数据范围",
+    "aspectModeManual": "手动",
+    "aspectRatio": "比例",
+    "projection": "投影",
+    "projectionOrthographic": "正交",
+    "projectionPerspective": "透视"
   },
   "data": {
     "noDataset": "无数据集",
@@ -607,6 +616,7 @@
     "setMargins": "调整边距",
     "setExportConfig": "修改导出配置",
     "setFontSize": "修改字号",
+    "setScene3D": "修改 3D 场景",
     "applyTemplate": "应用模板",
     "addAnnotation": "添加标注",
     "removeAnnotation": "删除标注",

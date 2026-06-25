@@ -465,15 +465,16 @@ export default function ChartView() {
           const indices = xValues.map((_, i) => i).filter((i) =>
             isValidNumber(xValues[i]) && isValidNumber(yValues[i]) && isValidNumber(zValues[i])
           );
+          const showPoints = layer.pointStyle !== 'none';
           return {
             type: 'scatter3d',
-            mode: layer.pointStyle === 'none' ? 'lines' : 'lines+markers',
+            mode: showPoints ? 'markers' : 'lines',
             name: label,
             x: indices.map((i) => xValues[i]),
             y: indices.map((i) => yValues[i]),
             z: indices.map((i) => zValues[i]),
             marker: {
-              size: layer.pointStyle === 'none' ? 0 : layer.pointSize,
+              size: showPoints ? layer.pointSize : 0,
               color: color,
               symbol: 'circle',
             },

@@ -121,6 +121,12 @@ export interface ExportConfig {
   figureMultiplier: 1 | 2 | 3;
 }
 
+export interface Scene3DConfig {
+  aspectMode: 'cube' | 'data' | 'manual';
+  aspectRatio: { x: number; y: number; z: number };
+  projection: 'perspective' | 'orthographic';
+}
+
 export interface ChartConfig {
   id: string;
   type: ChartType;
@@ -130,6 +136,8 @@ export interface ChartConfig {
   /** Right Y-axis config for dual-axis plots. Used when any layer has yAxisSide='right'. */
   yAxisRight?: AxisConfig;
   zAxis?: AxisConfig;
+  /** 3D scene configuration (aspect ratio and projection). */
+  scene3D?: Scene3DConfig;
   legend: LegendConfig;
   colorMap: ColorMapName;
   layers: LayerConfig[];

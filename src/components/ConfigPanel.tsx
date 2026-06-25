@@ -3,7 +3,7 @@ import { is3DChart } from '@/utils/chart';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AxisConfig, ExportBackground } from '@/types';
+import type { AxisConfig, ExportBackground, Scene3DConfig } from '@/types';
 import AnnotationPanel from './AnnotationPanel';
 import TemplatePanel from './TemplatePanel';
 
@@ -182,8 +182,10 @@ export default function ConfigPanel() {
   const setMargins = useChartStore((s) => s.setMargins);
   const setExportConfig = useChartStore((s) => s.setExportConfig);
   const setFontSize = useChartStore((s) => s.setFontSize);
+  const setScene3D = useChartStore((s) => s.setScene3D);
 
   const hasRightYAxis = !is3D && chartConfig.layers.some((l) => l.yAxisSide === 'right');
+  const scene3D = chartConfig.scene3D ?? { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' };
 
   return (
     <div className="h-full overflow-y-auto text-xs pb-6">
@@ -215,6 +217,56 @@ export default function ConfigPanel() {
       {is3D && chartConfig.zAxis && (
         <Section title={t('config.zAxis')}>
           <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} is3D={is3D} />
+        </Section>
+      )}
+
+      {is3D && (
+        <Section title={t('config.scene3D', { defaultValue: '3D Scene' })}>
+          <label className="grid grid-cols-[60px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span className="truncate">{t('config.aspectMode', { defaultValue: 'Aspect' })}</span>
+            <select
+              value={scene3D.aspectMode}
+              onChange={(e) => setScene3D({ aspectMode: e.target.value as Scene3DConfig['aspectMode'] })}
+              className="border rounded px-2 py-0.5 outline-none"
+              style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              aria-label={t('config.aspectMode', { defaultValue: 'Aspect' })}
+            >
+              <option value="cube">{t('config.aspectModeCube', { defaultValue: 'Cube (1:1:1)' })}</option>
+              <option value="data">{t('config.aspectModeData', { defaultValue: 'Data' })}</option>
+              <option value="manual">{t('config.aspectModeManual', { defaultValue: 'Manual' })}</option>
+            </select>
+          </label>
+          {scene3D.aspectMode === 'manual' && (
+            <div className="grid grid-cols-3 gap-2">
+              {(['x', 'y', 'z'] as const).map((axis) => (
+                <label key={axis} className="flex flex-col gap-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="uppercase" style={{ color: 'var(--text-muted)' }}>{axis}</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={scene3D.aspectRatio[axis]}
+                    onChange={(e) => setScene3D({ aspectRatio: { ...scene3D.aspectRatio, [axis]: Number(e.target.value) } })}
+                    className="w-full border rounded px-1.5 py-0.5 outline-none focus:border-sky-500/50"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    aria-label={`${t('config.aspectRatio', { defaultValue: 'Aspect ratio' })} ${axis}`}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+          <label className="grid grid-cols-[60px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+            <span className="truncate">{t('config.projection', { defaultValue: 'Projection' })}</span>
+            <select
+              value={scene3D.projection}
+              onChange={(e) => setScene3D({ projection: e.target.value as Scene3DConfig['projection'] })}
+              className="border rounded px-2 py-0.5 outline-none"
+              style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              aria-label={t('config.projection', { defaultValue: 'Projection' })}
+            >
+              <option value="orthographic">{t('config.projectionOrthographic', { defaultValue: 'Orthographic' })}</option>
+              <option value="perspective">{t('config.projectionPerspective', { defaultValue: 'Perspective' })}</option>
+            </select>
+          </label>
         </Section>
       )}
 

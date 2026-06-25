@@ -70,9 +70,9 @@ export function createSampleScatter3DDataset(): Dataset {
   const xVals: number[] = [];
   const yVals: number[] = [];
   const zVals: number[] = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 1000; i++) {
     const theta = Math.random() * Math.PI * 2;
-    const phi = Math.random() * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
     const r = 1 + Math.random() * 0.3;
     xVals.push(parseFloat((r * Math.sin(phi) * Math.cos(theta)).toFixed(4)));
     yVals.push(parseFloat((r * Math.sin(phi) * Math.sin(theta)).toFixed(4)));

@@ -221,7 +221,16 @@
     "figureSizeDouble": "Double",
     "figureSizeTriple": "Triple",
     "tickAngle": "Tick Angle",
-    "fontSize": "Font Size"
+    "fontSize": "Font Size",
+    "scene3D": "3D Scene",
+    "aspectMode": "Aspect Mode",
+    "aspectModeCube": "Cube (1:1:1)",
+    "aspectModeData": "Data",
+    "aspectModeManual": "Manual",
+    "aspectRatio": "Aspect Ratio",
+    "projection": "Projection",
+    "projectionOrthographic": "Orthographic",
+    "projectionPerspective": "Perspective"
   },
   "data": {
     "noDataset": "No Dataset",
@@ -607,6 +616,7 @@
     "setMargins": "Adjust margins",
     "setExportConfig": "Change export config",
     "setFontSize": "Change font size",
+    "setScene3D": "Change 3D scene",
     "applyTemplate": "Apply template",
     "addAnnotation": "Add annotation",
     "removeAnnotation": "Remove annotation",

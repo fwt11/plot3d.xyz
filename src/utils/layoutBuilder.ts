@@ -126,8 +126,10 @@ export function buildLayout(
       bgcolor: 'transparent',
       camera: {
         eye: { x: 1.5, y: 1.5, z: 1.5 },
+        projection: { type: chartConfig.scene3D?.projection ?? 'orthographic' },
       },
-      aspectmode: 'cube',
+      aspectmode: chartConfig.scene3D?.aspectMode ?? 'cube',
+      aspectratio: chartConfig.scene3D?.aspectMode === 'manual' ? chartConfig.scene3D.aspectRatio : undefined,
     };
 
     if (!chartConfig.xAxis.autoRange && chartConfig.xAxis.min !== undefined && chartConfig.xAxis.max !== undefined) {

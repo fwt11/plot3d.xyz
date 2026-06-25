@@ -1,7 +1,7 @@
 import type { Dataset, ChartConfig, DataColumn, LayerConfig } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 3;
+const PROJECT_VERSION = 4;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
 const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
@@ -142,6 +142,19 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     ? c.exportConfig as { resolutionMultiplier?: number; background?: string; figureMultiplier?: number }
     : {};
 
+  const scene3D = typeof c.scene3D === 'object' && c.scene3D !== null
+    ? c.scene3D as Record<string, unknown>
+    : {};
+  const aspectMode = ['cube', 'data', 'manual'].includes(scene3D.aspectMode as string)
+    ? (scene3D.aspectMode as 'cube' | 'data' | 'manual')
+    : 'cube';
+  const aspectRatio = typeof scene3D.aspectRatio === 'object' && scene3D.aspectRatio !== null
+    ? scene3D.aspectRatio as Record<string, unknown>
+    : {};
+  const projection = ['perspective', 'orthographic'].includes(scene3D.projection as string)
+    ? (scene3D.projection as 'perspective' | 'orthographic')
+    : 'orthographic';
+
   return {
     id: c.id,
     type,
@@ -171,6 +184,15 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
       figureMultiplier: [1, 2, 3].includes(exportConfig.figureMultiplier as number) ? (exportConfig.figureMultiplier as 1 | 2 | 3) : 1,
     },
     fontSize: typeof c.fontSize === 'number' ? c.fontSize : 16,
+    scene3D: {
+      aspectMode,
+      aspectRatio: {
+        x: typeof aspectRatio.x === 'number' ? aspectRatio.x : 1,
+        y: typeof aspectRatio.y === 'number' ? aspectRatio.y : 1,
+        z: typeof aspectRatio.z === 'number' ? aspectRatio.z : 1,
+      },
+      projection,
+    },
   };
 }
 
@@ -260,6 +282,10 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     // v2 files are compatible with v3 (new chart types and yAxisRight are optional);
     // just bump the version so saved files use the current version.
     if (typeof data === 'object' && data !== null && data.version === 2) {
+      data.version = PROJECT_VERSION;
+    }
+    // v3 -> v4: scene3D is optional and will be defaulted during sanitization.
+    if (typeof data === 'object' && data !== null && data.version === 3) {
       data.version = PROJECT_VERSION;
     }
     return sanitizeProjectFile(data);

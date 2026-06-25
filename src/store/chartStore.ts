@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import i18n from '@/i18n';
-import type { ChartConfig, AxisConfig, LayerConfig, ChartType, Annotation, ExportConfig, ColorMapName } from '@/types';
+import type { ChartConfig, AxisConfig, LayerConfig, ChartType, Annotation, ExportConfig, ColorMapName, Scene3DConfig } from '@/types';
 import { uid, createSampleSineDataset } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
 import { useDatasetStore } from './datasetStore';
@@ -33,6 +33,7 @@ const defaultChartConfig: ChartConfig = {
   marginLeft: 72,
   exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
   fontSize: 16,
+  scene3D: { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' },
   layers: [
     {
       id: uid(),
@@ -72,6 +73,7 @@ interface ChartStore {
   setMargins: (margins: { marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number }) => void;
   setExportConfig: (config: Partial<ExportConfig>) => void;
   setFontSize: (fontSize: number) => void;
+  setScene3D: (scene: Partial<Scene3DConfig>) => void;
   /** Apply a partial chart config patch atomically (used by journal templates). */
   applyConfigPatch: (patch: Partial<ChartConfig>) => void;
 
@@ -187,6 +189,14 @@ export const useChartStore = create<ChartStore>()((set) => {
 
     setFontSize: (fontSize) =>
       setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, fontSize } }), i18n.t('history.setFontSize', { defaultValue: 'Change font size' })),
+
+    setScene3D: (scene) =>
+      setWithHistory((s) => ({
+        chartConfig: {
+          ...s.chartConfig,
+          scene3D: { ...(s.chartConfig.scene3D ?? { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' }), ...scene },
+        },
+      }), i18n.t('history.setScene3D', { defaultValue: 'Change 3D scene' })),
 
     applyConfigPatch: (patch) =>
       setWithHistory((s) => ({ chartConfig: { ...s.chartConfig, ...patch } }), i18n.t('history.applyTemplate', { defaultValue: 'Apply template' })),
