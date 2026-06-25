@@ -390,7 +390,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
         const maxRows = Math.max(...d.columns.map((c) => c.values.length), 0);
         const values = Array.from({ length: maxRows }, (_, i) => {
           const row: Record<string, number> = {};
-          d.columns.forEach((c) => { const n = Number(c.values[i]); if (!isNaN(n)) row[c.name] = n; });
+          d.columns.forEach((c, ci) => { const n = Number(c.values[i]); if (!isNaN(n)) row[`col_${ci}`] = n; });
           const result = fn(row);
           return isNaN(result) ? '' : String(result);
         });

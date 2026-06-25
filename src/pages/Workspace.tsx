@@ -11,10 +11,11 @@ import ChartView from '@/components/ChartView';
 import ConfigPanel from '@/components/ConfigPanel';
 import Ribbon from '@/components/Ribbon';
 import LayerPanel from '@/components/LayerPanel';
+import FloatingPanel from '@/components/FloatingPanel';
 
 import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Layers, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 
 function ChartTypeSuggestionBar() {
@@ -133,6 +134,7 @@ export default function Workspace() {
   const { t } = useTranslation();
   const [showDataPanel, setShowDataPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
+  const [dataTablePopout, setDataTablePopout] = useState(false);
   const [leftWidth, setLeftWidth] = useState(260);
   const [rightWidth, setRightWidth] = useState(280);
   const [layerPanelHeight, setLayerPanelHeight] = useState(220);
@@ -362,12 +364,37 @@ export default function Workspace() {
           <div id="data-panel-container" className="flex flex-col shrink-0" style={{ width: leftWidth, borderRight: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
             <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
               <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t('workspace.dataTable')}</span>
-              <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeDataPanel', 'Close data panel')}>
-                <PanelLeftClose size={14} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setDataTablePopout(true)}
+                  style={{ color: 'var(--text-faint)' }}
+                  className="hover:opacity-80"
+                  aria-label={t('workspace.popoutDataTable', 'Pop out Data Table')}
+                >
+                  <Maximize2 size={14} />
+                </button>
+                <button onClick={() => setShowDataPanel(false)} style={{ color: 'var(--text-faint)' }} className="hover:opacity-80" aria-label={t('workspace.closeDataPanel', 'Close data panel')}>
+                  <PanelLeftClose size={14} />
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-hidden">
-              <DataTable />
+              {dataTablePopout ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <span>{t('workspace.dataTablePoppedOut', 'Data Table is open in floating window')}</span>
+                  <button
+                    onClick={() => setDataTablePopout(false)}
+                    className="px-2 py-1 rounded text-xs transition-colors"
+                    style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {t('workspace.restoreDataTable', 'Restore')}
+                  </button>
+                </div>
+              ) : (
+                <DataTable />
+              )}
             </div>
             <div style={{ borderTop: '1px solid var(--border)' }}>
               <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -441,6 +468,14 @@ export default function Workspace() {
         >
           <PanelRightOpen size={16} />
         </button>
+      )}
+      {dataTablePopout && (
+        <FloatingPanel
+          title={t('workspace.dataTable')}
+          onClose={() => setDataTablePopout(false)}
+        >
+          <DataTable showToolbar />
+        </FloatingPanel>
       )}
       <StatusBar />
       <ToastContainer />

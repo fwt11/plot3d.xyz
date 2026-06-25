@@ -1,13 +1,14 @@
 import { useDatasetStore } from '@/store/datasetStore';
 import { useToastStore } from '@/store/toastStore';
 import { confirm } from '@/store/confirmStore';
-import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste, Filter, Sparkles, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste, Filter, Sparkles, AlertTriangle, Search, X, FunctionSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DataColumn } from '@/types';
 import { showContextMenu, type MenuItemOrSeparator } from '@/utils/contextMenu';
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { DataProcessingModal, type DataProcessingMode } from '@/components/DataProcessingModal';
 import { FindReplaceModal } from '@/components/FindReplaceModal';
+import { ComputedColumnModal } from '@/components/ComputedColumnModal';
 
 /** Approximate row height in pixels (must match the actual rendered row height). */
 const ROW_HEIGHT = 28;
@@ -35,7 +36,11 @@ function isValidNumericInput(value: string): boolean {
   return !isNaN(n) && isFinite(n);
 }
 
-export default function DataTable() {
+interface DataTableProps {
+  showToolbar?: boolean;
+}
+
+export default function DataTable({ showToolbar = false }: DataTableProps) {
   const { t } = useTranslation();
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
@@ -60,6 +65,7 @@ export default function DataTable() {
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const resizingColRef = useRef<{ colId: string; startX: number; startWidth: number } | null>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showComputedColumn, setShowComputedColumn] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [lastSelectedRow, setLastSelectedRow] = useState<number | null>(null);
 
@@ -144,6 +150,12 @@ export default function DataTable() {
     });
     addToast(t('findReplace.filled', { count: selectedRows.size, defaultValue: `Filled ${selectedRows.size} cells` }), 'success');
   }, [dataset, selectedRows, updateCellValueSilent, t, addToast]);
+
+  /** Clear row selection. */
+  const handleClearSelection = useCallback(() => {
+    setSelectedRows(new Set());
+    setLastSelectedRow(null);
+  }, []);
 
   /** Get the width for a column, falling back to the default. */
   const getColWidth = useCallback((colId: string) => columnWidths[colId] ?? DEFAULT_COL_WIDTH, [columnWidths]);
@@ -355,6 +367,79 @@ export default function DataTable() {
         ))}
       </div>
 
+      {/* Toolbar */}
+      {showToolbar && (
+        <div className="flex items-center gap-1 px-2 py-1 border-b shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--bg-surface)' }}>
+          <button
+            onClick={() => addRow(dataset.id)}
+            className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Plus size={12} />
+            {t('data.addRow')}
+          </button>
+          <button
+            onClick={() => addColumn(dataset.id)}
+            className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Plus size={12} />
+            {t('data.addColumn')}
+          </button>
+          <div className="w-px h-3 mx-1" style={{ background: 'var(--border)' }} />
+          <button
+            onClick={() => setShowFindReplace(true)}
+            className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <Search size={12} />
+            {t('findReplace.title')}
+          </button>
+          <div className="w-px h-3 mx-1" style={{ background: 'var(--border)' }} />
+          <button
+            onClick={() => setShowComputedColumn(true)}
+            className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            <FunctionSquare size={12} />
+            F(x)
+          </button>
+          {selectedRows.size > 0 && (
+            <>
+              <div className="w-px h-3 mx-1" style={{ background: 'var(--border)' }} />
+              <button
+                onClick={handleBatchDelete}
+                className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+                style={{ color: 'var(--danger)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--danger) 12%, transparent)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <Trash2 size={12} />
+                {t('findReplace.batchDelete', { count: selectedRows.size, defaultValue: `Delete ${selectedRows.size} Selected Rows` })}
+              </button>
+              <button
+                onClick={handleClearSelection}
+                className="flex items-center gap-1 px-2 py-0.5 text-xs rounded transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <X size={12} />
+                {t('findReplace.clearSelection', 'Clear Selection')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <table className="w-full text-sm border-collapse">
@@ -491,19 +576,21 @@ export default function DataTable() {
         </table>
       </div>
 
-      {/* Add row button */}
-      <div className="border-t p-1" style={{ borderColor: 'var(--border)' }}>
-        <button
-          onClick={() => addRow(dataset.id)}
-          className="flex items-center gap-1 px-2 py-1 text-xs transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
-        >
-          <Plus size={12} />
-          {t('data.addRow')}
-        </button>
-      </div>
+      {/* Add row button (hidden when toolbar is shown) */}
+      {!showToolbar && (
+        <div className="border-t p-1" style={{ borderColor: 'var(--border)' }}>
+          <button
+            onClick={() => addRow(dataset.id)}
+            className="flex items-center gap-1 px-2 py-1 text-xs transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            <Plus size={12} />
+            {t('data.addRow')}
+          </button>
+        </div>
+      )}
 
       {dataModal && (
         <DataProcessingModal
@@ -515,6 +602,13 @@ export default function DataTable() {
 
       {showFindReplace && (
         <FindReplaceModal onClose={() => setShowFindReplace(false)} />
+      )}
+
+      {showComputedColumn && dataset && (
+        <ComputedColumnModal
+          datasetId={dataset.id}
+          onClose={() => setShowComputedColumn(false)}
+        />
       )}
     </div>
   );
