@@ -240,16 +240,19 @@ export async function export3DToPng(
 
   try {
     const Plotly = (await import('plotly.js-dist-min')).default;
-    const { toPng } = await import('html-to-image');
     await Plotly.newPlot(tempDiv, data, layout, {
       responsive: false,
       displayModeBar: false,
     });
     // Give WebGL a frame to finish rendering before capturing.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    return await toPng(tempDiv, {
-      pixelRatio: options.scale ?? 1,
-      backgroundColor: options.backgroundColor,
+    // Use Plotly.toImage instead of html-to-image to properly capture
+    // WebGL canvas content (cloneNode loses WebGL context).
+    return await Plotly.toImage(tempDiv, {
+      format: 'png',
+      scale: options.scale ?? 1,
+      width: targetWidth,
+      height: targetHeight,
     });
   } finally {
     document.body.removeChild(tempDiv);
