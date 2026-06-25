@@ -342,7 +342,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 'var(--z-modal)', background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 'var(--z-modal)', background: '#000000' }} onClick={onClose}>
       <div
         className="rounded-lg shadow-2xl border w-[640px] max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--bg-surface)', borderColor: 'var(--border)' }}

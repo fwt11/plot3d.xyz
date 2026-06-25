@@ -118,7 +118,7 @@ export function ComputedColumnModal({ datasetId, onClose }: ComputedColumnModalP
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.5)' }}
+      style={{ background: '#000000' }}
       onClick={onClose}
     >
       <div
