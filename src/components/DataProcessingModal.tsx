@@ -97,12 +97,12 @@ export function DataProcessingModal({ mode, columnId, onClose }: DataProcessingM
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: '#000000' }}
+      style={{ background: 'var(--bg-base)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-xl flex flex-col w-96"
-        style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -16,12 +16,12 @@ export function ConfirmDialog() {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: '#000000' }}
+      style={{ background: 'var(--bg-base)' }}
       onClick={() => resolve(false)}
     >
       <div
         className="rounded-lg shadow-xl max-w-sm w-full mx-4"
-        style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

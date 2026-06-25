@@ -345,13 +345,13 @@ function ResidualPlotModal({ fitResult, mode, onModeChange, onClose, t }: Residu
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: '#000000' }}
+      style={{ background: 'var(--bg-base)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-xl"
         style={{
-          background: 'var(--bg-panel)',
+          background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
           color: 'var(--text-primary)',
         }}

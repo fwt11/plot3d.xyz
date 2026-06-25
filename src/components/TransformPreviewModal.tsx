@@ -118,12 +118,12 @@ export function TransformPreviewModal({ columnId, operation, onClose }: Transfor
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: '#000000' }}
+      style={{ background: 'var(--bg-base)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-xl flex flex-col"
-        style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', color: 'var(--text-primary)', width: 700, maxHeight: '90vh' }}
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)', width: 700, maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

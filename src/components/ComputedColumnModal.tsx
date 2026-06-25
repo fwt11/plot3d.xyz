@@ -118,12 +118,12 @@ export function ComputedColumnModal({ datasetId, onClose }: ComputedColumnModalP
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ background: '#000000' }}
+      style={{ background: 'var(--bg-base)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-2xl border w-[520px] max-h-[90vh] overflow-y-auto flex flex-col"
-        style={{ background: 'var(--bg-panel)', borderColor: 'var(--border)' }}
+        style={{ background: 'var(--bg-surface)', borderColor: 'var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

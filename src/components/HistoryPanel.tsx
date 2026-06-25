@@ -61,13 +61,13 @@ export function HistoryPanel({ onClose }: HistoryPanelProps) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center"
-      style={{ zIndex: 1000, background: '#000000' }}
+      style={{ zIndex: 1000, background: 'var(--bg-base)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-xl flex flex-col"
         style={{
-          background: 'var(--bg-panel)',
+          background: 'var(--bg-surface)',
           border: '1px solid var(--border)',
           width: 'min(560px, 90vw)',
           maxHeight: '80vh',
