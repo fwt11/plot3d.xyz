@@ -13,7 +13,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
     <div className="border-b" style={{ borderColor: 'var(--border)' }}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 w-full px-3 py-2 text-sm font-medium transition-colors"
+        className="flex items-center gap-1 w-full px-3 py-2 text-xs font-medium transition-colors"
         style={{ color: 'var(--text-primary)' }}
         onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
@@ -32,7 +32,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
   return (
     <div className="space-y-1.5">
       <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
-      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="truncate">{t('config.label')}</span>
         <input
           type="text"
@@ -43,7 +43,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
           aria-label={`${label} ${t('config.label')}`}
         />
       </label>
-      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="truncate">{t('config.unit')}</span>
         <input
           type="text"
@@ -55,7 +55,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
           aria-label={`${label} ${t('config.unit')}`}
         />
       </label>
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         {t('config.autoRange')}
         <input
           type="checkbox"
@@ -67,7 +67,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
       </label>
       {!axis.autoRange && (
         <div className="flex gap-2">
-          <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.min')}
             <input
               type="number"
@@ -78,7 +78,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
               aria-label={`${label} ${t('config.min')}`}
             />
           </label>
-          <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.max')}
             <input
               type="number"
@@ -91,7 +91,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
           </label>
         </div>
       )}
-      <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         {t('config.showGrid')}
         <input
           type="checkbox"
@@ -103,7 +103,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
       </label>
       {!is3D && (
         <>
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.logScale')}
             <input
               type="checkbox"
@@ -113,7 +113,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
               aria-label={`${label} ${t('config.logScale')}`}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.scientificNotation')}
             <input
               type="checkbox"
@@ -123,7 +123,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
               aria-label={`${label} ${t('config.scientificNotation')}`}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.tickAngle', 'Tick Angle')}
             <input
               type="number"
@@ -138,7 +138,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
         </>
       )}
       {allowCategory && (
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.categoryAxis')}
           <input
             type="checkbox"
@@ -155,7 +155,7 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
 
 function MarginInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <label className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+    <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
       {label}
       <input
         type="number"
@@ -219,7 +219,7 @@ export default function ConfigPanel() {
       )}
 
       <Section title={t('config.legend')}>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.showLegend')}
           <input
             type="checkbox"
@@ -230,7 +230,7 @@ export default function ConfigPanel() {
           />
         </label>
         {chartConfig.legend.visible && (
-          <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
             {t('config.position')}
             <select
               value={chartConfig.legend.position}
@@ -264,7 +264,7 @@ export default function ConfigPanel() {
       )}
 
       <Section title={t('config.export')} defaultOpen={false}>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.resolution')}
           <select
             value={chartConfig.exportConfig.resolutionMultiplier}
@@ -278,7 +278,7 @@ export default function ConfigPanel() {
             <option value={4}>4x</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.background')}
           <select
             value={chartConfig.exportConfig.background}
@@ -295,7 +295,7 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.fontSize')} defaultOpen={false}>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.fontSize')}
           <input
             type="number"

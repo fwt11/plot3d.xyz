@@ -480,7 +480,7 @@ export default function LayerPanel() {
               {isExpanded && (
                 <div className="space-y-1.5 px-1.5 pb-1.5" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                   <div className="flex gap-1.5">
-                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                       {t('layer.lineStyle', 'Line Style')}
                       <select
                         value={layer.lineStyle}
@@ -495,7 +495,7 @@ export default function LayerPanel() {
                         <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
                       </select>
                     </label>
-                    <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-xs" style={labelStyle}>
                       {t('layer.lineWidth', 'Line Width')}
                       <input
                         type="number"
@@ -511,7 +511,7 @@ export default function LayerPanel() {
                     </label>
                   </div>
                   <div className="flex gap-1.5">
-                    <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                       {t('layer.pointStyle', 'Point Style')}
                       <select
                         value={layer.pointStyle}
@@ -527,7 +527,7 @@ export default function LayerPanel() {
                         <option value="none">{t('layer.nonePoint', 'None')}</option>
                       </select>
                     </label>
-                    <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-xs" style={labelStyle}>
                       {t('layer.pointSize', 'Point Size')}
                       <input
                         type="number"
@@ -543,7 +543,7 @@ export default function LayerPanel() {
                     </label>
                   </div>
                   <div className="flex gap-1.5 items-center">
-                    <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
+                    <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
                       <input
                         type="checkbox"
                         checked={layer.fill}
@@ -557,7 +557,7 @@ export default function LayerPanel() {
                   </div>
                   {!is3D && (
                     <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                         {t('layer.yAxisSide', 'Y Axis Side')}
                         <select
                           value={layer.yAxisSide || 'left'}
@@ -576,7 +576,7 @@ export default function LayerPanel() {
                   {/* Error bar type + style config */}
                   <div className="flex flex-col gap-1.5">
                     <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                         {t('layer.errorBarType', 'Error Bar Type')}
                         <select
                           value={layer.errorBarConfig?.type ?? 'custom'}
@@ -606,7 +606,7 @@ export default function LayerPanel() {
                       </label>
                     </div>
                     <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
                         {t('layer.errorBarCapWidth', 'Cap Width')}
                         <input
                           type="number"
@@ -629,7 +629,7 @@ export default function LayerPanel() {
                           aria-label={t('layer.errorBarCapWidth', 'Cap Width')}
                         />
                       </label>
-                      <label className="flex items-center gap-1 text-sm" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
                         {t('layer.errorBarThickness', 'Thickness')}
                         <input
                           type="number"
@@ -652,7 +652,7 @@ export default function LayerPanel() {
                           aria-label={t('layer.errorBarThickness', 'Thickness')}
                         />
                       </label>
-                      <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
                         <input
                           type="checkbox"
                           checked={layer.errorBarConfig?.showCap ?? true}
@@ -672,7 +672,7 @@ export default function LayerPanel() {
                         />
                         {t('layer.errorBarShowCap', 'Cap')}
                       </label>
-                      <label className="flex items-center gap-1 text-sm cursor-pointer" style={labelStyle}>
+                      <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
                         <input
                           type="checkbox"
                           checked={layer.errorBarConfig?.asymmetric ?? false}
@@ -697,7 +697,7 @@ export default function LayerPanel() {
                   {ds && (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorColumn', 'Error Column')}
                           <select
                             value={layer.errorColumn ?? ''}
@@ -715,7 +715,7 @@ export default function LayerPanel() {
                         </label>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorPlusColumn', 'Error+ Column')}
                           <select
                             value={layer.errorPlusColumn ?? ''}
@@ -733,7 +733,7 @@ export default function LayerPanel() {
                         </label>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorMinusColumn', 'Error− Column')}
                           <select
                             value={layer.errorMinusColumn ?? ''}
@@ -751,7 +751,7 @@ export default function LayerPanel() {
                         </label>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorXColumn', 'X Error Column')}
                           <select
                             value={layer.errorXColumn ?? ''}
@@ -769,7 +769,7 @@ export default function LayerPanel() {
                         </label>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorXPlusColumn', 'X Error+ Column')}
                           <select
                             value={layer.errorXPlusColumn ?? ''}
@@ -787,7 +787,7 @@ export default function LayerPanel() {
                         </label>
                       </div>
                       <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-sm flex-1" style={labelStyle}>
+                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
                           {t('layer.errorXMinusColumn', 'X Error− Column')}
                           <select
                             value={layer.errorXMinusColumn ?? ''}
