@@ -219,14 +219,17 @@ function addFitCurve(fitResult: FitResult, t: (key: string) => string) {
   }
 
   const fitDatasetId = uid();
-  addDataset({
-    id: fitDatasetId,
-    name: `Fit (${fitResult.type})`,
-    columns: [
-      { id: uid(), name: 'x', type: 'X', values: fitResult.fittedX.map(String) },
-      { id: uid(), name: 'y_fit', type: 'Y', values: fitResult.fittedY.map((v) => String(v)) },
-    ],
-  });
+  addDataset(
+    {
+      id: fitDatasetId,
+      name: `Fit (${fitResult.type})`,
+      columns: [
+        { id: uid(), name: 'x', type: 'X', values: fitResult.fittedX.map(String) },
+        { id: uid(), name: 'y_fit', type: 'Y', values: fitResult.fittedY.map((v) => String(v)) },
+      ],
+    },
+    { setActive: false }
+  );
 
   const autoLayer = useChartStore
     .getState()

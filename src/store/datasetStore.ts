@@ -26,7 +26,7 @@ interface DatasetStore {
   activeDatasetId: string | null;
   pendingChartTypeSuggestion: ChartType | null;
 
-  addDataset: (dataset: Dataset) => void;
+  addDataset: (dataset: Dataset, options?: { setActive?: boolean }) => void;
   removeDataset: (id: string) => void;
   updateDataset: (id: string, data: Partial<Dataset>) => void;
   setActiveDataset: (id: string) => void;
@@ -71,7 +71,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   activeDatasetId: defaultDataset.id,
   pendingChartTypeSuggestion: null,
 
-  addDataset: (dataset) =>
+  addDataset: (dataset, options) =>
     set((s) => {
       const hasZ = dataset.columns.some((c) => c.type === 'Z');
       const xCol = dataset.columns.find((c) => c.type === 'X') ?? dataset.columns[0];
@@ -122,7 +122,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       return {
         datasets: [...s.datasets, dataset],
-        activeDatasetId: dataset.id,
+        activeDatasetId: options?.setActive === false ? s.activeDatasetId : dataset.id,
         pendingChartTypeSuggestion: suggestion,
       };
     }),

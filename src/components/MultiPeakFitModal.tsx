@@ -102,7 +102,7 @@ export function MultiPeakFitModal({ onClose }: MultiPeakFitModalProps) {
         { id: uid(), name: 'y_fit', type: 'Y' as const, values: result.fittedY.map((v) => String(v)) },
       ],
     };
-    addDataset(fitDataset);
+    addDataset(fitDataset, { setActive: false });
 
     const autoLayer = useChartStore.getState().chartConfig.layers.find((l) => l.datasetId === fitDatasetId);
     if (autoLayer) {
