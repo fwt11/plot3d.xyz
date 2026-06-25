@@ -148,7 +148,7 @@ export default function ChartView() {
   }, [updateAnnotation]);
 
   const handleChartContextMenu = useCallback((e: React.MouseEvent) => {
-    const { resolutionMultiplier, background } = chartConfig.exportConfig;
+    const { resolutionMultiplier, background, figureMultiplier } = chartConfig.exportConfig;
     const exportBg = background === 'white'
       ? '#ffffff'
       : background === 'theme'
@@ -168,6 +168,7 @@ export default function ChartView() {
               const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
                 scale: resolutionMultiplier,
                 backgroundColor: exportBg,
+                figureMultiplier,
               });
               const link = document.createElement('a');
               link.download = (chartConfig.title || 'chart') + '.png';
@@ -179,7 +180,7 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
               await Plotly.downloadImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
@@ -207,7 +208,7 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
             await Plotly.downloadImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,
@@ -234,6 +235,7 @@ export default function ChartView() {
               const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
                 scale: resolutionMultiplier,
                 backgroundColor: exportBg,
+                figureMultiplier,
               });
               const response = await fetch(dataUrl);
               const blob = await response.blob();
@@ -243,7 +245,7 @@ export default function ChartView() {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
+              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
               const dataUrl = await Plotly.toImage({ data, layout }, {
                 format: 'png',
                 scale: resolutionMultiplier,
@@ -273,7 +275,7 @@ export default function ChartView() {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
             const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2);
+            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
             const dataUrl = await Plotly.toImage({ data, layout }, {
               format: 'svg',
               scale: resolutionMultiplier,

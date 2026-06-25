@@ -139,7 +139,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     : {};
 
   const exportConfig = typeof c.exportConfig === 'object' && c.exportConfig !== null
-    ? c.exportConfig as { resolutionMultiplier?: number; background?: string }
+    ? c.exportConfig as { resolutionMultiplier?: number; background?: string; figureMultiplier?: number }
     : {};
 
   return {
@@ -168,6 +168,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     exportConfig: {
       resolutionMultiplier: [1, 2, 4].includes(exportConfig.resolutionMultiplier as number) ? (exportConfig.resolutionMultiplier as 1 | 2 | 4) : 2,
       background: ['transparent', 'white', 'theme'].includes(exportConfig.background as string) ? (exportConfig.background as 'transparent' | 'white' | 'theme') : 'transparent',
+      figureMultiplier: [1, 2, 3].includes(exportConfig.figureMultiplier as number) ? (exportConfig.figureMultiplier as 1 | 2 | 3) : 1,
     },
     fontSize: typeof c.fontSize === 'number' ? c.fontSize : 16,
   };

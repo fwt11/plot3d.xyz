@@ -195,6 +195,7 @@ export function buildExportPayload(
   plotlyDiv: HTMLElement,
   chartConfig: ChartConfig,
   exportScale = 2,
+  figureMultiplier = 1,
 ): {
   data: Record<string, unknown>[];
   layout: Record<string, unknown>;
@@ -205,10 +206,11 @@ export function buildExportPayload(
   const data = deepClone(div.data);
   const layout = deepClone(div.layout);
   applyExportColors(data, layout, chartConfig.exportConfig.background);
-  scaleTraceLineWidths(data, exportScale);
-  const scaledLayout = scaleLayoutForExport(layout, exportScale);
-  const width = div._fullLayout?.width ?? div.clientWidth;
-  const height = div._fullLayout?.height ?? div.clientHeight;
+  const totalScale = exportScale * figureMultiplier;
+  scaleTraceLineWidths(data, totalScale);
+  const scaledLayout = scaleLayoutForExport(layout, totalScale);
+  const width = (div._fullLayout?.width ?? div.clientWidth) * figureMultiplier;
+  const height = (div._fullLayout?.height ?? div.clientHeight) * figureMultiplier;
   return { data, layout: scaledLayout, width, height };
 }
 
@@ -224,9 +226,11 @@ export async function export3DToPng(
     backgroundColor?: string;
     width?: number;
     height?: number;
+    figureMultiplier?: number;
   } = {},
 ): Promise<string> {
-  const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 1);
+  const figureMultiplier = options.figureMultiplier ?? 1;
+  const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 1, figureMultiplier);
   const targetWidth = options.width ?? width;
   const targetHeight = options.height ?? height;
 

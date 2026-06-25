@@ -279,6 +279,20 @@ export default function ConfigPanel() {
           </select>
         </label>
         <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          {t('config.figureSize')}
+          <select
+            value={chartConfig.exportConfig.figureMultiplier}
+            onChange={(e) => setExportConfig({ figureMultiplier: Number(e.target.value) as 1 | 2 | 3 })}
+            className="border rounded px-2 py-0.5 outline-none"
+            style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            aria-label={t('config.figureSize')}
+          >
+            <option value={1}>1x ({t('config.figureSizeActual', 'Actual')})</option>
+            <option value={2}>2x ({t('config.figureSizeDouble', 'Double')})</option>
+            <option value={3}>3x ({t('config.figureSizeTriple', 'Triple')})</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
           {t('config.background')}
           <select
             value={chartConfig.exportConfig.background}

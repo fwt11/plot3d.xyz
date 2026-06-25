@@ -31,7 +31,7 @@ const defaultChartConfig: ChartConfig = {
   marginRight: 48,
   marginBottom: 70,
   marginLeft: 72,
-  exportConfig: { resolutionMultiplier: 2, background: 'white' },
+  exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
   fontSize: 16,
   layers: [
     {

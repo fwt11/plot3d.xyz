@@ -216,6 +216,10 @@
     "bgTransparent": "Transparent",
     "bgWhite": "White",
     "bgTheme": "Current Theme",
+    "figureSize": "Figure Size",
+    "figureSizeActual": "Actual",
+    "figureSizeDouble": "Double",
+    "figureSizeTriple": "Triple",
     "tickAngle": "Tick Angle",
     "fontSize": "Font Size"
   },

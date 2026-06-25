@@ -250,6 +250,7 @@ export function applyTemplate(
     exportConfig: {
       resolutionMultiplier: resolutionMultiplier as 1 | 2 | 4,
       background: template.background,
+      figureMultiplier: 1,
     },
     layers: config.layers.map((layer, i) => ({
       ...layer,

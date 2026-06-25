@@ -159,7 +159,7 @@ export function FileTab() {
       // Use Plotly's native PNG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2, exportConfig.figureMultiplier);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale: exportConfig.resolutionMultiplier,
@@ -183,6 +183,7 @@ export function FileTab() {
         const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
           scale: exportConfig.resolutionMultiplier,
           backgroundColor: bgColor ?? undefined,
+          figureMultiplier: exportConfig.figureMultiplier,
         });
         const link = document.createElement('a');
         link.download = 'chart.png';
@@ -230,7 +231,7 @@ export function FileTab() {
       // Use Plotly's native SVG export for 2D charts
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2, exportConfig.figureMultiplier);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
@@ -254,7 +255,7 @@ export function FileTab() {
       // 2D: export vector SVG from Plotly, embed into a vector PDF
       const div = getPlotlyDiv();
       if (div) {
-        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2, exportConfig.figureMultiplier);
         const svgDataUrl = await Plotly.toImage({ data, layout }, {
           format: 'svg',
           scale: exportConfig.resolutionMultiplier,
@@ -295,6 +296,7 @@ export function FileTab() {
         imgData = await export3DToPng(plotlyDiv3D, chartConfig, {
           scale: exportConfig.resolutionMultiplier,
           backgroundColor: bgColor ?? undefined,
+          figureMultiplier: exportConfig.figureMultiplier,
         });
         imgWidth = plotlyDiv3D.clientWidth * exportConfig.resolutionMultiplier;
         imgHeight = plotlyDiv3D.clientHeight * exportConfig.resolutionMultiplier;
@@ -383,7 +385,7 @@ export function FileTab() {
       const div = getPlotlyDiv();
       if (div) {
         const scale = dpi / 96; // 96 DPI is screen default
-        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2);
+        const { data, layout, width, height } = buildExportPayload(div, chartConfig, 2, exportConfig.figureMultiplier);
         const dataUrl = await Plotly.toImage({ data, layout }, {
           format: 'png',
           scale,
@@ -422,6 +424,7 @@ export function FileTab() {
         const dataUrl = await export3DToPng(plotlyDiv3D, chartConfig, {
           scale: dpi / 96,
           backgroundColor: bgColor ?? undefined,
+          figureMultiplier: exportConfig.figureMultiplier,
         });
         const img = new Image();
         await new Promise<void>((resolve, reject) => {

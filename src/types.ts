@@ -118,6 +118,7 @@ export type ExportBackground = 'transparent' | 'white' | 'theme';
 export interface ExportConfig {
   resolutionMultiplier: 1 | 2 | 4;
   background: ExportBackground;
+  figureMultiplier: 1 | 2 | 3;
 }
 
 export interface ChartConfig {

@@ -216,6 +216,10 @@
     "bgTransparent": "透明",
     "bgWhite": "白色",
     "bgTheme": "当前主题",
+    "figureSize": "图幅大小",
+    "figureSizeActual": "实际",
+    "figureSizeDouble": "两倍",
+    "figureSizeTriple": "三倍",
     "tickAngle": "刻度角度",
     "fontSize": "字体大小"
   },
