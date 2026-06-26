@@ -1,11 +1,15 @@
-import type { Dataset, ChartConfig, DataColumn, LayerConfig } from '@/types';
+import type { Dataset, ChartConfig, DataColumn, LayerConfig, Annotation, AnnotationType } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 4;
+const PROJECT_VERSION = 5;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
 const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
 const VALID_COLORMAPS: ChartConfig['colorMap'][] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma', 'cividis', 'inferno', 'magma', 'turbo', 'batlow'];
+const VALID_ANNOTATION_TYPES: AnnotationType[] = [
+  'text', 'latex', 'callout', 'arrow', 'line', 'bracket', 'rect', 'ellipse', 'polygon',
+  'hline', 'vline', 'hband', 'vband', 'dataLabel', 'image',
+];
 
 export interface ProjectFile {
   version: number;
@@ -126,6 +130,92 @@ function sanitizeErrorBarConfig(cfg: unknown): LayerConfig['errorBarConfig'] | u
   };
 }
 
+function sanitizeAnnotation(ann: unknown): Annotation | null {
+  if (typeof ann !== 'object' || ann === null) return null;
+  const a = ann as Record<string, unknown>;
+  if (typeof a.id !== 'string' || typeof a.x !== 'number' || typeof a.y !== 'number') return null;
+  const type = VALID_ANNOTATION_TYPES.includes(a.type as AnnotationType) ? (a.type as AnnotationType) : 'text';
+
+  const coordMode = a.coordMode === 'data' ? 'data' : 'percent';
+  const parsePoint = (p: unknown): { x: number; y: number } | undefined => {
+    if (typeof p !== 'object' || p === null) return undefined;
+    const pt = p as Record<string, unknown>;
+    if (typeof pt.x !== 'number' || typeof pt.y !== 'number') return undefined;
+    return { x: pt.x, y: pt.y };
+  };
+  const parseNumberPair = (v: unknown): [number, number] | undefined => {
+    if (Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number') {
+      return [v[0], v[1]];
+    }
+    return undefined;
+  };
+
+  const annotation: Annotation = {
+    id: a.id,
+    type,
+    x: a.x,
+    y: a.y,
+    content: typeof a.content === 'string' ? a.content : '',
+    fontSize: typeof a.fontSize === 'number' ? a.fontSize : 14,
+    color: typeof a.color === 'string' ? a.color : '#e4e4e7',
+    visible: typeof a.visible === 'boolean' ? a.visible : true,
+    coordMode,
+    locked: typeof a.locked === 'boolean' ? a.locked : undefined,
+    zIndex: typeof a.zIndex === 'number' ? a.zIndex : undefined,
+    fillColor: typeof a.fillColor === 'string' ? a.fillColor : undefined,
+    fillOpacity: typeof a.fillOpacity === 'number' ? a.fillOpacity : undefined,
+    strokeWidth: typeof a.strokeWidth === 'number' ? a.strokeWidth : undefined,
+    strokeDash: ['solid', 'dashed', 'dotted'].includes(a.strokeDash as string) ? (a.strokeDash as 'solid' | 'dashed' | 'dotted') : undefined,
+    opacity: typeof a.opacity === 'number' ? a.opacity : undefined,
+    rotation: typeof a.rotation === 'number' ? a.rotation : undefined,
+    fontFamily: typeof a.fontFamily === 'string' ? a.fontFamily : undefined,
+    fontWeight: a.fontWeight === 'bold' ? 'bold' : undefined,
+    textAlign: ['left', 'center', 'right'].includes(a.textAlign as string) ? (a.textAlign as 'left' | 'center' | 'right') : undefined,
+    textValign: ['top', 'middle', 'bottom'].includes(a.textValign as string) ? (a.textValign as 'top' | 'middle' | 'bottom') : undefined,
+    backgroundColor: typeof a.backgroundColor === 'string' ? a.backgroundColor : undefined,
+    padding: typeof a.padding === 'number' ? a.padding : undefined,
+    borderRadius: typeof a.borderRadius === 'number' ? a.borderRadius : undefined,
+    arrowTo: parsePoint(a.arrowTo),
+    endPoint: parsePoint(a.endPoint),
+    rectSize: typeof a.rectSize === 'object' && a.rectSize !== null
+      ? { w: Number((a.rectSize as Record<string, unknown>).w), h: Number((a.rectSize as Record<string, unknown>).h) }
+      : undefined,
+    ellipseRadii: typeof a.ellipseRadii === 'object' && a.ellipseRadii !== null
+      ? { rx: Number((a.ellipseRadii as Record<string, unknown>).rx), ry: Number((a.ellipseRadii as Record<string, unknown>).ry) }
+      : undefined,
+    polygonPoints: Array.isArray(a.polygonPoints)
+      ? a.polygonPoints.map(parsePoint).filter((p): p is { x: number; y: number } => p !== undefined)
+      : undefined,
+    bracketHeight: typeof a.bracketHeight === 'number' ? a.bracketHeight : undefined,
+    referenceValue: typeof a.referenceValue === 'number' ? a.referenceValue : parseNumberPair(a.referenceValue),
+    dataAttachment: typeof a.dataAttachment === 'object' && a.dataAttachment !== null
+      ? {
+          layerId: typeof (a.dataAttachment as Record<string, unknown>).layerId === 'string' ? (a.dataAttachment as Record<string, unknown>).layerId as string : undefined,
+          pointIndex: typeof (a.dataAttachment as Record<string, unknown>).pointIndex === 'number' ? (a.dataAttachment as Record<string, unknown>).pointIndex as number : undefined,
+          xValue: typeof (a.dataAttachment as Record<string, unknown>).xValue === 'number' ? (a.dataAttachment as Record<string, unknown>).xValue as number : undefined,
+          yValue: typeof (a.dataAttachment as Record<string, unknown>).yValue === 'number' ? (a.dataAttachment as Record<string, unknown>).yValue as number : undefined,
+        }
+      : undefined,
+    imageSrc: typeof a.imageSrc === 'string' ? a.imageSrc : undefined,
+    imageSize: typeof a.imageSize === 'object' && a.imageSize !== null
+      ? { w: Number((a.imageSize as Record<string, unknown>).w), h: Number((a.imageSize as Record<string, unknown>).h) }
+      : undefined,
+  };
+
+  // Ensure old arrow/rect annotations still have required shape fields
+  if ((type === 'arrow' || type === 'callout') && !annotation.arrowTo) {
+    annotation.arrowTo = { x: annotation.x + 20, y: annotation.y - 20 };
+  }
+  if (type === 'rect' && !annotation.rectSize) {
+    annotation.rectSize = { w: 20, h: 15 };
+  }
+  if (type === 'line' && !annotation.endPoint) {
+    annotation.endPoint = { x: annotation.x + 20, y: annotation.y - 20 };
+  }
+
+  return annotation;
+}
+
 function sanitizeChartConfig(config: unknown): ChartConfig | null {
   if (typeof config !== 'object' || config === null) return null;
   const c = config as Record<string, unknown>;
@@ -173,7 +263,9 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     layers: Array.isArray(c.layers)
       ? c.layers.map((l) => sanitizeLayer(l)).filter((l): l is LayerConfig => l !== null)
       : [],
-    annotations: Array.isArray(c.annotations) ? c.annotations : [],
+    annotations: Array.isArray(c.annotations)
+      ? c.annotations.map((a) => sanitizeAnnotation(a)).filter((a): a is Annotation => a !== null)
+      : [],
     marginTop: typeof c.marginTop === 'number' ? c.marginTop : 40,
     marginRight: typeof c.marginRight === 'number' ? c.marginRight : 40,
     marginBottom: typeof c.marginBottom === 'number' ? c.marginBottom : 40,
@@ -286,6 +378,10 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     }
     // v3 -> v4: scene3D is optional and will be defaulted during sanitization.
     if (typeof data === 'object' && data !== null && data.version === 3) {
+      data.version = PROJECT_VERSION;
+    }
+    // v4 -> v5: annotation model expanded with more types and style fields.
+    if (typeof data === 'object' && data !== null && data.version === 4) {
       data.version = PROJECT_VERSION;
     }
     return sanitizeProjectFile(data);

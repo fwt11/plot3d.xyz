@@ -3,6 +3,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
 import { useChartStore } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
+import { useAnnotationToolStore } from '@/store/plotStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
 import { useTranslation } from 'react-i18next';
 import type { ChartType } from '@/types';
@@ -18,6 +19,10 @@ import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
+import type { Annotation } from '@/types';
+import { uid } from '@/utils/sampleData';
+
+let annotationClipboard: Annotation | null = null;
 
 function ChartTypeSuggestionBar() {
   const { t } = useTranslation();
@@ -145,6 +150,13 @@ export default function Workspace() {
   const redo = useHistoryStore((s) => s.redo);
   const pastLength = useHistoryStore((s) => s._past.length);
   const futureLength = useHistoryStore((s) => s._future.length);
+
+  const annotations = useChartStore((s) => s.chartConfig.annotations);
+  const addAnnotation = useChartStore((s) => s.addAnnotation);
+  const duplicateAnnotation = useChartStore((s) => s.duplicateAnnotation);
+  const selectedAnnotationId = useAnnotationToolStore((s) => s.selectedId);
+  const setSelectedAnnotationId = useAnnotationToolStore((s) => s.setSelectedId);
+  const setActiveAnnotationTool = useAnnotationToolStore((s) => s.setActiveTool);
 
   // Sync theme to document root so CSS variables are available globally
   useEffect(() => {
@@ -340,10 +352,63 @@ export default function Workspace() {
         document.dispatchEvent(new CustomEvent('datatable-select-all'));
         return;
       }
+
+      // Annotation shortcuts (only when chart tab is active and not in an input)
+      if (mainTab === 'chart' && !isInputFocused) {
+        // Tool selection single-letter shortcuts
+        if (!isCtrl && e.key === 'v') {
+          e.preventDefault();
+          setActiveAnnotationTool('select');
+          return;
+        }
+        if (!isCtrl && e.key === 't') {
+          e.preventDefault();
+          setActiveAnnotationTool('text');
+          return;
+        }
+        if (!isCtrl && e.key === 'a') {
+          e.preventDefault();
+          setActiveAnnotationTool('arrow');
+          return;
+        }
+        if (!isCtrl && e.key === 'r') {
+          e.preventDefault();
+          setActiveAnnotationTool('rect');
+          return;
+        }
+        if (!isCtrl && e.key === 'l') {
+          e.preventDefault();
+          setActiveAnnotationTool('line');
+          return;
+        }
+
+        // Copy / duplicate selected annotation
+        if (isCtrl && e.key === 'c' && selectedAnnotationId) {
+          e.preventDefault();
+          const ann = annotations.find((a) => a.id === selectedAnnotationId);
+          if (ann) annotationClipboard = JSON.parse(JSON.stringify(ann));
+          return;
+        }
+        if (isCtrl && e.key === 'v' && annotationClipboard) {
+          e.preventDefault();
+          const copy: Annotation = JSON.parse(JSON.stringify(annotationClipboard));
+          copy.id = uid();
+          copy.x += 2;
+          copy.y += 2;
+          addAnnotation(copy);
+          setSelectedAnnotationId(copy.id);
+          return;
+        }
+        if (isCtrl && e.key === 'd' && selectedAnnotationId) {
+          e.preventDefault();
+          duplicateAnnotation(selectedAnnotationId);
+          return;
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, pastLength, futureLength]);
+  }, [undo, redo, pastLength, futureLength, mainTab, annotations, selectedAnnotationId, addAnnotation, duplicateAnnotation, setActiveAnnotationTool, setSelectedAnnotationId]);
 
   return (
     <div data-theme={theme} className="flex flex-col h-screen overflow-hidden relative" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }} onContextMenu={(e) => e.preventDefault()}>

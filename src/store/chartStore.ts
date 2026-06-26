@@ -83,6 +83,10 @@ interface ChartStore {
   updateAnnotation: (annotationId: string, data: Partial<Annotation>) => void;
   /** Update annotation without pushing to history (used during drag) */
   updateAnnotationSilent: (annotationId: string, data: Partial<Annotation>) => void;
+  duplicateAnnotation: (annotationId: string) => void;
+  bringAnnotationToFront: (annotationId: string) => void;
+  sendAnnotationToBack: (annotationId: string) => void;
+  reorderAnnotations: (annotationIds: string[]) => void;
 }
 
 export const useChartStore = create<ChartStore>()((set) => {
@@ -238,5 +242,57 @@ export const useChartStore = create<ChartStore>()((set) => {
           ),
         },
       })),
+
+    duplicateAnnotation: (annotationId) =>
+      setWithHistory((s) => {
+        const ann = s.chartConfig.annotations.find((a) => a.id === annotationId);
+        if (!ann) return {};
+        const copy: Annotation = { ...ann, id: uid(), x: ann.x + 2, y: ann.y + 2 };
+        return {
+          chartConfig: {
+            ...s.chartConfig,
+            annotations: [...s.chartConfig.annotations, copy],
+          },
+        };
+      }, i18n.t('history.duplicateAnnotation', { defaultValue: 'Duplicate annotation' })),
+
+    bringAnnotationToFront: (annotationId) =>
+      setWithHistory((s) => {
+        const list = s.chartConfig.annotations.filter((a) => a.id !== annotationId);
+        const target = s.chartConfig.annotations.find((a) => a.id === annotationId);
+        if (!target) return {};
+        return {
+          chartConfig: {
+            ...s.chartConfig,
+            annotations: [...list, target],
+          },
+        };
+      }, i18n.t('history.bringAnnotationToFront', { defaultValue: 'Bring annotation to front' })),
+
+    sendAnnotationToBack: (annotationId) =>
+      setWithHistory((s) => {
+        const list = s.chartConfig.annotations.filter((a) => a.id !== annotationId);
+        const target = s.chartConfig.annotations.find((a) => a.id === annotationId);
+        if (!target) return {};
+        return {
+          chartConfig: {
+            ...s.chartConfig,
+            annotations: [target, ...list],
+          },
+        };
+      }, i18n.t('history.sendAnnotationToBack', { defaultValue: 'Send annotation to back' })),
+
+    reorderAnnotations: (annotationIds) =>
+      setWithHistory((s) => {
+        const map = new Map(s.chartConfig.annotations.map((a) => [a.id, a]));
+        const reordered = annotationIds.map((id) => map.get(id)).filter((a): a is Annotation => Boolean(a));
+        const extras = s.chartConfig.annotations.filter((a) => !annotationIds.includes(a.id));
+        return {
+          chartConfig: {
+            ...s.chartConfig,
+            annotations: [...reordered, ...extras],
+          },
+        };
+      }, i18n.t('history.reorderAnnotations', { defaultValue: 'Reorder annotations' })),
   };
 });

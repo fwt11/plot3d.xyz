@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
-import { useChartStore, useDatasetStore } from '@/store/plotStore';
+import { useChartStore, useDatasetStore, useAnnotationToolStore } from '@/store/plotStore';
 import { useUiStore } from '@/store/uiStore';
 import { useToastStore } from '@/store/toastStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
@@ -8,8 +8,8 @@ import type { ChartType, Annotation } from '@/types';
 import { isValidNumber } from '@/types';
 import { is3DChart } from '@/utils/chart';
 import { showContextMenu, type MenuItemOrSeparator } from '@/utils/contextMenu';
-import { Image, FileCode, RotateCcw, Camera } from 'lucide-react';
-import { AnnotationOverlay } from '@/components/AnnotationOverlay';
+import { Image, FileCode, RotateCcw, Camera, Copy, Trash2, Lock, Unlock, ArrowUpToLine, ArrowDownToLine, Pencil } from 'lucide-react';
+import { AnnotationCanvas } from '@/components/AnnotationCanvas';
 import {
   colToNumbers,
   buildErrorBar,
@@ -73,14 +73,21 @@ export default function ChartView() {
   const { t } = useTranslation();
   const chartConfig = useChartStore((s) => s.chartConfig);
   const datasets = useDatasetStore((s) => s.datasets);
+  const addAnnotation = useChartStore((s) => s.addAnnotation);
   const updateAnnotation = useChartStore((s) => s.updateAnnotation);
   const updateAnnotationSilent = useChartStore((s) => s.updateAnnotationSilent);
+  const removeAnnotation = useChartStore((s) => s.removeAnnotation);
+  const duplicateAnnotation = useChartStore((s) => s.duplicateAnnotation);
+  const bringAnnotationToFront = useChartStore((s) => s.bringAnnotationToFront);
+  const sendAnnotationToBack = useChartStore((s) => s.sendAnnotationToBack);
+  const setSelectedAnnotationId = useAnnotationToolStore((s) => s.setSelectedId);
+  const setEditingAnnotationId = useAnnotationToolStore((s) => s.setEditingId);
   const theme = useUiStore((s) => s.theme); // re-render on theme change
   const addToast = useToastStore((s) => s.addToast);
   const setHover = useChartInteractionStore((s) => s.setHover);
   const setZoom = useChartInteractionStore((s) => s.setZoom);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [chartArea, setChartArea] = useState<DOMRect | null>(null);
+
   const [PlotlyComponent, setPlotlyComponent] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
 
   const is3DType = is3DChart(chartConfig.type);
@@ -113,38 +120,18 @@ export default function ChartView() {
     }
   }, [setZoom]);
 
-  // Update chartArea on resize and container size changes
-  useEffect(() => {
-    const el = containerRef.current;
-    const update = () => {
-      if (el) {
-        setChartArea(el.getBoundingClientRect());
-      }
-    };
-    update();
-    window.addEventListener('resize', update);
-    const observer = typeof ResizeObserver !== 'undefined' && el
-      ? new ResizeObserver(update)
-      : null;
-    if (observer && el) observer.observe(el);
-    return () => {
-      window.removeEventListener('resize', update);
-      if (observer && el) observer.unobserve(el);
-    };
-  }, []);
 
-  const handleMoveAnnotation = useCallback((id: string, x: number, y: number, extra?: Partial<Annotation>) => {
-    if (extra) {
-      updateAnnotationSilent(id, { ...extra, ...(x >= 0 ? { x } : {}), ...(y >= 0 ? { y } : {}) });
-    } else {
-      updateAnnotationSilent(id, { x, y });
-    }
+
+  const handleAddAnnotation = useCallback((ann: Annotation) => {
+    addAnnotation(ann);
+  }, [addAnnotation]);
+
+  const handleUpdateAnnotationSilent = useCallback((id: string, data: Partial<Annotation>) => {
+    updateAnnotationSilent(id, data);
   }, [updateAnnotationSilent]);
 
-  const handleDragEnd = useCallback((id: string, x: number, y: number, extra?: Partial<Annotation>) => {
-    // Push a single history snapshot for the completed drag
-    // x/y == -1 means the position was already set via silent updates
-    updateAnnotation(id, extra ? { ...extra, ...(x >= 0 ? { x } : {}), ...(y >= 0 ? { y } : {}) } : { x, y });
+  const handleFinishAnnotation = useCallback((id: string, data?: Partial<Annotation>) => {
+    updateAnnotation(id, data ?? {});
   }, [updateAnnotation]);
 
   const handleChartContextMenu = useCallback((e: React.MouseEvent) => {
@@ -155,14 +142,17 @@ export default function ChartView() {
         ? (theme === 'dark' ? '#18181b' : '#ffffff')
         : undefined;
 
-    const items: MenuItemOrSeparator[] = [
+    const target = e.target as HTMLElement;
+    const annotationId = target.closest<HTMLElement>('[data-annotation-id]')?.dataset.annotationId;
+    const selectedAnn = annotationId ? chartConfig.annotations.find((a) => a.id === annotationId) : undefined;
+
+    const baseExportItems: MenuItemOrSeparator[] = [
       {
         label: t('context.exportPng'),
         icon: <Image size={14} />,
         onClick: async () => {
           try {
             if (is3DType) {
-              // 3D: render off-screen with export colors and capture
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
@@ -176,7 +166,6 @@ export default function ChartView() {
               link.click();
               addToast(t('toast.exportSuccess'), 'success');
             } else {
-              // 2D: use Plotly's native export with scale for high-res
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
@@ -229,7 +218,6 @@ export default function ChartView() {
         onClick: async () => {
           try {
             if (is3DType) {
-              // 3D: render off-screen with export colors and capture
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const dataUrl = await export3DToPng(plotlyDiv, chartConfig, {
@@ -241,7 +229,6 @@ export default function ChartView() {
               const blob = await response.blob();
               await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             } else {
-              // 2D: use Plotly's toImage
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
               const Plotly = (await import('plotly.js-dist-min')).default;
@@ -291,33 +278,84 @@ export default function ChartView() {
           }
         },
       },
-      { separator: true },
-      {
-        label: t('context.resetZoom'),
-        icon: <RotateCcw size={14} />,
-        onClick: () => {
-          const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
-          if (div) {
-            import('plotly.js-dist-min').then((Plotly) => {
-              if (is3DType) {
-                Plotly.default.relayout(div, {
-                  'scene.xaxis.autorange': true,
-                  'scene.yaxis.autorange': true,
-                  'scene.zaxis.autorange': true,
-                });
-              } else {
-                Plotly.default.relayout(div, {
-                  'xaxis.autorange': true,
-                  'yaxis.autorange': true,
-                });
-              }
-            });
-          }
-        },
-      },
     ];
+
+    let items: MenuItemOrSeparator[];
+    if (selectedAnn) {
+      items = [
+        {
+          label: t('annotation.editContent'),
+          icon: <Pencil size={14} />,
+          onClick: () => {
+            setSelectedAnnotationId(selectedAnn.id);
+            setEditingAnnotationId(selectedAnn.id);
+          },
+        },
+        {
+          label: t('annotation.duplicate'),
+          icon: <Copy size={14} />,
+          onClick: () => duplicateAnnotation(selectedAnn.id),
+        },
+        {
+          label: selectedAnn.locked ? t('annotation.locked') : t('annotation.locked'),
+          icon: selectedAnn.locked ? <Lock size={14} /> : <Unlock size={14} />,
+          onClick: () => updateAnnotation(selectedAnn.id, { locked: !selectedAnn.locked }),
+        },
+        {
+          label: t('annotation.bringToFront'),
+          icon: <ArrowUpToLine size={14} />,
+          onClick: () => bringAnnotationToFront(selectedAnn.id),
+        },
+        {
+          label: t('annotation.sendToBack'),
+          icon: <ArrowDownToLine size={14} />,
+          onClick: () => sendAnnotationToBack(selectedAnn.id),
+        },
+        { separator: true },
+        {
+          label: t('annotation.delete'),
+          icon: <Trash2 size={14} />,
+          danger: true,
+          onClick: () => {
+            removeAnnotation(selectedAnn.id);
+            setSelectedAnnotationId(null);
+          },
+        },
+        { separator: true },
+        ...baseExportItems,
+      ];
+    } else {
+      items = [
+        ...baseExportItems,
+        { separator: true },
+        {
+          label: t('context.resetZoom'),
+          icon: <RotateCcw size={14} />,
+          onClick: () => {
+            const div = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
+            if (div) {
+              import('plotly.js-dist-min').then((Plotly) => {
+                if (is3DType) {
+                  Plotly.default.relayout(div, {
+                    'scene.xaxis.autorange': true,
+                    'scene.yaxis.autorange': true,
+                    'scene.zaxis.autorange': true,
+                  });
+                } else {
+                  Plotly.default.relayout(div, {
+                    'xaxis.autorange': true,
+                    'yaxis.autorange': true,
+                  });
+                }
+              });
+            }
+          },
+        },
+      ];
+    }
+
     showContextMenu(e, items);
-  }, [chartConfig, is3DType, theme, t, addToast]);
+  }, [chartConfig, is3DType, theme, t, addToast, duplicateAnnotation, bringAnnotationToFront, sendAnnotationToBack, updateAnnotation, removeAnnotation, setSelectedAnnotationId, setEditingAnnotationId]);
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
@@ -810,12 +848,14 @@ export default function ChartView() {
         onRelayout={handleRelayout}
       />
       {!is3DType && (
-        <AnnotationOverlay
+        <AnnotationCanvas
           annotations={chartConfig.annotations}
-          chartArea={chartArea}
           plotDivRef={containerRef}
-          onMoveAnnotation={handleMoveAnnotation}
-          onDragEnd={handleDragEnd}
+          onAdd={handleAddAnnotation}
+          onUpdateSilent={handleUpdateAnnotationSilent}
+          onFinish={handleFinishAnnotation}
+          onRemove={removeAnnotation}
+          t={t}
         />
       )}
     </div>

@@ -95,7 +95,22 @@ export interface ErrorBarConfig {
   thickness: number;
 }
 
-export type AnnotationType = 'text' | 'arrow' | 'rect' | 'latex';
+export type AnnotationType =
+  | 'text'
+  | 'latex'
+  | 'callout'
+  | 'arrow'
+  | 'line'
+  | 'bracket'
+  | 'rect'
+  | 'ellipse'
+  | 'polygon'
+  | 'hline'
+  | 'vline'
+  | 'hband'
+  | 'vband'
+  | 'dataLabel'
+  | 'image';
 
 export interface Annotation {
   id: string;
@@ -107,8 +122,48 @@ export interface Annotation {
   color: string;
   visible: boolean;
   coordMode: 'percent' | 'data';
+  locked?: boolean;
+  zIndex?: number;
+
+  // Generic shape styling
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeWidth?: number;
+  strokeDash?: 'solid' | 'dashed' | 'dotted';
+  opacity?: number;
+  rotation?: number;
+
+  // Text styling
+  fontFamily?: string;
+  fontWeight?: 'normal' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  textValign?: 'top' | 'middle' | 'bottom';
+  backgroundColor?: string;
+  padding?: number;
+  borderRadius?: number;
+
+  // Connectors and shapes
   arrowTo?: { x: number; y: number };
+  endPoint?: { x: number; y: number };
   rectSize?: { w: number; h: number };
+  ellipseRadii?: { rx: number; ry: number };
+  polygonPoints?: { x: number; y: number }[];
+  bracketHeight?: number;
+
+  // Reference lines / bands
+  referenceValue?: number | [number, number];
+
+  // Data attachment
+  dataAttachment?: {
+    layerId?: string;
+    pointIndex?: number;
+    xValue?: number;
+    yValue?: number;
+  };
+
+  // Image
+  imageSrc?: string;
+  imageSize?: { w: number; h: number };
 }
 
 export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap' | 'violin' | 'isosurface3d' | 'volume3d';
