@@ -15,7 +15,7 @@ import {
 interface Point { x: number; y: number }
 
 type DrawingState =
-  | { tool: 'rect' | 'ellipse' | 'arrow' | 'line' | 'bracket' | 'hband' | 'vband'; start: Point; current: Point }
+  | { tool: 'rect' | 'ellipse' | 'arrow' | 'callout' | 'line' | 'bracket' | 'hband' | 'vband'; start: Point; current: Point }
   | { tool: 'polygon'; points: Point[] }
   | null;
 
@@ -135,6 +135,12 @@ export function AnnotationCanvas({
         ann.x = storedStart.x;
         ann.y = storedStart.y;
         ann.arrowTo = toStored(current.x, current.y, ann.coordMode);
+      } else if (tool === 'callout') {
+        const storedStart = toStored(start.x, start.y, ann.coordMode);
+        const storedCurrent = toStored(current.x, current.y, ann.coordMode);
+        ann.x = storedCurrent.x;
+        ann.y = storedCurrent.y;
+        ann.arrowTo = storedStart;
       } else if (tool === 'line' || tool === 'bracket') {
         const storedStart = toStored(start.x, start.y, ann.coordMode);
         ann.x = storedStart.x;
@@ -166,14 +172,11 @@ export function AnnotationCanvas({
         return;
       }
 
-      if (activeTool === 'text' || activeTool === 'latex' || activeTool === 'callout') {
+      if (activeTool === 'text' || activeTool === 'latex') {
         const ann = createDefaultAnnotation(activeTool, t);
         const stored = toStored(x, y, ann.coordMode);
         ann.x = stored.x;
         ann.y = stored.y;
-        if (activeTool === 'callout') {
-          ann.arrowTo = { x: stored.x + 20, y: stored.y - 20 };
-        }
         onAdd(ann);
         setActiveTool('select');
         setSelectedId(ann.id);
@@ -241,6 +244,7 @@ export function AnnotationCanvas({
         activeTool === 'rect' ||
         activeTool === 'ellipse' ||
         activeTool === 'arrow' ||
+        activeTool === 'callout' ||
         activeTool === 'line' ||
         activeTool === 'bracket' ||
         activeTool === 'hband' ||
@@ -399,6 +403,10 @@ export function AnnotationCanvas({
       ann.x = start.x;
       ann.y = start.y;
       ann.arrowTo = current;
+    } else if (drawing.tool === 'callout') {
+      ann.x = current.x;
+      ann.y = current.y;
+      ann.arrowTo = start;
     } else if (drawing.tool === 'line' || drawing.tool === 'bracket') {
       ann.x = start.x;
       ann.y = start.y;
