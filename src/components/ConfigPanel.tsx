@@ -282,25 +282,37 @@ export default function ConfigPanel() {
           />
         </label>
         {chartConfig.legend.visible && (
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            {t('config.position')}
-            <select
-              value={chartConfig.legend.position}
-              onChange={(e) => setLegend({ position: e.target.value as 'top' | 'bottom' | 'left' | 'right' })}
-              className="border rounded px-2 py-0.5 outline-none"
-              style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              aria-label={t('config.position')}
-            >
-              <option value="inside-top-right">{t('config.legendInsideTopRight', { defaultValue: 'Inside Top Right' })}</option>
-              <option value="inside-top-left">{t('config.legendInsideTopLeft', { defaultValue: 'Inside Top Left' })}</option>
-              <option value="inside-bottom-right">{t('config.legendInsideBottomRight', { defaultValue: 'Inside Bottom Right' })}</option>
-              <option value="inside-bottom-left">{t('config.legendInsideBottomLeft', { defaultValue: 'Inside Bottom Left' })}</option>
-              <option value="top">{t('config.top')}</option>
-              <option value="bottom">{t('config.bottom')}</option>
-              <option value="left">{t('config.left')}</option>
-              <option value="right">{t('config.right')}</option>
-            </select>
-          </label>
+          <>
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('config.position')}
+              <select
+                value={chartConfig.legend.position}
+                onChange={(e) => setLegend({ position: e.target.value as 'top' | 'bottom' | 'left' | 'right' })}
+                className="border rounded px-2 py-0.5 outline-none"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                aria-label={t('config.position')}
+              >
+                <option value="inside-top-right">{t('config.legendInsideTopRight', { defaultValue: 'Inside Top Right' })}</option>
+                <option value="inside-top-left">{t('config.legendInsideTopLeft', { defaultValue: 'Inside Top Left' })}</option>
+                <option value="inside-bottom-right">{t('config.legendInsideBottomRight', { defaultValue: 'Inside Bottom Right' })}</option>
+                <option value="inside-bottom-left">{t('config.legendInsideBottomLeft', { defaultValue: 'Inside Bottom Left' })}</option>
+                <option value="top">{t('config.top')}</option>
+                <option value="bottom">{t('config.bottom')}</option>
+                <option value="left">{t('config.left')}</option>
+                <option value="right">{t('config.right')}</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('config.legendBorder', { defaultValue: 'Show border' })}
+              <input
+                type="checkbox"
+                checked={chartConfig.legend.bordered ?? false}
+                onChange={(e) => setLegend({ bordered: e.target.checked })}
+                className="accent-sky-500"
+                aria-label={t('config.legendBorder', { defaultValue: 'Show border' })}
+              />
+            </label>
+          </>
         )}
       </Section>
 

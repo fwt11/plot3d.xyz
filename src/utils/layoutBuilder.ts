@@ -83,7 +83,8 @@ export function buildLayout(
       ...legendPos,
       font: { size: chartConfig.fontSize, color: cssVars.textSecondary },
       bgcolor: 'transparent',
-      borderwidth: 0,
+      bordercolor: chartConfig.legend.bordered ? cssVars.textSecondary : 'transparent',
+      borderwidth: chartConfig.legend.bordered ? 1 : 0,
     },
     autosize: true,
   };

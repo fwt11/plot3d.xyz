@@ -225,7 +225,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
   const colorMap = VALID_COLORMAPS.includes(c.colorMap as ChartConfig['colorMap']) ? (c.colorMap as ChartConfig['colorMap']) : 'viridis';
 
   const legend = typeof c.legend === 'object' && c.legend !== null
-    ? c.legend as { visible?: boolean; position?: string }
+    ? c.legend as { visible?: boolean; position?: string; bordered?: boolean }
     : {};
 
   const exportConfig = typeof c.exportConfig === 'object' && c.exportConfig !== null
@@ -258,6 +258,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     legend: {
       visible: typeof legend.visible === 'boolean' ? legend.visible : true,
       position: ['top', 'bottom', 'left', 'right'].includes(legend.position as string) ? (legend.position as 'top' | 'bottom' | 'left' | 'right') : 'top',
+      bordered: typeof legend.bordered === 'boolean' ? legend.bordered : false,
     },
     colorMap,
     layers: Array.isArray(c.layers)

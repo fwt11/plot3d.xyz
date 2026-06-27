@@ -230,6 +230,7 @@
     "scientificNotation": "Scientific Notation",
     "categoryAxis": "Categorical Axis",
     "showLegend": "Show Legend",
+    "legendBorder": "Show Border",
     "position": "Position",
     "top": "Top",
     "bottom": "Bottom",

@@ -230,6 +230,7 @@
     "scientificNotation": "科学计数法",
     "categoryAxis": "分类轴",
     "showLegend": "显示图例",
+    "legendBorder": "显示边框",
     "position": "位置",
     "top": "上",
     "bottom": "下",
