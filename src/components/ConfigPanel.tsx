@@ -7,7 +7,7 @@ import type { AxisConfig, ExportBackground, Scene3DConfig } from '@/types';
 import AnnotationPanel from './AnnotationPanel';
 import TemplatePanel from './TemplatePanel';
 
-function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border-b" style={{ borderColor: 'var(--border)' }}>
