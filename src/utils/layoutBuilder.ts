@@ -239,8 +239,18 @@ export function buildLayout(
 
   if (isPolar) {
     result.polar = {
-      radialaxis: { gridcolor: chartConfig.yAxis.gridVisible ? cssVars.gridColor : 'transparent', tickfont: { color: cssVars.textMuted }, visible: true },
-      angularaxis: { gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent', tickfont: { color: cssVars.textMuted } },
+      bgcolor: transparentBackground ? 'rgba(0,0,0,0)' : cssVars.bgSurface,
+      radialaxis: {
+        gridcolor: chartConfig.yAxis.gridVisible ? cssVars.gridColor : 'transparent',
+        tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
+        color: cssVars.borderColor,
+        visible: true,
+      },
+      angularaxis: {
+        gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
+        tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
+        color: cssVars.borderColor,
+      },
     };
     delete result.xaxis;
     delete result.yaxis;
