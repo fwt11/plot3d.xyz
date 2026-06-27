@@ -855,6 +855,9 @@ export default function ChartView() {
           onUpdateSilent={handleUpdateAnnotationSilent}
           onFinish={handleFinishAnnotation}
           onRemove={removeAnnotation}
+          onDuplicate={duplicateAnnotation}
+          onBringToFront={bringAnnotationToFront}
+          onSendToBack={sendAnnotationToBack}
           t={t}
         />
       )}

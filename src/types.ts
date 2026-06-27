@@ -136,6 +136,8 @@ export interface Annotation {
   // Text styling
   fontFamily?: string;
   fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
   textAlign?: 'left' | 'center' | 'right';
   textValign?: 'top' | 'middle' | 'bottom';
   backgroundColor?: string;

@@ -3,6 +3,7 @@ import type { Annotation, AnnotationType } from '@/types';
 import { useAnnotationToolStore, useChartInteractionStore } from '@/store/plotStore';
 import { createDefaultAnnotation } from '@/utils/annotations';
 import { AnnotationRenderer } from './AnnotationRenderer';
+import { AnnotationToolbar } from './AnnotationToolbar';
 import {
   readAxisRanges,
   clientToPercent,
@@ -34,6 +35,9 @@ export function AnnotationCanvas({
   onUpdateSilent,
   onFinish,
   onRemove,
+  onDuplicate,
+  onBringToFront,
+  onSendToBack,
   t,
 }: {
   annotations: Annotation[];
@@ -42,6 +46,9 @@ export function AnnotationCanvas({
   onUpdateSilent: (id: string, data: Partial<Annotation>) => void;
   onFinish: (id: string, data?: Partial<Annotation>) => void;
   onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onBringToFront: (id: string) => void;
+  onSendToBack: (id: string) => void;
   t: (key: string) => string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -483,6 +490,21 @@ export function AnnotationCanvas({
           onAnchorDown={(start) => {
             setDrag({ kind: 'anchor', id: selectedAnnotation.id, startMouse: start, start, initial: selectedAnnotation });
           }}
+        />
+      )}
+      {selectedAnnotation && activeTool === 'select' && !editingAnnotation && (
+        <AnnotationToolbar
+          annotation={selectedAnnotation}
+          axisRanges={axisRanges}
+          onUpdate={(data) => onFinish(selectedAnnotation.id, data)}
+          onRemove={() => {
+            onRemove(selectedAnnotation.id);
+            setSelectedId(null);
+          }}
+          onDuplicate={() => onDuplicate(selectedAnnotation.id)}
+          onBringToFront={() => onBringToFront(selectedAnnotation.id)}
+          onSendToBack={() => onSendToBack(selectedAnnotation.id)}
+          t={t}
         />
       )}
       {editingAnnotation && (

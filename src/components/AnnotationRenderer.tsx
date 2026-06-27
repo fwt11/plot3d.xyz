@@ -308,6 +308,8 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
         fontSize: `${ann.fontSize}px`,
         fontFamily: ann.fontFamily,
         fontWeight: ann.fontWeight,
+        fontStyle: ann.fontStyle,
+        textDecoration: ann.textDecoration,
         lineHeight: 1.2,
         whiteSpace: 'nowrap',
         textAlign: ann.textAlign,
