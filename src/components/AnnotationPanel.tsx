@@ -1,6 +1,7 @@
 import { useChartStore, useAnnotationToolStore } from '@/store/plotStore';
 import { useTranslation } from 'react-i18next';
-import { getAnnotationTypes, createDefaultAnnotation } from '@/utils/annotations';
+import { getAnnotationTools, createDefaultAnnotation } from '@/utils/annotations';
+import type { AnnotationTool } from '@/utils/annotations';
 import { Trash2, Eye, EyeOff, Copy, ArrowUpToLine, ArrowDownToLine, Lock, Unlock } from 'lucide-react';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -62,17 +63,41 @@ export default function AnnotationPanel() {
   const setSelectedId = useAnnotationToolStore((s) => s.setSelectedId);
 
   const selected = annotations.find((a) => a.id === selectedId);
-  const annotationTypes = getAnnotationTypes(t);
+  const annotationTools = getAnnotationTools(t).filter((tool) => tool.type !== 'select');
+
+  const handleAddAnnotation = (type: AnnotationTool) => {
+    if (type === 'select') return;
+    if (type === 'image') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const ann = createDefaultAnnotation('image', t);
+          ann.imageSrc = reader.result as string;
+          addAnnotation(ann);
+          setSelectedId(ann.id);
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+      return;
+    }
+    addAnnotation(createDefaultAnnotation(type, t));
+  };
 
   if (!selected) {
     return (
       <div className="space-y-2">
         <Section title={t('annotation.addAnnotation')}>
           <div className="flex flex-wrap gap-1">
-            {annotationTypes.map(({ type, label, icon }) => (
+            {annotationTools.map(({ type, label, icon }) => (
               <button
                 key={type}
-                onClick={() => addAnnotation(createDefaultAnnotation(type, t))}
+                onClick={() => handleAddAnnotation(type)}
                 className="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
                 style={{ color: 'var(--text-secondary)', background: 'var(--bg-surface)' }}
                 title={label}
@@ -162,6 +187,37 @@ export default function AnnotationPanel() {
             className="w-full border rounded px-2 py-1 text-xs outline-none focus:border-sky-500/50 font-mono"
             style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           />
+        </Section>
+      )}
+
+      {/* Image source */}
+      {ann.type === 'image' && (
+        <Section title={t('annotation.image')}>
+          <Row>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => update({ imageSrc: reader.result as string });
+                reader.readAsDataURL(file);
+              }}
+              className="text-xs"
+              style={{ color: 'var(--text-secondary)' }}
+            />
+          </Row>
+          <Row>
+            <textarea
+              value={ann.imageSrc ?? ''}
+              onChange={(e) => update({ imageSrc: e.target.value })}
+              rows={2}
+              placeholder={t('annotation.imageUrlPlaceholder', 'Image URL or data URL')}
+              className="w-full border rounded px-2 py-1 text-xs outline-none focus:border-sky-500/50 font-mono"
+              style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            />
+          </Row>
         </Section>
       )}
 

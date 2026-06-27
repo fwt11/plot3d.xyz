@@ -178,6 +178,7 @@
     "vband": "垂直参考带",
     "dataLabel": "数据标签",
     "image": "图片",
+    "imageUrlPlaceholder": "图片 URL 或 data URL",
     "defaultText": "标注文本",
     "textPlaceholder": "文本",
     "latexPlaceholder": "$E=mc^2$",

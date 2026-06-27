@@ -1,5 +1,6 @@
 import type { Annotation } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
+import { toDisplayPercent, readAxisRanges, type AxisRanges } from '@/utils/annotationCoords';
 
 function percent(v: number): string {
   return `${v}%`;
@@ -20,18 +21,22 @@ function resolveContent(ann: Annotation): string {
 
 interface AnnotationRendererProps {
   annotation: Annotation;
+  axisRanges?: AxisRanges | null;
   isSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent, ann: Annotation) => void;
   onDoubleClick?: (e: React.MouseEvent, ann: Annotation) => void;
 }
 
-export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, onDoubleClick }: AnnotationRendererProps) {
+export function AnnotationRenderer({ annotation: ann, axisRanges, isSelected, onMouseDown, onDoubleClick }: AnnotationRendererProps) {
   if (!ann.visible) return null;
+
+  const ranges = axisRanges ?? readAxisRanges(document.querySelector('.js-plotly-plot') as HTMLElement | null);
+  const pos = toDisplayPercent(ann.x, ann.y, ann.coordMode, ranges);
 
   const commonStyle: React.CSSProperties = {
     position: 'absolute',
-    left: percent(ann.x),
-    top: percent(ann.y),
+    left: percent(pos.x),
+    top: percent(pos.y),
     transform: 'translate(-50%, -50%)',
     pointerEvents: 'auto',
     userSelect: 'none',
@@ -104,10 +109,11 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
     const target = ann.type === 'arrow' ? ann.arrowTo : ann.endPoint;
     if (!target) return null;
 
-    const x1 = ann.x;
-    const y1 = ann.y;
-    const x2 = target.x;
-    const y2 = target.y;
+    const targetPos = toDisplayPercent(target.x, target.y, ann.coordMode, ranges);
+    const x1 = pos.x;
+    const y1 = pos.y;
+    const x2 = targetPos.x;
+    const y2 = targetPos.y;
     const lineColor = isSelected ? 'var(--accent)' : color;
 
     return (
@@ -199,8 +205,8 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
       <svg
         className="absolute overflow-visible cursor-grab"
         style={{
-          left: percent(ann.x - ann.ellipseRadii.rx),
-          top: percent(ann.y - ann.ellipseRadii.ry),
+          left: percent(pos.x - ann.ellipseRadii.rx),
+          top: percent(pos.y - ann.ellipseRadii.ry),
           width: percent(ann.ellipseRadii.rx * 2),
           height: percent(ann.ellipseRadii.ry * 2),
           pointerEvents: 'none',
@@ -229,13 +235,14 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
 
   // Polygon
   if (ann.type === 'polygon' && ann.polygonPoints && ann.polygonPoints.length >= 3) {
-    const xs = ann.polygonPoints.map((p) => p.x);
-    const ys = ann.polygonPoints.map((p) => p.y);
+    const displayPoints = ann.polygonPoints.map((p) => toDisplayPercent(p.x, p.y, ann.coordMode, ranges));
+    const xs = displayPoints.map((p) => p.x);
+    const ys = displayPoints.map((p) => p.y);
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     const maxX = Math.max(...xs);
     const maxY = Math.max(...ys);
-    const points = ann.polygonPoints
+    const points = displayPoints
       .map((p) => {
         const px = ((p.x - minX) / Math.max(maxX - minX, 0.001)) * 100;
         const py = ((p.y - minY) / Math.max(maxY - minY, 0.001)) * 100;
@@ -278,8 +285,8 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
         alt=""
         className="absolute cursor-grab"
         style={{
-          left: percent(ann.x),
-          top: percent(ann.y),
+          left: percent(pos.x),
+          top: percent(pos.y),
           width: ann.imageSize ? percent(ann.imageSize.w) : '10%',
           height: ann.imageSize ? percent(ann.imageSize.h) : '10%',
           transform: `translate(-50%, -50%) rotate(${ann.rotation ?? 0}deg)`,
@@ -327,6 +334,7 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
 
   if (!calloutTarget) return textEl;
   const calloutLineColor = isSelected ? 'var(--accent)' : color;
+  const calloutTargetPos = toDisplayPercent(calloutTarget.x, calloutTarget.y, ann.coordMode, ranges);
 
   return (
     <>
@@ -340,10 +348,10 @@ export function AnnotationRenderer({ annotation: ann, isSelected, onMouseDown, o
           </marker>
         </defs>
         <line
-          x1={`${ann.x}%`}
-          y1={`${ann.y}%`}
-          x2={`${calloutTarget.x}%`}
-          y2={`${calloutTarget.y}%`}
+          x1={`${pos.x}%`}
+          y1={`${pos.y}%`}
+          x2={`${calloutTargetPos.x}%`}
+          y2={`${calloutTargetPos.y}%`}
           stroke={calloutLineColor}
           strokeWidth={strokeWidth}
           markerEnd={`url(#callout-arrowhead-${ann.id})`}

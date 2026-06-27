@@ -83,13 +83,19 @@ export function AnnotationCanvas({
   }, []);
 
   const toStored = useCallback(
-    (x: number, y: number, coordMode: 'percent' | 'data') => toStoredCoords(x, y, coordMode, axisRanges),
-    [axisRanges]
+    (x: number, y: number, coordMode: 'percent' | 'data') => {
+      const ranges = axisRanges ?? readAxisRanges(plotDivRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null);
+      return toStoredCoords(x, y, coordMode, ranges);
+    },
+    [axisRanges, plotDivRef]
   );
 
   const toDisplay = useCallback(
-    (x: number, y: number, coordMode: 'percent' | 'data') => toDisplayPercent(x, y, coordMode, axisRanges),
-    [axisRanges]
+    (x: number, y: number, coordMode: 'percent' | 'data') => {
+      const ranges = axisRanges ?? readAxisRanges(plotDivRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null);
+      return toDisplayPercent(x, y, coordMode, ranges);
+    },
+    [axisRanges, plotDivRef]
   );
 
   const finishDrawing = useCallback(
@@ -456,13 +462,14 @@ export function AnnotationCanvas({
         <AnnotationRenderer
           key={ann.id}
           annotation={ann}
+          axisRanges={axisRanges}
           isSelected={ann.id === selectedId}
           onMouseDown={handleAnnotationMouseDown}
           onDoubleClick={handleAnnotationDoubleClick}
         />
       ))}
       {previewAnnotation && (
-        <AnnotationRenderer annotation={previewAnnotation} isSelected={false} />
+        <AnnotationRenderer annotation={previewAnnotation} axisRanges={axisRanges} isSelected={false} />
       )}
       {drawing?.tool === 'polygon' && (
         <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -614,6 +621,19 @@ function SelectionOverlay({
           cy={`${disp.y}%`}
           rx={`${annotation.ellipseRadii.rx}%`}
           ry={`${annotation.ellipseRadii.ry}%`}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={1}
+          strokeDasharray="3 2"
+          pointerEvents="none"
+        />
+      )}
+      {annotation.type === 'image' && annotation.imageSize && (
+        <rect
+          x={`${disp.x - annotation.imageSize.w / 2}%`}
+          y={`${disp.y - annotation.imageSize.h / 2}%`}
+          width={`${annotation.imageSize.w}%`}
+          height={`${annotation.imageSize.h}%`}
           fill="none"
           stroke="var(--accent)"
           strokeWidth={1}

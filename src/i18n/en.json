@@ -178,6 +178,7 @@
     "vband": "Vertical Band",
     "dataLabel": "Data Label",
     "image": "Image",
+    "imageUrlPlaceholder": "Image URL or data URL",
     "defaultText": "Annotation",
     "textPlaceholder": "Text",
     "latexPlaceholder": "$E=mc^2$",

@@ -58,7 +58,8 @@ export function toDisplayPercent(
   if (coordMode === 'percent' || !axisRanges) return { x, y };
   return {
     x: dataToPercent(x, axisRanges.xMin, axisRanges.xMax),
-    y: dataToPercent(y, axisRanges.yMin, axisRanges.yMax),
+    // Invert Y because CSS percent coordinates grow downward while Plotly Y axis grows upward.
+    y: 100 - dataToPercent(y, axisRanges.yMin, axisRanges.yMax),
   };
 }
 
@@ -73,6 +74,7 @@ export function toStoredCoords(
   if (coordMode === 'percent' || !axisRanges) return clamped;
   return {
     x: percentToData(clamped.x, axisRanges.xMin, axisRanges.xMax),
-    y: percentToData(clamped.y, axisRanges.yMin, axisRanges.yMax),
+    // Invert Y because CSS percent coordinates grow downward while Plotly Y axis grows upward.
+    y: percentToData(100 - clamped.y, axisRanges.yMin, axisRanges.yMax),
   };
 }
