@@ -52,6 +52,23 @@ export function AnnotationTab() {
             <MousePointer2 size={16} />
             <span className="text-xs">{t('annotation.select')}</span>
           </button>
+          <label
+            className="ribbon-btn cursor-pointer"
+            aria-label={t('annotation.color')}
+            title={t('annotation.color')}
+          >
+            <input
+              type="color"
+              value={selected.color}
+              onChange={(e) => updateAnnotation(selected.id, { color: e.target.value })}
+              className="sr-only"
+            />
+            <span
+              className="inline-block rounded border"
+              style={{ width: 16, height: 16, backgroundColor: selected.color, borderColor: 'var(--border)' }}
+            />
+            <span className="text-xs">{t('annotation.color')}</span>
+          </label>
           <button
             onClick={() => duplicateAnnotation(selected.id)}
             className="ribbon-btn"

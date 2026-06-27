@@ -157,7 +157,7 @@ function sanitizeAnnotation(ann: unknown): Annotation | null {
     y: a.y,
     content: typeof a.content === 'string' ? a.content : '',
     fontSize: typeof a.fontSize === 'number' ? a.fontSize : 14,
-    color: typeof a.color === 'string' ? a.color : '#e4e4e7',
+    color: typeof a.color === 'string' ? a.color : '#3b82f6',
     visible: typeof a.visible === 'boolean' ? a.visible : true,
     coordMode,
     locked: typeof a.locked === 'boolean' ? a.locked : undefined,

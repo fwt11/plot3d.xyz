@@ -368,6 +368,23 @@ export function AnnotationCanvas({
     return () => window.removeEventListener('keydown', handler);
   }, [drawing, finishDrawing, onRemove, selectedId, setActiveTool, setSelectedId]);
 
+  // Clicking on empty chart area deselects the current annotation.
+  useEffect(() => {
+    const chartArea = plotDivRef.current;
+    if (!chartArea) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (activeTool !== 'select') return;
+      if (e.button !== 0) return;
+      if (editingId) return;
+      if ((e.target as HTMLElement).closest('.annotation-canvas')) return;
+      setSelectedId(null);
+    };
+
+    chartArea.addEventListener('mousedown', handleMouseDown);
+    return () => chartArea.removeEventListener('mousedown', handleMouseDown);
+  }, [activeTool, editingId, plotDivRef, setSelectedId]);
+
   const cursor = useMemo(() => {
     if (drag) return 'grabbing';
     if (activeTool === 'select') return 'default';
@@ -395,6 +412,9 @@ export function AnnotationCanvas({
       ann.x = cx;
       ann.y = cy;
       ann.rectSize = { w: maxX - minX, h: maxY - minY };
+      if (drawing.tool === 'hband' || drawing.tool === 'vband') {
+        ann.referenceValue = drawing.tool === 'hband' ? [minY, maxY] : [minX, maxX];
+      }
     } else if (drawing.tool === 'ellipse') {
       ann.x = cx;
       ann.y = cy;
@@ -418,7 +438,7 @@ export function AnnotationCanvas({
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0"
+      className="absolute inset-0 annotation-canvas"
       style={{ cursor, pointerEvents: containerPointerEvents }}
       onMouseDown={handleContainerMouseDown}
       onMouseMove={handleContainerMouseMove}

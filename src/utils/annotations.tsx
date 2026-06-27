@@ -1,4 +1,5 @@
 import { uid } from '@/utils/sampleData';
+import { useUiStore } from '@/store/uiStore';
 import type { AnnotationType, Annotation } from '@/types';
 import {
   Type,
@@ -66,11 +67,16 @@ function defaultContentFor(type: AnnotationType, t: (key: string) => string): st
   }
 }
 
+function defaultColorForTheme(theme: 'light' | 'dark'): string {
+  return theme === 'dark' ? '#f4f4f5' : '#18181b';
+}
+
 export function createDefaultAnnotation(
   type: AnnotationType,
   t: (key: string) => string,
   overrides: Partial<Annotation> = {}
 ): Annotation {
+  const theme = useUiStore.getState().theme;
   const base: Annotation = {
     id: uid(),
     type,
@@ -78,7 +84,7 @@ export function createDefaultAnnotation(
     y: 50,
     content: defaultContentFor(type, t),
     fontSize: 14,
-    color: '#e4e4e7',
+    color: defaultColorForTheme(theme),
     visible: true,
     coordMode: 'percent',
     strokeWidth: 2,
