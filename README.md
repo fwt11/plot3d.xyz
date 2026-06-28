@@ -149,3 +149,7 @@ src/
 ## License
 
 [GNU General Public License v3.0](LICENSE)
+
+## 历史
+
+- 旧评审归档（**已过期**）：[REVIEW-2026-06-21.md](./REVIEW-2026-06-21.md)（2026-06-21 写，多数 P0/P1 项已在 2026-06-28 前修复。最新的现状评估见 [改进计划设计文档 §0.1](./docs/superpowers/specs/2026-06-28-plot3d-improvement-plan-design.md#01-起点澄清现有计划已大部分落地)）
