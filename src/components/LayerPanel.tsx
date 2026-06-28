@@ -495,68 +495,72 @@ export default function LayerPanel() {
               {/* Collapsible style options */}
               {isExpanded && (
                 <div className="space-y-2 px-1.5 pb-1.5" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
-                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
-                    <span>{t('layer.lineStyle', 'Line Style')}</span>
-                    <select
-                      value={layer.lineStyle}
-                      onChange={(e) => updateLayer(layer.id, { lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
-                      disabled={isLocked}
-                      className="w-full border rounded px-1.5 py-0.5 outline-none"
-                      style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                      aria-label={t('layer.lineStyle', 'Line Style')}
-                    >
-                      <option value="solid">{t('layer.solid', 'Solid')}</option>
-                      <option value="dashed">{t('layer.dashed', 'Dashed')}</option>
-                      <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
-                    </select>
-                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.lineStyle', 'Line Style')}</span>
+                      <select
+                        value={layer.lineStyle}
+                        onChange={(e) => updateLayer(layer.id, { lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.lineStyle', 'Line Style')}
+                      >
+                        <option value="solid">{t('layer.solid', 'Solid')}</option>
+                        <option value="dashed">{t('layer.dashed', 'Dashed')}</option>
+                        <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
+                      </select>
+                    </label>
 
-                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
-                    <span>{t('layer.lineWidth', 'Line Width')}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={layer.lineWidth}
-                      onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
-                      disabled={isLocked}
-                      className="w-full border rounded px-1.5 py-0.5 outline-none"
-                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
-                      aria-label={t('layer.lineWidth', 'Line Width')}
-                    />
-                  </label>
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.lineWidth', 'Line Width')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={layer.lineWidth}
+                        onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.lineWidth', 'Line Width')}
+                      />
+                    </label>
+                  </div>
 
-                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
-                    <span>{t('layer.pointStyle', 'Point Style')}</span>
-                    <select
-                      value={layer.pointStyle}
-                      onChange={(e) => updateLayer(layer.id, { pointStyle: e.target.value as 'circle' | 'square' | 'triangle' | 'none' })}
-                      disabled={isLocked}
-                      className="w-full border rounded px-1.5 py-0.5 outline-none"
-                      style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                      aria-label={t('layer.pointStyle', 'Point Style')}
-                    >
-                      <option value="circle">{t('layer.circle', 'Circle')}</option>
-                      <option value="square">{t('layer.square', 'Square')}</option>
-                      <option value="triangle">{t('layer.triangle', 'Triangle')}</option>
-                      <option value="none">{t('layer.nonePoint', 'None')}</option>
-                    </select>
-                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.pointStyle', 'Point Style')}</span>
+                      <select
+                        value={layer.pointStyle}
+                        onChange={(e) => updateLayer(layer.id, { pointStyle: e.target.value as 'circle' | 'square' | 'triangle' | 'none' })}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.pointStyle', 'Point Style')}
+                      >
+                        <option value="circle">{t('layer.circle', 'Circle')}</option>
+                        <option value="square">{t('layer.square', 'Square')}</option>
+                        <option value="triangle">{t('layer.triangle', 'Triangle')}</option>
+                        <option value="none">{t('layer.nonePoint', 'None')}</option>
+                      </select>
+                    </label>
 
-                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
-                    <span>{t('layer.pointSize', 'Point Size')}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={layer.pointSize}
-                      onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
-                      disabled={isLocked}
-                      className="w-full border rounded px-1.5 py-0.5 outline-none"
-                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
-                      aria-label={t('layer.pointSize', 'Point Size')}
-                    />
-                  </label>
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.pointSize', 'Point Size')}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={layer.pointSize}
+                        onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.pointSize', 'Point Size')}
+                      />
+                    </label>
+                  </div>
 
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={labelStyle}>
                     <input
