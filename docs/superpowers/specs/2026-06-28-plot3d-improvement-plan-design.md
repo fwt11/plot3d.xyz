@@ -38,7 +38,7 @@
 1. ❌ `index.html` 仍含 AdSense `<script>` + CSP allowlist `googlesyndication`
 2. ❌ `xlsx` 来自第三方 CDN tarball（已知 CVE 风险 + CDN 不可控）
 
-> 注：REVIEW.md 还提到"`i18next ^26.3.1`、`katex ^0.17.0`、`plotly ^3.6.0`、`react-plotly.js ^4.0.0` 依赖版本虚标"。**经 node_modules 验证（commit `80172cf`），这五个版本在 npm registry 上都是真实存在并已安装到 `node_modules`**。它们不再是 P0。
+> 注：REVIEW.md 还提到"`i18next ^26.3.1`、`react-i18next ^17.0.8`、`katex ^0.17.0`、`plotly ^3.6.0`、`react-plotly.js ^4.0.0` 依赖版本虚标"。**经 node_modules 验证（commit `80172cf`），这五个版本在 npm registry 上都是真实存在并已安装到 `node_modules`**。它们不再是 P0。
 
 ### 0.2 战略定位（用户已确认）
 
@@ -56,7 +56,7 @@
 
 ## 1. 设计原则
 
-1. **P0 永远先做** —— AdSense + 依赖版本是地基，影响可信度与新机器可装性
+1. **P0 永远先做** —— AdSense + xlsx CDN tarball 是地基，影响可信度与新机器可装性
 2. **测试与功能并进** —— 涉及科学计算的 PR（拟合/统计/求解器）必带单测；这是 Phase 0 引入 vitest 的核心动机
 3. **每阶段都有可演示成果** —— 不做"内部重构"型阶段；纯重构包裹在一个明确交付的功能里
 4. **个人节奏** —— Phase 之间串行；每个 Phase 1–9 周（绝大多数 4–8 周）+ 0.5–1 周缓冲
@@ -117,7 +117,7 @@
 | 全局拟合（多 dataset 共享参数） | Origin 高级功能 | ⭐⭐⭐ |
 | Matplotlib 脚本导出 | 复现性必备 | ⭐⭐⭐ |
 | 论文模板内置 | Prism 必备 | ⭐⭐⭐ |
-| 11 → 16+ 拟合类型 | Origin 200+ | ⭐⭐⭐ |
+| 11 → 17 拟合类型 | Origin 200+ | ⭐⭐⭐ |
 
 ---
 
@@ -134,7 +134,7 @@ Phase 4 ── 轴与布局     (4–6 周)    日期轴 / 多面板 / 轴 break
 Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 + 模板
 ```
 
-> **工期说明**：Phase 范围取上限（2+6+4+8+6+9 = 35 周）。每个 Phase 末尾预留 0.5–1 周缓冲（合计 ~5 周）。合计约 35 + 5 = 40 周；按经验再叠加 0–10% 延期缓冲，**整体时间预算 ~38–44 周（约 9–10 个月）**。下文用 "~38 周" 作为中位估计；用户按 44 周做日历规划更稳妥。
+> **工期说明**：Phase 范围下限 25 周（1+5+3+6+4+6）、上限 35 周（2+6+4+8+6+9）。每个 Phase 末尾预留 0.5–1 周缓冲（合计 ~5 周）。中位估计 38 周 = (下限 25 + 上限 35)/2 + 5 缓冲；按经验再叠加 0–10% 延期缓冲，**整体时间预算 ~38–44 周（约 9–10 个月）**。下文用 "~38 周" 作为中位估计；用户按 44 周做日历规划更稳妥。
 
 每个 Phase 末尾产出：
 - 该阶段所有"验收"全部满足
@@ -153,7 +153,7 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 | 0.1 归档 `REVIEW.md` → `REVIEW-2026-06-21.md` | git 历史保留；README 顶部加超链接 | 0.5h |
 | 0.2 移除 `index.html:9` AdSense `<script>` | `grep adsbygoogle` 无结果 | 0.5h |
 | 0.3 移除 `index.html:7` CSP 中 `googlesyndication` allowlist | CSP 不含广告域名 | 0.5h |
-| 0.4 `xlsx` 替换为 npm registry 上的稳定版本（如 `xlsx@^0.18.5`） | 移除 CDN tarball；`npm audit` 无 high/critical；CSV 导入测试通过 | 1h |
+| 0.4 `xlsx` 替换为 npm registry 上的稳定版本（如 `xlsx@^0.18.5`；npm registry 当前 latest = 0.18.5；SheetJS CDN 上有更新的 0.20.3 但只通过 tarball 发布） | 移除 CDN tarball；`npm audit` 无 high/critical；CSV 导入测试通过 | 1h |
 | 0.5 接入 `vitest` | `npm run test` 可跑；先给 `curveFitting.ts` / `statistics.ts` / `dataProcessing.ts` 跑 ≥95% branch coverage（详见 §5.1） | 8h |
 | 0.6 写一份"代码地图"加到 `AGENTS.md` | `test -f AGENTS.md && grep -c 'src/' AGENTS.md ≥ 10`；含目录树 + >500 行文件清单 + >800 行"待拆"标记 | 2h |
 | 0.7 CI 跑通 | `npm run check` + `npm run lint` + `npm run build` + `npm run test` 全绿 | 0.5h |
@@ -184,7 +184,7 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 - **chartConfig schema**：扩展 `chartConfig.fitDisplay`，新增 `subplots?: { residual: boolean }`；不引入"面板"概念（与 Phase 4 隔离）
 - **残差 trace 类型**：复用现有 layer 数据，新增 `layer.fitRole?: 'data' | 'residual'`；拟合时自动生成一个隐藏 layer 承载残差点
 - **layout 构造**：`layoutBuilder.ts` 增加 `buildLayoutWithResidual()` 分支，输出 Plotly `subplots` 配置（rows=2, cols=1, shared_xaxes=true, vertical_spacing=0.05）
-- **缩放同步**：依靠 Plotly 的 `xaxis: '.xaxis'` shared axis 机制（上层缩放下层自动跟随）；不需要事件总线
+- **缩放同步**：依靠 Plotly 的 shared-xaxis 机制（下层 xaxis 设 `matches: 'x'`，上层缩放下层自动跟随）；不需要事件总线
 - **历史**：historyStore 增加 `subplot_toggle_residual` 描述
 - **零引入新顶层组件**：改动集中于 `chartStore.ts` / `layoutBuilder.ts` / `tracesBuilder.ts`
 
@@ -236,12 +236,12 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 
 ### Phase 3 — 拟合宽度（6–8 周）
 
-**目标**：从 11 类拟合扩到 16+，并支持用户自定义公式。这是"对标 Origin"的核心战役。
+**目标**：从 11 类拟合扩到 17，并支持用户自定义公式。这是"对标 Origin"的核心战役。
 
 | 任务 | 验收 | 工时 |
 |------|------|------|
 | 3.1 **自定义公式拟合**（用 `mathjs`，已在 `package.json:^15.2.0`） | 见 §3.3.1 子设计 | 2 周 |
-| 3.2 新增拟合类型：Lorentzian、Weibull、4PL/5PL Logistic、Hill、Bi-exponential | 11 → 16+ 类型；详见 §3.3.2 计数说明 | 1.5 周 |
+| 3.2 新增拟合类型：Lorentzian、Weibull、4PL Logistic、5PL Logistic、Hill、Bi-exponential | 11 → 17 类型；详见 §3.3.2 计数说明 | 1.5 周 |
 | 3.3 参数上下界 + 初始猜测 | 自定义公式可设 `a ∈ [0, 10]`；预设类型可改初值；非法值拦截 | 1 周 |
 | 3.4 拟合残差诊断接入（**复用现有实现**） | 把 `hypothesisTests.ts` 已有的 `shapiroWilk` / `durbinWatson` 接入 `FitResult.stats` 与报告页（§3.3.3） | 3 天 |
 | 3.5 全局拟合（多 dataset 共享参数） | 见 §3.3.4 子设计 | 1.5 周 |
@@ -265,18 +265,19 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 
 - 现有 11 类：`linear`、`poly2`、`poly3`、`poly4`、`poly5`、`poly6`、`exponential`、`logarithmic`、`power`、`gaussian`、`logistic`
 - 现有 `logistic` 是 3 参数简化形式 `L/(1+exp(-k(x-x0)))`
-- Phase 3.2 新增 5 类：
+- Phase 3.2 新增 6 类（旧 `logistic` 保留为 3PL 别名，不再计入"新"）：
   - `lorentzian`：`y = A * σ² / ((x - x₀)² + σ²)`
   - `weibull`：`y = A * (1 - exp(-(x/λ)^k))`
-  - `logistic4pl`：`y = d + (a - d) / (1 + (x/c)^b)`（4 参数，保留旧 `logistic` 作为别名）
+  - `logistic4pl`：`y = d + (a - d) / (1 + (x/c)^b)`（4 参数）
   - `logistic5pl`：4PL 加不对称参数 g
   - `hill`：`y = Vmax * x^n / (K^n + x^n)`
-- Phase 3.2 还新增 `biexponential`：`y = a*exp(-b*x) + c*exp(-d*x)`（4 参数），独立于已有单 `exponential`
-- 总计：11 → 16，匹配 "11 → 16+ types"
+  - `biexponential`：`y = a*exp(-b*x) + c*exp(-d*x)`（4 参数，独立于已有单 `exponential`）
+- 总计：11 + 6 = 17，匹配 "11 → 17 types"
 
 #### 3.3.3 Phase 3.4 复用说明
 
-- `src/utils/hypothesisTests.ts` 已实现 Shapiro-Wilk 与 Durbin-Watson（grep 验证）
+- `src/utils/hypothesisTests.ts` 已实现 Shapiro-Wilk（第 423 行）
+- `src/utils/statistics.ts` 已实现 Durbin-Watson（第 478 行）
 - Phase 3.4 不写新算法，只扩展 `FitStatistics` 接口加 `residualNormality?: TestResult` 与 `residualAutocorrelation?: { dw: number }`
 - 在拟合工作流中调用现成函数并填充字段
 - 报告页（Phase 1.5 已落地）显示这两项
@@ -360,7 +361,7 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
   | 层级 | 文件 | 阈值 | 测试方法 |
   |------|------|------|---------|
   | A. 科学计算核心 | `src/utils/curveFitting.ts`、`src/utils/multiPeakFit.ts`、`src/utils/statistics.ts`、`src/utils/hypothesisTests.ts`、`src/utils/distributions.ts`、`src/utils/dataProcessing.ts` | **branch coverage ≥ 95%** | 命名解析解 fixture（`y=2x+1+ε` → 斜率 ≈ 2；高斯 σ=2 中点 0；指数 λ=1）|
-  | B. 科研辅助 | `src/utils/peakDetection.ts`、`src/utils/annotationCoords.ts`、`src/utils/levenbergMarquardt.ts`（Phase 3 新增） | line coverage ≥ 90% | 单元测试 + 边界 case |
+  | B. 科研辅助 | `src/utils/peakDetection.ts`、`src/utils/annotationCoords.ts`、`src/utils/levenbergMarquardt.ts`（Phase 3 从 multiPeakFit 抽离） | line coverage ≥ 90% | 单元测试 + 边界 case |
   | C. 其他 utils | `src/utils/latex.ts` 等 | line coverage ≥ 70% | 单元测试 |
 
   不用绝对 100%（单条防御性 `if (!input) return null` 就能破坏严格覆盖，且不是 bug）
