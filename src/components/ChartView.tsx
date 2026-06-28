@@ -28,6 +28,10 @@ import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
 type PlotComponentType = React.ComponentType<Record<string, unknown>>;
 let PlotComponent: PlotComponentType | null = null;
 let plotlyLoadPromise: Promise<PlotComponentType> | null = null;
+let plotlyModule: {
+  Plots: { resize: (el: HTMLElement) => void };
+  relayout: (el: HTMLElement, update: Record<string, unknown>) => void;
+} | null = null;
 
 function loadPlotly(): Promise<PlotComponentType> {
   if (PlotComponent) return Promise.resolve(PlotComponent);
@@ -35,6 +39,7 @@ function loadPlotly(): Promise<PlotComponentType> {
 
   plotlyLoadPromise = import('plotly.js-dist-min').then((PlotlyModule) => {
     const Plotly = PlotlyModule.default;
+    plotlyModule = Plotly as unknown as typeof plotlyModule;
     return import('react-plotly.js/factory').then((factoryModule) => {
       PlotComponent = factoryModule.default(Plotly);
       return PlotComponent;
@@ -99,6 +104,54 @@ export default function ChartView() {
       setPlotlyComponent(() => comp);
     });
   }, []);
+
+  // ResizeObserver — ensures chart resizes when container changes
+  // (e.g. when chart is in a floating panel and user drags resize handles).
+  // Observes the parent element because height:100% CSS cascade is unreliable
+  // across flex/grid layouts; we force explicit pixel dimensions instead.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const parent = container.parentElement;
+    if (!parent) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const w = entry.contentRect.width;
+      const h = entry.contentRect.height;
+      if (w <= 0 || h <= 0) return;
+
+      // Force explicit dimensions — avoids unreliable %-height cascade
+      container.style.width = w + 'px';
+      container.style.height = h + 'px';
+
+      const plotDiv = container.querySelector('.js-plotly-plot') as HTMLElement | null;
+      if (!plotDiv) return;
+
+      const plotWrapper = plotDiv.parentElement;
+      if (plotWrapper) {
+        plotWrapper.style.width = w + 'px';
+        plotWrapper.style.height = h + 'px';
+      }
+
+      if (plotlyModule) {
+        plotlyModule.Plots.resize(plotDiv);
+        const layoutUpdate = is3DType
+          ? {
+              'scene.xaxis.autorange': true,
+              'scene.yaxis.autorange': true,
+              'scene.zaxis.autorange': true,
+            }
+          : { 'xaxis.autorange': true, 'yaxis.autorange': true };
+        plotlyModule.relayout(plotDiv, layoutUpdate);
+      }
+    });
+
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [PlotlyComponent, is3DType]);
 
   // Track Plotly hover events for status bar
   const handleHover = useCallback((event: Readonly<{ points?: ReadonlyArray<{ x: number | string; y: number | string; z?: number | string; curveNumber?: number; pointNumber?: number | number[] }> }> | undefined) => {

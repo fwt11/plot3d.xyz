@@ -141,6 +141,7 @@ export default function Workspace() {
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const [dataTablePopout, setDataTablePopout] = useState(false);
+  const [chartPopout, setChartPopout] = useState(false);
   const [mainTab, setMainTab] = useState<'chart' | 'data'>('chart');
   const [layerPanelWidth, setLayerPanelWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(280);
@@ -472,7 +473,17 @@ export default function Workspace() {
               {t('workspace.dataTable')}
             </button>
             <div className="flex-1" />
-            {mainTab === 'data' && (
+            {mainTab === 'chart' && !chartPopout && (
+              <button
+                onClick={() => setChartPopout(true)}
+                style={{ color: 'var(--text-faint)' }}
+                className="p-1 rounded hover:opacity-80"
+                aria-label={t('workspace.popoutChart', 'Pop out Chart')}
+              >
+                <Maximize2 size={14} />
+              </button>
+            )}
+            {mainTab === 'data' && !dataTablePopout && (
               <button
                 onClick={() => setDataTablePopout(true)}
                 style={{ color: 'var(--text-faint)' }}
@@ -500,9 +511,24 @@ export default function Workspace() {
           {/* Tab content */}
           <div className="flex-1 overflow-hidden">
             {mainTab === 'chart' && (
-              <div className="w-full h-full">
-                <ChartView />
-              </div>
+              chartPopout ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <span>{t('workspace.chartPoppedOut', 'Chart is open in floating window')}</span>
+                  <button
+                    onClick={() => setChartPopout(false)}
+                    className="px-2 py-1 rounded text-xs transition-colors"
+                    style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {t('workspace.restoreChart', 'Restore')}
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full h-full">
+                  <ChartView />
+                </div>
+              )
             )}
             {mainTab === 'data' && (
               dataTablePopout ? (
@@ -556,6 +582,14 @@ export default function Workspace() {
         >
           <PanelRightOpen size={16} />
         </button>
+      )}
+      {chartPopout && (
+        <FloatingPanel
+          title={t('workspace.chart')}
+          onClose={() => setChartPopout(false)}
+        >
+          <ChartView />
+        </FloatingPanel>
       )}
       {dataTablePopout && (
         <FloatingPanel
