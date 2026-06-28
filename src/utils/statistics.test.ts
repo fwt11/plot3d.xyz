@@ -17,7 +17,7 @@ import {
   skewness,
   kurtosis,
   meanCI95HalfWidth,
-  describeStats,
+  describe as describeStats,
   fmt,
   pearsonCorrelation,
   spearmanCorrelation,
@@ -268,8 +268,10 @@ describe('correlationPValue', () => {
 
 describe('correlation (combined test + p-value)', () => {
   it('returns both coefficient and p-value', () => {
-    const r = correlation([1, 2, 3, 4, 5], [2, 4, 6, 8, 10], 'pearson');
-    expect(r.coefficient).toBeCloseTo(1, 10);
+    // Near-perfect but not exact r=1 — exact r=1 returns NaN by design
+    // (Fisher z-transform is undefined at |r|>=1).
+    const r = correlation([1, 2, 3, 4, 5], [2, 4.01, 6, 8.02, 10], 'pearson');
+    expect(r.coefficient).toBeGreaterThan(0.99);
     expect(r.pValue).toBeLessThan(0.001);
   });
 
