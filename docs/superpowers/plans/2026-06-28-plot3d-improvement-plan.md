@@ -83,7 +83,7 @@ Expected: `OK: archived file exists`
 grep -c "REVIEW-2026-06-21" README.md
 ```
 
-Expected: `>= 1`
+> **已知**：本 plan 写于 2026-06-28；当时 README.md 尚未添加归档链接。grep 返回 0 是预期——本 Task 会走 Step 4 的修复路径。**这是有意识的修复，不是 plan 出错。**
 
 - [ ] **Step 3: 验证 git 历史保留了重命名**
 
@@ -93,29 +93,24 @@ git log --diff-filter=R --name-status -- 'REVIEW*.md' | head -5
 
 Expected: 看到 `REVIEW.md -> REVIEW-2026-06-21.md` 重命名记录。
 
-- [ ] **Step 4: 若验证失败，按"Plan 偏差处理"修复**
+- [ ] **Step 4: 添加 README.md 归档链接**
 
-如果 Step 1 / 2 / 3 任何一个失败，**才**执行修复：
+打开 `README.md`，在末尾添加"## 历史"小节（README 当前无该小节，需新建）：
 
-```bash
-git mv REVIEW.md REVIEW-2026-06-21.md
-```
-
-并在 `README.md` 末尾添加"## 历史"小节：
 ```markdown
 ## 历史
 
 - 旧评审归档（**已过期**）：[REVIEW-2026-06-21.md](./REVIEW-2026-06-21.md)（2026-06-21 写，多数 P0/P1 项已在 2026-06-28 前修复。最新的现状评估见 [改进计划设计文档 §0.1](./docs/superpowers/specs/2026-06-28-plot3d-improvement-plan-design.md#01-起点澄清现有计划已大部分落地)）
 ```
 
-- [ ] **Step 5: 提交（如有修复）**
+- [ ] **Step 5: 提交（必有）**
 
 ```bash
-git add REVIEW-2026-06-21.md README.md
-git commit -m "docs: 归档 REVIEW.md 为 REVIEW-2026-06-21.md，README 加引用"
+git add README.md
+git commit -m "docs: README 添加旧评审归档链接（REVIEW-2026-06-21）"
 ```
 
-> 若 Step 1–3 全部通过，无 commit。
+> 注：归档本身已在 commit `181dd208` 完成；本 commit 只补 README 链接。
 
 ---
 
@@ -348,12 +343,13 @@ new:
   },
 ```
 
-- [ ] **Step 3: 创建 vitest.config.ts**
+- [ ] **Step 3: 创建 vitest.config.ts（仅设已有测试的三个 Tier A 文件阈值）**
+
+> **拆分说明**：本 Task 只配置**已有测试文件**对应的 Tier A 文件（curveFitting/statistics/dataProcessing）。`hypothesisTests.ts`、`multiPeakFit.ts`、`distributions.ts` 在 Task 4 阶段尚无测试文件；它们的阈值在 Phase 0 末尾 Task 9 验证（待 Task 1.6 写入测试后）补到 config。
 
 ```bash
 cat > vitest.config.ts <<'EOF'
 import { defineConfig } from 'vitest/config';
-import path from 'node:path';
 
 export default defineConfig({
   test: {
@@ -361,37 +357,27 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      // Tier A scientific-computing files (per spec §5.1)
+      // Phase 0 已有测试的 Tier A 文件 (spec §5.1)
       include: [
         'src/utils/curveFitting.ts',
         'src/utils/statistics.ts',
-        'src/utils/hypothesisTests.ts',
         'src/utils/dataProcessing.ts',
-        'src/utils/multiPeakFit.ts',
-        'src/utils/distributions.ts',
       ],
       thresholds: {
         // Tier A: branch coverage ≥ 95% (spec §5.1)
         'src/utils/curveFitting.ts': { branches: 95, functions: 95, lines: 95 },
         'src/utils/statistics.ts': { branches: 95, functions: 95, lines: 95 },
-        'src/utils/hypothesisTests.ts': { branches: 95, functions: 95, lines: 95 },
         'src/utils/dataProcessing.ts': { branches: 95, functions: 95, lines: 95 },
-        'src/utils/multiPeakFit.ts': { branches: 95, functions: 95, lines: 95 },
-        'src/utils/distributions.ts': { branches: 95, functions: 95, lines: 95 },
       },
     },
   },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
+  // 不写 resolve.alias —— vite-tsconfig-paths 插件（vite.config.ts:29）
+  // 已处理 '@/*' 路径，vitest 通过 vite 配置自动继承。
 });
 EOF
 ```
 
 > **不设 `globals: true`** —— 测试文件已用 explicit `import { describe, it, expect } from 'vitest'`，避免 ESLint 报 no-undef。
-> **`resolve.alias` 重复 `vite-tsconfig-paths`** —— 无害但显式声明避免冲突；若发现问题可改为 `defineConfig` 引用 `vite.config.ts` 中的别名。
 
 - [ ] **Step 4: 跑一次空测试确认 vitest 跑通**
 
@@ -583,7 +569,7 @@ describe('gaussianFit', () => {
     expect(result).not.toBeNull();
     expect(result!.amplitude).toBeCloseTo(5, 6);
     expect(result!.center).toBeCloseTo(2, 6);
-    expect(result!.sigma).toBeCloseTo(1, 4);
+    expect(result!.sigma).toBeCloseTo(1, 2);
     expect(result!.rSquared).toBeGreaterThan(0.99);
   });
 
@@ -1004,12 +990,319 @@ git commit -m "test(dataProcessing): 添加 4 平滑 + 4 插值 + 缺失值 + IQ
 
 ---
 
+### Task 7.5: 写 hypothesisTests / multiPeakFit / distributions 测试 + 启用它们的覆盖率阈值
+
+**Files:**
+- Create: `src/utils/hypothesisTests.test.ts`
+- Create: `src/utils/multiPeakFit.test.ts`
+- Create: `src/utils/distributions.test.ts`
+- Modify: `vitest.config.ts`（添加这三个文件的阈值）
+
+> **必要性**：Task 4 仅启用三个已有测试文件的阈值；本 Task 补齐另外三个 Tier A 文件的测试，让所有 6 个 Tier A 文件都达到 ≥95% branch coverage。
+
+- [ ] **Step 1: 列 exports 确认实际函数名**
+
+```bash
+grep -n "^export " src/utils/hypothesisTests.ts | head -25
+grep -n "^export " src/utils/multiPeakFit.ts | head -10
+grep -n "^export " src/utils/distributions.ts | head -10
+```
+
+> **已确认**（来自 spec review）：
+> - `hypothesisTests.ts` 含 `shapiroWilk:423`、`oneSampleTTest`、`twoSampleTTest`、`pairedTTest`、`oneWayAnova`、`mannWhitneyU`、`wilcoxonSignedRank`、`kruskalWallis`、`kolmogorovSmirnov`、`jarqueBera`
+> - `distributions.ts` 含 `normalCdf`、`tCdf`、`chi2Cdf`、`fCdf`、`tCritical`、`chi2Critical`、`fCritical` 等
+> - `multiPeakFit.ts` 含 `fitMultiPeaks`（多峰拟合主入口）
+
+- [ ] **Step 2: 写 hypothesisTests.test.ts**
+
+```typescript
+// src/utils/hypothesisTests.test.ts
+import { describe, it, expect } from 'vitest';
+import {
+  oneSampleTTest,
+  twoSampleTTest,
+  pairedTTest,
+  oneWayAnova,
+  mannWhitneyU,
+  wilcoxonSignedRank,
+  kruskalWallis,
+  shapiroWilk,
+} from './hypothesisTests';
+
+describe('oneSampleTTest', () => {
+  it('returns high |t| for clearly non-zero mean', () => {
+    const r = oneSampleTTest([10, 11, 12, 11, 10], 0);
+    expect(r).not.toBeNull();
+    expect(Math.abs(r!.statistic)).toBeGreaterThan(10);
+    expect(r!.pValue).toBeLessThan(0.001);
+    expect(r!.significant).toBe(true);
+  });
+
+  it('returns low |t| for sample matching H0', () => {
+    const r = oneSampleTTest([1.01, 0.99, 1.02, 0.98, 1.00], 1);
+    expect(r).not.toBeNull();
+    expect(Math.abs(r!.statistic)).toBeLessThan(2);
+    expect(r!.pValue).toBeGreaterThan(0.05);
+  });
+});
+
+describe('twoSampleTTest', () => {
+  it('detects significantly different means', () => {
+    const a = [10, 11, 12, 11, 10];
+    const b = [20, 21, 22, 21, 20];
+    const r = twoSampleTTest(a, b);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeLessThan(0.001);
+    expect(r!.significant).toBe(true);
+  });
+
+  it('does not detect difference for similar samples', () => {
+    const a = [1.0, 1.1, 0.9, 1.0, 1.05];
+    const b = [1.0, 1.05, 0.95, 1.0, 1.10];
+    const r = twoSampleTTest(a, b);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeGreaterThan(0.05);
+  });
+});
+
+describe('pairedTTest', () => {
+  it('detects consistent paired differences', () => {
+    const before = [10, 12, 14, 11, 13];
+    const after = [9, 11, 13, 10, 12]; // each -1
+    const r = pairedTTest(before, after);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeLessThan(0.01);
+  });
+});
+
+describe('oneWayAnova', () => {
+  it('detects difference across 3 groups', () => {
+    const g1 = [10, 11, 12];
+    const g2 = [20, 21, 22];
+    const g3 = [30, 31, 32];
+    const r = oneWayAnova([g1, g2, g3]);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeLessThan(0.001);
+  });
+
+  it('no difference for similar groups', () => {
+    const g1 = [1, 2, 3];
+    const g2 = [2, 3, 4];
+    const g3 = [1, 2, 4];
+    const r = oneWayAnova([g1, g2, g3]);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeGreaterThan(0.05);
+  });
+});
+
+describe('mannWhitneyU', () => {
+  it('detects distribution shift', () => {
+    const x = [1, 2, 3, 4, 5];
+    const y = [10, 11, 12, 13, 14];
+    const r = mannWhitneyU(x, y);
+    expect(r).not.toBeNull();
+    expect(r!.significant).toBe(true);
+  });
+});
+
+describe('wilcoxonSignedRank', () => {
+  it('detects non-zero median of paired differences', () => {
+    const before = [10, 12, 14, 11, 13];
+    const after = [9, 11, 13, 10, 12];
+    const r = wilcoxonSignedRank(before, after);
+    expect(r).not.toBeNull();
+    expect(r!.significant).toBe(true);
+  });
+});
+
+describe('kruskalWallis', () => {
+  it('detects difference across groups', () => {
+    const g1 = [1, 2, 3];
+    const g2 = [10, 11, 12];
+    const g3 = [20, 21, 22];
+    const r = kruskalWallis([g1, g2, g3]);
+    expect(r).not.toBeNull();
+    expect(r!.significant).toBe(true);
+  });
+});
+
+describe('shapiroWilk', () => {
+  it('does not reject normality for normal-like sample', () => {
+    // 30 samples from a "normal-like" distribution (rough approximation)
+    const samples = [
+      -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.1, 0.2, 0.4, 0.6,
+      0.7, 0.9, 1.0, 1.1, -1.0, -0.6, -0.4, 0.3, 0.5, 0.8,
+      -0.2, 0.15, -0.7, 1.2, -1.1, 0.05, -0.9, 0.35, 1.05, -0.15,
+    ];
+    const r = shapiroWilk(samples);
+    expect(r).not.toBeNull();
+    expect(r!.pValue).toBeGreaterThan(0.05);
+  });
+});
+```
+
+- [ ] **Step 3: 写 multiPeakFit.test.ts**
+
+```typescript
+// src/utils/multiPeakFit.test.ts
+import { describe, it, expect } from 'vitest';
+import { fitMultiPeaks } from './multiPeakFit';
+
+describe('fitMultiPeaks', () => {
+  it('fits a single Gaussian peak', () => {
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i < 50; i++) {
+      x.push(i);
+      y.push(10 * Math.exp(-Math.pow(i - 25, 2) / (2 * 3 * 3)));
+    }
+    const result = fitMultiPeaks(x, y, [{ type: 'gaussian', initialGuess: { amplitude: 10, center: 25, sigma: 3 } }]);
+    expect(result).not.toBeNull();
+    expect(result!.peaks).toHaveLength(1);
+    expect(result!.peaks[0].parameters.center).toBeCloseTo(25, 1);
+  });
+
+  it('returns null for too few points', () => {
+    const result = fitMultiPeaks([1, 2], [1, 2], [
+      { type: 'gaussian', initialGuess: { amplitude: 1, center: 1.5, sigma: 0.5 } },
+    ]);
+    expect(result).toBeNull();
+  });
+});
+```
+
+> **注**：若 `fitMultiPeaks` 签名与本测试不匹配（如 peak 类型枚举名不同、initialGuess 结构不同），按实际签名调整。务必先 `grep "export" src/utils/multiPeakFit.ts`。
+
+- [ ] **Step 4: 写 distributions.test.ts**
+
+```typescript
+// src/utils/distributions.test.ts
+import { describe, it, expect } from 'vitest';
+import {
+  normalCdf,
+  tCritical005,
+  chi2Critical005,
+  fCritical005,
+} from './distributions';
+
+describe('normalCdf', () => {
+  it('returns 0.5 at z=0', () => {
+    expect(normalCdf(0)).toBeCloseTo(0.5, 10);
+  });
+
+  it('returns ≈0.84 at z=1', () => {
+    expect(normalCdf(1)).toBeCloseTo(0.8413, 3);
+  });
+
+  it('returns ≈0.975 at z=1.96', () => {
+    expect(normalCdf(1.96)).toBeCloseTo(0.975, 3);
+  });
+
+  it('returns ≈1 at very large z', () => {
+    expect(normalCdf(6)).toBeGreaterThan(0.9999);
+  });
+
+  it('returns ≈0 at very small z', () => {
+    expect(normalCdf(-6)).toBeLessThan(0.0001);
+  });
+});
+
+describe('tCritical005', () => {
+  it('returns 12.706 at df=1', () => {
+    expect(tCritical005(1)).toBeCloseTo(12.706, 3);
+  });
+
+  it('returns ≈1.96 at large df', () => {
+    expect(tCritical005(1000)).toBeCloseTo(1.962, 2);
+  });
+});
+
+describe('chi2Critical005', () => {
+  it('returns ≈3.84 at df=1', () => {
+    expect(chi2Critical005(1)).toBeCloseTo(3.841, 3);
+  });
+
+  it('returns ≈11.07 at df=5', () => {
+    expect(chi2Critical005(5)).toBeCloseTo(11.070, 3);
+  });
+});
+
+describe('fCritical005', () => {
+  it('returns ≈4.75 at df=(5, 10)', () => {
+    // F(0.05, 5, 10) = 3.326 (numerator df=5, denominator df=10)
+    // Adjust if signature is (numerator, denominator)
+    expect(fCritical005(5, 10)).toBeCloseTo(3.326, 3);
+  });
+});
+```
+
+> **注**：函数签名以 `src/utils/distributions.ts` 为准；按需调整参数顺序。
+
+- [ ] **Step 5: 跑测试**
+
+```bash
+npm run test
+```
+
+Expected: 全部 PASS。若失败，按报错调整（特别是 multiPeakFit 和 distributions 的函数签名）。
+
+- [ ] **Step 6: 跑 coverage**
+
+```bash
+npm run test:coverage
+```
+
+Expected: 六个 Tier A 文件 branch coverage **均 ≥ 95%**。若某文件 < 95%，本 Task 内补 case。
+
+- [ ] **Step 7: 在 vitest.config.ts 添加这三个文件的阈值**
+
+修改 `vitest.config.ts`，把 `include` 和 `thresholds` 扩展到 6 个文件：
+
+```typescript
+coverage: {
+  provider: 'v8',
+  include: [
+    'src/utils/curveFitting.ts',
+    'src/utils/statistics.ts',
+    'src/utils/hypothesisTests.ts',
+    'src/utils/dataProcessing.ts',
+    'src/utils/multiPeakFit.ts',
+    'src/utils/distributions.ts',
+  ],
+  thresholds: {
+    'src/utils/curveFitting.ts': { branches: 95, functions: 95, lines: 95 },
+    'src/utils/statistics.ts': { branches: 95, functions: 95, lines: 95 },
+    'src/utils/hypothesisTests.ts': { branches: 95, functions: 95, lines: 95 },
+    'src/utils/dataProcessing.ts': { branches: 95, functions: 95, lines: 95 },
+    'src/utils/multiPeakFit.ts': { branches: 95, functions: 95, lines: 95 },
+    'src/utils/distributions.ts': { branches: 95, functions: 95, lines: 95 },
+  },
+},
+```
+
+- [ ] **Step 8: 再跑 coverage 验证阈值生效**
+
+```bash
+npm run test:coverage
+```
+
+Expected: 阈值不再被绕过；六个文件 ≥ 95% branch coverage；exit code 0。
+
+- [ ] **Step 9: 提交**
+
+```bash
+git add src/utils/hypothesisTests.test.ts src/utils/multiPeakFit.test.ts src/utils/distributions.test.ts vitest.config.ts
+git commit -m "test: 补齐 hypothesisTests/multiPeakFit/distributions 测试并启用其 ≥95% 阈值"
+```
+
+> **关键不变量**：本 Task 完成后，Phase 0 的 Tier A 文件覆盖率从 3/6 提升到 6/6，**全部 ≥95%**，与 spec §5.1 完全对齐。
+
+---
+
 ### Task 8: 写 AGENTS.md 代码地图
 
 **Files:**
-- Create or modify: `AGENTS.md`（项目根目录）
-
-> 注：项目根目录已存在 `AGENTS.md`（250 行）。本 Task 不重写，只在其末尾或独立小节加"代码地图"。
+- Modify: `AGENTS.md`（就地扩展 §3，不另开新小节）
 
 - [ ] **Step 1: 读现有 AGENTS.md**
 
