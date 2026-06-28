@@ -36,7 +36,9 @@
 
 **仍未修复**（REVIEW.md 当时就列出的 P0）：
 1. ❌ `index.html` 仍含 AdSense `<script>` + CSP allowlist `googlesyndication`
-2. ❌ `package.json` 依赖版本虚标（`i18next ^26.3.1`、`katex ^0.17.0`、`plotly ^3.6.0`、`react-plotly.js ^4.0.0`、`xlsx` 来自第三方 CDN tarball）
+2. ❌ `xlsx` 来自第三方 CDN tarball（已知 CVE 风险 + CDN 不可控）
+
+> 注：REVIEW.md 还提到"`i18next ^26.3.1`、`katex ^0.17.0`、`plotly ^3.6.0`、`react-plotly.js ^4.0.0` 依赖版本虚标"。**经 node_modules 验证（commit `80172cf`），这五个版本在 npm registry 上都是真实存在并已安装到 `node_modules`**。它们不再是 P0。
 
 ### 0.2 战略定位（用户已确认）
 
@@ -57,7 +59,7 @@
 1. **P0 永远先做** —— AdSense + 依赖版本是地基，影响可信度与新机器可装性
 2. **测试与功能并进** —— 涉及科学计算的 PR（拟合/统计/求解器）必带单测；这是 Phase 0 引入 vitest 的核心动机
 3. **每阶段都有可演示成果** —— 不做"内部重构"型阶段；纯重构包裹在一个明确交付的功能里
-4. **个人节奏** —— Phase 之间串行；每个 Phase 4–8 周 + 0.5 周缓冲
+4. **个人节奏** —— Phase 之间串行；每个 Phase 1–9 周（绝大多数 4–8 周）+ 0.5–1 周缓冲
 5. **不重复造轮子** —— 项目已有 `docs/improvement-plan.md`，本计划是其**接续与修订**
 
 ---
@@ -90,7 +92,6 @@
 |------|------|------|
 | AdSense 嵌入 | `index.html:9` | 隐私、性能、专业性质疑 |
 | CSP allowlist 含 `googlesyndication` | `index.html:7` | 配合 AdSense |
-| 依赖版本虚标 | `package.json` | `npm install` 在新机器失败；具体见 §3.0.1 |
 | `xlsx` 来自第三方 CDN tarball | `package.json` | 已知 CVE 风险 + CDN 不可控 |
 
 **P1（影响工程质量和扩展性）**
@@ -133,7 +134,7 @@ Phase 4 ── 轴与布局     (4–6 周)    日期轴 / 多面板 / 轴 break
 Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 + 模板
 ```
 
-> **工期说明**：Phase 范围取上限（如 Phase 1 = 6 周）相加得 32 周。每个 Phase 末尾预留 0.5–1 周缓冲（合计 ~5 周）。按经验再叠加 20% 延期风险，整体时间预算 **~38 周（约 9 个月）**。下文"~32 周核心"指不含缓冲；实际项目日历以 ~38 周计。
+> **工期说明**：Phase 范围取上限（2+6+4+8+6+9 = 35 周）。每个 Phase 末尾预留 0.5–1 周缓冲（合计 ~5 周）。合计约 35 + 5 = 40 周；按经验再叠加 0–10% 延期缓冲，**整体时间预算 ~38–44 周（约 9–10 个月）**。下文用 "~38 周" 作为中位估计；用户按 44 周做日历规划更稳妥。
 
 每个 Phase 末尾产出：
 - 该阶段所有"验收"全部满足
@@ -152,28 +153,14 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 | 0.1 归档 `REVIEW.md` → `REVIEW-2026-06-21.md` | git 历史保留；README 顶部加超链接 | 0.5h |
 | 0.2 移除 `index.html:9` AdSense `<script>` | `grep adsbygoogle` 无结果 | 0.5h |
 | 0.3 移除 `index.html:7` CSP 中 `googlesyndication` allowlist | CSP 不含广告域名 | 0.5h |
-| 0.4 修正 `package.json` 依赖版本到实际可用版本 | 见 §3.0.1 预检；`npm install` 在新机器成功；`npm run build` 通过 | 4h（若需重写兼容代码可延至 1.5 周） |
-| 0.5 `xlsx` 替换为 npm registry 上的稳定版本（如 `xlsx@^0.18.5`） | 移除 CDN tarball；`npm audit` 无 high/critical | 1h |
-| 0.6 接入 `vitest` | `npm run test` 可跑；先给 `curveFitting.ts` / `statistics.ts` / `dataProcessing.ts` 跑 ≥95% branch coverage（详见 §5.1） | 8h |
-| 0.7 写一份"代码地图"加到 `AGENTS.md` | `test -f AGENTS.md && grep -c 'src/' AGENTS.md ≥ 10`；含目录树 + >500 行文件清单 + >800 行"待拆"标记 | 2h |
+| 0.4 `xlsx` 替换为 npm registry 上的稳定版本（如 `xlsx@^0.18.5`） | 移除 CDN tarball；`npm audit` 无 high/critical；CSV 导入测试通过 | 1h |
+| 0.5 接入 `vitest` | `npm run test` 可跑；先给 `curveFitting.ts` / `statistics.ts` / `dataProcessing.ts` 跑 ≥95% branch coverage（详见 §5.1） | 8h |
+| 0.6 写一份"代码地图"加到 `AGENTS.md` | `test -f AGENTS.md && grep -c 'src/' AGENTS.md ≥ 10`；含目录树 + >500 行文件清单 + >800 行"待拆"标记 | 2h |
+| 0.7 CI 跑通 | `npm run check` + `npm run lint` + `npm run build` + `npm run test` 全绿 | 0.5h |
 
 **风险与回滚**：
-- 0.4 依赖修正可能触发连锁问题（API breaking）—— 建议先在 `package.json` 加注释 "Phase 0 实测"，再用 `npm ls` 验证依赖树；若 i18next ^26.3.1、katex ^0.17.0、plotly ^3.6.0、react-plotly.js ^4.0.0 中任一不在 npm registry 上，pin 到真实存在版本（建议：`i18next@^23.x`、`katex@^0.16.x`、`plotly.js-dist-min@^2.35.x`、`react-plotly.js@^2.6.x`），可能需要小幅重写 API 调用
-- 0.5 若 `xlsx` npm 版本功能不足，回退到 `exceljs` 或自实现最小子集
-
-#### 3.0.1 Phase 0.4 依赖预检
-
-执行 `npm view <pkg> versions --json | tail -20` 对以下包逐一确认：
-
-| 包名 | package.json 声明 | 预检命令 | 预期真实版本 |
-|------|------------------|---------|-------------|
-| `i18next` | `^26.3.1` | `npm view i18next version` | 若 26.x 不存在，pin 到最新 `^23.x` |
-| `react-i18next` | `^17.0.8` | `npm view react-i18next version` | 若 17.x 不存在，pin 到 `^14.x` |
-| `katex` | `^0.17.0` | `npm view katex version` | pin 到 `^0.16.x` |
-| `plotly.js-dist-min` | `^3.6.0` | `npm view plotly.js-dist-min version` | pin 到 `^2.35.x` |
-| `react-plotly.js` | `^4.0.0` | `npm view react-plotly.js version` | pin 到 `^2.6.x` |
-
-预检失败处理：pin 到真实版本 → `npm install` → `npm run build` → 若 build break 则按报错信息调整 import（多数为 API 改名，半天到一天工作量）
+- 0.4 若 `xlsx` npm 版本功能不足，回退到 `exceljs` 或自实现最小子集
+- 0.5 接入 vitest 时若发现现有 `curveFitting.ts` 有隐藏 bug（比如边界条件未处理），先记录 issue 再修，不在本阶段拖延
 
 ---
 
@@ -309,7 +296,7 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 
 | 任务 | 验收 | 工时 |
 |------|------|------|
-| 4.1 日期/时间轴 | ISO 字符串、Unix 时间戳；自动选刻度（秒/分/时/日/月/年）；时区可选 | 1.5 周 |
+| 4.1 日期/时间轴 | ISO 字符串、Unix 时间戳；自动选刻度（秒/分/时/日/月/年）；时区存储在 `chartConfig.xAxis.timezone`，默认 `UTC`，非 UTC 时在轴标题标注；拟合报告的"轴信息"区显示当前时区 | 1.5 周 |
 | 4.2 轴 break（断轴） | 双斜线 break；两侧独立缩放 | 1 周 |
 | 4.3 双 X 轴 / 镜像轴 | 一张图两条 X 轴（顶部 + 底部），独立标签 | 1 周 |
 | 4.4 多面板布局（subplot grid） | 选 2×2 / 3×1 等；每个 panel 独立 dataset；panel 共享/独立坐标轴；**前置条件**：Phase 4 开头做半天 spike（原型验证 chartConfig migration cost < 1 周），spike 失败则**本任务降级为 P3 移出 Phase 4** | 2 周（条件性） |
@@ -350,10 +337,10 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 
 | 风险 | 影响 | 应对 |
 |------|------|------|
-| Phase 3.1 `mathjs` 安全沙箱 | 任意表达式可能 XSS / DoS | AST 白名单 + evaluate 限速（每分钟 < 1000 次）+ 拒绝超长表达式 |
+| Phase 3.1 `mathjs` 安全沙箱 | 任意表达式可能 XSS / DoS | AST 白名单（拒绝关键字见 §3.3.1）+ 单次求值 5s 超时 + 拒绝 AST depth > 50 / 字符 > 500；**不做"每分钟限 N 次"**——mathjs evaluate 在小表达式下 ~1µs，限速数字会给人虚假安全感 |
 | Phase 4.4 多面板与"图层"概念冲突 | chartConfig schema 改动大 | 先做 spike（半天原型），再决定是否进 Phase 4 |
-| Phase 5.1 Matplotlib 反向映射 | colorscale / annotation 映射坑多 | 仅支持 5 种基础类型；其他类型给提示"暂不支持导出脚本" |
-| Phase 0.4 依赖修正 | API breaking | 在 package.json 注释标"待实测"；用 `npm ls` 验证依赖树；准备回滚 |
+| Phase 5.1 Matplotlib 反向映射 | colorscale / annotation 映射坑多 | **v1 仅 3 种基础类型**（line / scatter / line+fit overlay；见 §5.1）；其他类型给提示"暂不支持导出脚本" |
+| ~~Phase 0.4 依赖修正~~ | ~~API breaking~~ | **取消**（已验证：依赖版本真实存在，`npm install` 成功） |
 
 ### 4.2 产品风险
 
@@ -382,7 +369,7 @@ Phase 5 ── 复现与协作   (6–9 周)    Matplotlib 脚本 + .plot3d v3 +
 ### 5.2 节奏建议
 
 - 每周固定 **半天（约 2–3h）** 做"代码卫生"（处理 TODO、依赖更新、issue 清理），不是一整天
-- 总计卫生日预算：~28 周 × 2.5h ≈ 70h ≈ **1.7 周**，已含在 ~38 周总预算内
+- 总计卫生日预算：~38 周 × 2.5h ≈ 95h ≈ **2.4 周**，已含在 ~38–44 周总预算内
 - 每个 Phase 末尾预留 0.5–1 周缓冲（已含在总预算内）
 - 大变更前先在 GitHub issue / discussion 写清动机和方案——避免 PR 阶段来回
 
