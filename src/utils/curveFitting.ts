@@ -66,7 +66,7 @@ const T_CRIT_025: Record<number, number> = {
 };
 
 /** Two-tailed t critical value for alpha=0.05 given degrees of freedom. */
-function tCritical(df: number): number {
+export function tCritical(df: number): number {
   if (df <= 0) return 1.96;
   if (T_CRIT_025[df] !== undefined) return T_CRIT_025[df];
   if (df >= 120) return 1.96;
