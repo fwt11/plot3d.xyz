@@ -251,4 +251,4 @@ npm run preview
 
 ## 11. 许可
 
-MIT（见 `README.md`）。
+GPLv3（见 `README.md`）。
