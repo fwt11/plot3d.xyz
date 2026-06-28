@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDatasetStore } from '@/store/plotStore';
+import { useDatasetStore, useChartStore } from '@/store/plotStore';
+import { uid } from '@/utils/sampleData';
 import { ArrowUpDown, Minimize2, Plus, Waves, Spline, ChevronDown } from 'lucide-react';
 import { RibbonGroup } from './RibbonGroup';
 import { TransformPreviewModal, type PreviewOperation } from '@/components/TransformPreviewModal';
@@ -113,7 +114,24 @@ export function TransformTab() {
     const xMin = Math.min(...xs);
     const xMax = Math.max(...xs);
     const queryX = Array.from({ length: interpPoints }, (_, i) => xMin + (i / (interpPoints - 1)) * (xMax - xMin));
-    interpolateColumn(activeDs.id, xCol.id, targetCol.id, interpMethod, queryX);
+    const result = interpolateColumn(activeDs.id, xCol.id, targetCol.id, interpMethod, queryX);
+    if (result) {
+      useChartStore.getState().addLayer({
+        id: uid(),
+        datasetId: activeDs.id,
+        xColumn: result.newXColId,
+        yColumn: result.newYColId,
+        displayName: `${targetCol.name}_${interpMethod}`,
+        color: `hsl(${Math.random() * 360}, 70%, 55%)`,
+        visible: true,
+        lineStyle: 'solid',
+        lineWidth: 2,
+        pointStyle: 'none',
+        pointSize: 6,
+        fill: false,
+        fillOpacity: 0.35,
+      });
+    }
   };
 
   const inputStyle: React.CSSProperties = {

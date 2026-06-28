@@ -396,12 +396,13 @@ export default function ChartView() {
           errorXCol, errorXPlusCol, errorXMinusCol,
         });
       } else {
-        const yCols = ds.columns.filter((c) => c.type === 'Y');
         // For heatmap, also resolve the Z column
         const zColForHeatmap = chartType === 'heatmap'
           ? (layer.zColumn ? ds.columns.find((c) => c.id === layer.zColumn) : ds.columns.find((c) => c.type === 'Z'))
           : undefined;
-        if (yCols.length === 0) {
+
+        if (layer.yColumn) {
+          // Layer has explicit yColumn — use only that column
           const yCol = ds.columns.find((c) => c.id === layer.yColumn);
           if (yCol) {
             result.push({
@@ -412,6 +413,8 @@ export default function ChartView() {
             });
           }
         } else {
+          // No explicit yColumn — expand to all Y-type columns
+          const yCols = ds.columns.filter((c) => c.type === 'Y');
           yCols.forEach((yCol, idx) => {
             result.push({
               label: layer.displayName || yCol.name,

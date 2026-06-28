@@ -48,8 +48,8 @@ interface DatasetStore {
   normalizeColumnByMethod: (datasetId: string, columnId: string, method: 'minmax' | 'zscore' | 'log') => void;
   /** Smooth a column in-place using the given method. */
   smoothColumn: (datasetId: string, columnId: string, method: 'sg' | 'moving' | 'lowpass' | 'whittaker', params: { windowSize?: number; polyOrder?: number; alpha?: number; lambda?: number }) => void;
-  /** Interpolate y values at query x positions and write into a new column. */
-  interpolateColumn: (datasetId: string, xColumnId: string, yColumnId: string, method: 'linear' | 'spline' | 'akima' | 'pchip', queryX: number[], newColumnName?: string) => void;
+  /** Interpolate y values at query x positions and write into a new X + Y column pair. Returns the new column IDs. */
+  interpolateColumn: (datasetId: string, xColumnId: string, yColumnId: string, method: 'linear' | 'spline' | 'akima' | 'pchip', queryX: number[], newColumnName?: string) => { newXColId: string; newYColId: string } | null;
   /** Filter rows by a condition on a column; rows failing the condition are removed. */
   filterRowsByCondition: (datasetId: string, columnId: string, condition: FilterCondition) => void;
   /** Fill missing values in a column using the given strategy. */
@@ -511,27 +511,35 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   },
 
   interpolateColumn: (datasetId, xColumnId, yColumnId, method, queryX, newColumnName) => {
+    const dataset = get().datasets.find((d) => d.id === datasetId);
+    const xCol = dataset?.columns.find((c) => c.id === xColumnId);
+    const yCol = dataset?.columns.find((c) => c.id === yColumnId);
+    if (!dataset || !xCol || !yCol) return null;
+
+    const xs = xCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+    const ys = yCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
+    let result: number[];
+    switch (method) {
+      case 'spline': result = cubicSplineInterp(xs, ys, queryX); break;
+      case 'akima': result = akimaInterp(xs, ys, queryX); break;
+      case 'pchip': result = pchipInterp(xs, ys, queryX); break;
+      default: result = linearInterp(xs, ys, queryX); break;
+    }
+
+    const newXColId = uid();
+    const newYColId = uid();
+    const name = newColumnName ?? `${yCol.name}_${method}`;
+
     useHistoryStore.getState().pushSnapshot(i18n.t('history.interpolateColumn', { defaultValue: 'Interpolate column' }));
     set((s) => ({
       datasets: s.datasets.map((d) => {
         if (d.id !== datasetId) return d;
-        const xCol = d.columns.find((c) => c.id === xColumnId);
-        const yCol = d.columns.find((c) => c.id === yColumnId);
-        if (!xCol || !yCol) return d;
-        const xs = xCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
-        const ys = yCol.values.map((v) => { const n = Number(v); return isNaN(n) ? NaN : n; });
-        let result: number[];
-        switch (method) {
-          case 'spline': result = cubicSplineInterp(xs, ys, queryX); break;
-          case 'akima': result = akimaInterp(xs, ys, queryX); break;
-          case 'pchip': result = pchipInterp(xs, ys, queryX); break;
-          default: result = linearInterp(xs, ys, queryX); break;
-        }
-        const name = newColumnName ?? `${yCol.name}_${method}`;
-        const newCol: DataColumn = { id: uid(), name, type: 'Y', values: result.map((v) => isNaN(v) ? '' : String(v)) };
-        return { ...d, columns: [...d.columns, newCol] };
+        const newXCol: DataColumn = { id: newXColId, name: `${xCol.name}_${method}`, type: 'X', values: queryX.map((v) => String(v)) };
+        const newYCol: DataColumn = { id: newYColId, name, type: 'Y', values: result.map((v) => isNaN(v) ? '' : String(v)) };
+        return { ...d, columns: [...d.columns, newXCol, newYCol] };
       }),
     }));
+    return { newXColId, newYColId };
   },
 
   filterRowsByCondition: (datasetId, columnId, condition) => {
