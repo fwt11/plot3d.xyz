@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
             textAlign: 'center',
           }}
         >
-          <h1 style={{ fontSize: 20, marginBottom: 8 }}>Plot3D encountered an error</h1>
+          <h1 style={{ fontSize: 20, marginBottom: 8 }}>plot3d.xyz encountered an error</h1>
           <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>
             {this.state.error?.message ?? 'Unknown error'}
           </p>

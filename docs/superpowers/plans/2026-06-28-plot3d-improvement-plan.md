@@ -1,4 +1,4 @@
-# Plot3D 提升计划（修订版）实施计划
+# plot3d.xyz 提升计划（修订版）实施计划
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -136,7 +136,7 @@ cat index.html
 
 修改后该行所在区域大致如下：
 ```html
-    <title>Plot3D</title>
+    <title>plot3d.xyz</title>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 ```
@@ -1143,12 +1143,19 @@ describe('shapiroWilk', () => {
 
 - [ ] **Step 3: 写 multiPeakFit.test.ts**
 
+> **实际 API**（src/utils/multiPeakFit.ts:145-150 验证）：
+> - 函数名是 `multiPeakFit`（不是 `fitMultiPeaks`）
+> - 签名：`multiPeakFit(x, y, initialPeaks?, options?): MultiPeakFitResult | null`
+> - `initialPeaks` 字段：`{ amplitude, center, width, eta? }`（**width 不是 sigma**）
+> - `MultiPeakFitResult.peaks: PeakResult[]` 直接有 `center/amplitude/width` 字段（**无 `.parameters` 包装**）
+> - `options.shape` 取 `'gaussian' | 'lorentzian' | 'pseudoVoigt'`
+
 ```typescript
 // src/utils/multiPeakFit.test.ts
 import { describe, it, expect } from 'vitest';
-import { fitMultiPeaks } from './multiPeakFit';
+import { multiPeakFit } from './multiPeakFit';
 
-describe('fitMultiPeaks', () => {
+describe('multiPeakFit', () => {
   it('fits a single Gaussian peak', () => {
     const x: number[] = [];
     const y: number[] = [];
@@ -1156,22 +1163,29 @@ describe('fitMultiPeaks', () => {
       x.push(i);
       y.push(10 * Math.exp(-Math.pow(i - 25, 2) / (2 * 3 * 3)));
     }
-    const result = fitMultiPeaks(x, y, [{ type: 'gaussian', initialGuess: { amplitude: 10, center: 25, sigma: 3 } }]);
+    const result = multiPeakFit(
+      x,
+      y,
+      [{ amplitude: 10, center: 25, width: 3 }],
+      { shape: 'gaussian' },
+    );
     expect(result).not.toBeNull();
-    expect(result!.peaks).toHaveLength(1);
-    expect(result!.peaks[0].parameters.center).toBeCloseTo(25, 1);
+    expect(result!.peaks.length).toBe(1);
+    expect(result!.peaks[0].center).toBeCloseTo(25, 0);
+    expect(result!.peaks[0].amplitude).toBeGreaterThan(5);
   });
 
   it('returns null for too few points', () => {
-    const result = fitMultiPeaks([1, 2], [1, 2], [
-      { type: 'gaussian', initialGuess: { amplitude: 1, center: 1.5, sigma: 0.5 } },
-    ]);
+    const result = multiPeakFit(
+      [1, 2],
+      [1, 2],
+      [{ amplitude: 1, center: 1.5, width: 0.5 }],
+      { shape: 'gaussian' },
+    );
     expect(result).toBeNull();
   });
 });
 ```
-
-> **注**：若 `fitMultiPeaks` 签名与本测试不匹配（如 peak 类型枚举名不同、initialGuess 结构不同），按实际签名调整。务必先 `grep "export" src/utils/multiPeakFit.ts`。
 
 - [ ] **Step 4: 写 distributions.test.ts**
 

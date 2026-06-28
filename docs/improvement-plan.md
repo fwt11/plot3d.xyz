@@ -1,4 +1,4 @@
-# Plot3D 改进计划
+# plot3d.xyz 改进计划
 
 > 基于 [feature-analysis.md](./feature-analysis.md) 的功能分析与优化建议，结合项目实际结构（React + Zustand + Plotly + Web Worker）制定的可执行改进路线图。
 
