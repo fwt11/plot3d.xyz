@@ -367,7 +367,7 @@ export default function LayerPanel() {
               </div>
 
               {/* Layer body: inner controls should not initiate the parent reorder drag */}
-              <div className="layer-card-body">
+              <div className="layer-card-body space-y-2 pb-2">
 
               {/* Style preset quick bar */}
               {showPresetsFor === layer.id && (
@@ -427,14 +427,14 @@ export default function LayerPanel() {
 
               {/* X/Y/Z column selectors */}
               {ds && (
-                <div className="flex gap-1.5 px-1.5">
-                  <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                    X
+                <div className="flex flex-col gap-2 px-1.5">
+                  <label className="flex items-center gap-2 text-xs" style={labelStyle}>
+                    <span className="w-4 shrink-0 text-center">X</span>
                     <select
                       value={layer.xColumn}
                       onChange={(e) => updateLayer(layer.id, { xColumn: e.target.value })}
                       disabled={isLocked}
-                      className="border rounded px-1 py-0.5 outline-none"
+                      className="flex-1 min-w-0 border rounded px-1.5 py-0.5 outline-none truncate"
                       style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
                       aria-label={t('layer.xColumn', 'X column')}
                     >
@@ -443,13 +443,13 @@ export default function LayerPanel() {
                       ))}
                     </select>
                   </label>
-                  <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                    Y
+                  <label className="flex items-center gap-2 text-xs" style={labelStyle}>
+                    <span className="w-4 shrink-0 text-center">Y</span>
                     <select
                       value={layer.yColumn}
                       onChange={(e) => updateLayer(layer.id, { yColumn: e.target.value })}
                       disabled={isLocked}
-                      className="border rounded px-1 py-0.5 outline-none"
+                      className="flex-1 min-w-0 border rounded px-1.5 py-0.5 outline-none truncate"
                       style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
                       aria-label={t('layer.yColumn', 'Y column')}
                     >
@@ -459,13 +459,13 @@ export default function LayerPanel() {
                     </select>
                   </label>
                   {is3D && (
-                    <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                      Z
+                    <label className="flex items-center gap-2 text-xs" style={labelStyle}>
+                      <span className="w-4 shrink-0 text-center">Z</span>
                       <select
                         value={layer.zColumn ?? ''}
                         onChange={(e) => updateLayer(layer.id, { zColumn: e.target.value || undefined })}
                         disabled={isLocked}
-                        className="border rounded px-1 py-0.5 outline-none"
+                        className="flex-1 min-w-0 border rounded px-1.5 py-0.5 outline-none truncate"
                         style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
                         aria-label={t('layer.zColumn', 'Z column')}
                       >
@@ -494,176 +494,176 @@ export default function LayerPanel() {
 
               {/* Collapsible style options */}
               {isExpanded && (
-                <div className="space-y-1.5 px-1.5 pb-1.5" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
-                  <div className="flex gap-1.5">
-                    <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                      {t('layer.lineStyle', 'Line Style')}
-                      <select
-                        value={layer.lineStyle}
-                        onChange={(e) => updateLayer(layer.id, { lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
-                        disabled={isLocked}
-                        className="border rounded px-1 py-0.5 outline-none flex-1"
-                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                        aria-label={t('layer.lineStyle', 'Line Style')}
-                      >
-                        <option value="solid">{t('layer.solid', 'Solid')}</option>
-                        <option value="dashed">{t('layer.dashed', 'Dashed')}</option>
-                        <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                      {t('layer.lineWidth', 'Line Width')}
-                      <input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={layer.lineWidth}
-                        onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
-                        disabled={isLocked}
-                        className="border rounded px-1 py-0.5 outline-none w-10 text-center"
-                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
-                        aria-label={t('layer.lineWidth', 'Line Width')}
-                      />
-                    </label>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                      {t('layer.pointStyle', 'Point Style')}
-                      <select
-                        value={layer.pointStyle}
-                        onChange={(e) => updateLayer(layer.id, { pointStyle: e.target.value as 'circle' | 'square' | 'triangle' | 'none' })}
-                        disabled={isLocked}
-                        className="border rounded px-1 py-0.5 outline-none flex-1"
-                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                        aria-label={t('layer.pointStyle', 'Point Style')}
-                      >
-                        <option value="circle">{t('layer.circle', 'Circle')}</option>
-                        <option value="square">{t('layer.square', 'Square')}</option>
-                        <option value="triangle">{t('layer.triangle', 'Triangle')}</option>
-                        <option value="none">{t('layer.nonePoint', 'None')}</option>
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                      {t('layer.pointSize', 'Point Size')}
-                      <input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={layer.pointSize}
-                        onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
-                        disabled={isLocked}
-                        className="border rounded px-1 py-0.5 outline-none w-10 text-center"
-                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
-                        aria-label={t('layer.pointSize', 'Point Size')}
-                      />
-                    </label>
-                  </div>
-                  <div className="flex gap-1.5 items-center">
-                    <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
-                      <input
-                        type="checkbox"
-                        checked={layer.fill}
-                        onChange={(e) => updateLayer(layer.id, { fill: e.target.checked })}
-                        disabled={isLocked}
-                        className="accent-sky-500"
-                        aria-label={t('layer.fill', 'Fill')}
-                      />
-                      {t('layer.fill', 'Fill')}
-                    </label>
-                  </div>
+                <div className="space-y-2 px-1.5 pb-1.5" style={{ borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                    <span>{t('layer.lineStyle', 'Line Style')}</span>
+                    <select
+                      value={layer.lineStyle}
+                      onChange={(e) => updateLayer(layer.id, { lineStyle: e.target.value as 'solid' | 'dashed' | 'dotted' })}
+                      disabled={isLocked}
+                      className="w-full border rounded px-1.5 py-0.5 outline-none"
+                      style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                      aria-label={t('layer.lineStyle', 'Line Style')}
+                    >
+                      <option value="solid">{t('layer.solid', 'Solid')}</option>
+                      <option value="dashed">{t('layer.dashed', 'Dashed')}</option>
+                      <option value="dotted">{t('layer.dotted', 'Dotted')}</option>
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                    <span>{t('layer.lineWidth', 'Line Width')}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={layer.lineWidth}
+                      onChange={(e) => updateLayer(layer.id, { lineWidth: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })}
+                      disabled={isLocked}
+                      className="w-full border rounded px-1.5 py-0.5 outline-none"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
+                      aria-label={t('layer.lineWidth', 'Line Width')}
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                    <span>{t('layer.pointStyle', 'Point Style')}</span>
+                    <select
+                      value={layer.pointStyle}
+                      onChange={(e) => updateLayer(layer.id, { pointStyle: e.target.value as 'circle' | 'square' | 'triangle' | 'none' })}
+                      disabled={isLocked}
+                      className="w-full border rounded px-1.5 py-0.5 outline-none"
+                      style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                      aria-label={t('layer.pointStyle', 'Point Style')}
+                    >
+                      <option value="circle">{t('layer.circle', 'Circle')}</option>
+                      <option value="square">{t('layer.square', 'Square')}</option>
+                      <option value="triangle">{t('layer.triangle', 'Triangle')}</option>
+                      <option value="none">{t('layer.nonePoint', 'None')}</option>
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                    <span>{t('layer.pointSize', 'Point Size')}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={layer.pointSize}
+                      onChange={(e) => updateLayer(layer.id, { pointSize: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })}
+                      disabled={isLocked}
+                      className="w-full border rounded px-1.5 py-0.5 outline-none"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
+                      aria-label={t('layer.pointSize', 'Point Size')}
+                    />
+                  </label>
+
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={labelStyle}>
+                    <input
+                      type="checkbox"
+                      checked={layer.fill}
+                      onChange={(e) => updateLayer(layer.id, { fill: e.target.checked })}
+                      disabled={isLocked}
+                      className="accent-sky-500"
+                      aria-label={t('layer.fill', 'Fill')}
+                    />
+                    <span>{t('layer.fill', 'Fill')}</span>
+                  </label>
+
                   {(layer.fill || chartConfig.type === 'area' || (chartConfig.type === 'polar' && layer.fill)) && (
-                    <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                        {t('layer.fillColor', 'Fill Color')}
-                        <input
-                          type="color"
-                          value={layer.fillColor ?? layer.color}
-                          onChange={(e) => updateLayer(layer.id, { fillColor: e.target.value })}
-                          disabled={isLocked}
-                          className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
-                          style={{ opacity: isLocked ? 0.6 : 1 }}
-                          aria-label={t('layer.fillColor', 'Fill Color')}
-                        />
+                    <>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.fillColor', 'Fill Color')}</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={layer.fillColor ?? layer.color}
+                            onChange={(e) => updateLayer(layer.id, { fillColor: e.target.value })}
+                            disabled={isLocked}
+                            className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
+                            style={{ opacity: isLocked ? 0.6 : 1 }}
+                            aria-label={t('layer.fillColor', 'Fill Color')}
+                          />
+                          <button
+                            onClick={() => updateLayer(layer.id, { fillColor: undefined })}
+                            disabled={isLocked || !layer.fillColor}
+                            className="text-xs transition-colors"
+                            style={{ color: layer.fillColor ? 'var(--accent)' : 'var(--text-faint)', opacity: isLocked ? 0.6 : 1 }}
+                            title={t('layer.fillColorFollowLine', 'Follow line color')}
+                          >
+                            ↔
+                          </button>
+                        </div>
                       </label>
-                      <button
-                        onClick={() => updateLayer(layer.id, { fillColor: undefined })}
-                        disabled={isLocked || !layer.fillColor}
-                        className="text-xs transition-colors"
-                        style={{ color: layer.fillColor ? 'var(--accent)' : 'var(--text-faint)', opacity: isLocked ? 0.6 : 1 }}
-                        title={t('layer.fillColorFollowLine', 'Follow line color')}
-                      >
-                        ↔
-                      </button>
-                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                        {t('layer.fillOpacity', 'Fill Opacity')}
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={layer.fillOpacity ?? 0.35}
-                          onChange={(e) => updateLayer(layer.id, { fillOpacity: Math.max(0, Math.min(1, Number(e.target.value))) })}
-                          disabled={isLocked}
-                          className="flex-1 accent-sky-500"
-                          aria-label={t('layer.fillOpacity', 'Fill Opacity')}
-                        />
-                        <span className="w-8 text-right">{Math.round((layer.fillOpacity ?? 0.35) * 100)}%</span>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.fillOpacity', 'Fill Opacity')}</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={layer.fillOpacity ?? 0.35}
+                            onChange={(e) => updateLayer(layer.id, { fillOpacity: Math.max(0, Math.min(1, Number(e.target.value))) })}
+                            disabled={isLocked}
+                            className="flex-1 accent-sky-500"
+                            aria-label={t('layer.fillOpacity', 'Fill Opacity')}
+                          />
+                          <span className="w-8 text-right">{Math.round((layer.fillOpacity ?? 0.35) * 100)}%</span>
+                        </div>
                       </label>
-                    </div>
+                    </>
                   )}
+
                   {!is3D && (
-                    <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                        {t('layer.yAxisSide', 'Y Axis Side')}
-                        <select
-                          value={layer.yAxisSide || 'left'}
-                          onChange={(e) => updateLayer(layer.id, { yAxisSide: e.target.value as 'left' | 'right' })}
-                          disabled={isLocked}
-                          className="border rounded px-1 py-0.5 outline-none flex-1"
-                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                          aria-label={t('layer.yAxisSide', 'Y Axis Side')}
-                        >
-                          <option value="left">{t('layer.yAxisLeft', 'Left')}</option>
-                          <option value="right">{t('layer.yAxisRight', 'Right')}</option>
-                        </select>
-                      </label>
-                    </div>
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.yAxisSide', 'Y Axis Side')}</span>
+                      <select
+                        value={layer.yAxisSide || 'left'}
+                        onChange={(e) => updateLayer(layer.id, { yAxisSide: e.target.value as 'left' | 'right' })}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.yAxisSide', 'Y Axis Side')}
+                      >
+                        <option value="left">{t('layer.yAxisLeft', 'Left')}</option>
+                        <option value="right">{t('layer.yAxisRight', 'Right')}</option>
+                      </select>
+                    </label>
                   )}
-                  {/* Error bar type + style config */}
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                        {t('layer.errorBarType', 'Error Bar Type')}
-                        <select
-                          value={layer.errorBarConfig?.type ?? 'custom'}
-                          onChange={(e) => {
-                            const type = e.target.value as 'sd' | 'se' | 'ci95' | 'custom';
-                            updateLayer(layer.id, {
-                              errorBarConfig: {
-                                type,
-                                capWidth: layer.errorBarConfig?.capWidth ?? 6,
-                                capStyle: layer.errorBarConfig?.capStyle ?? 'line',
-                                showCap: layer.errorBarConfig?.showCap ?? true,
-                                asymmetric: layer.errorBarConfig?.asymmetric ?? false,
-                                thickness: layer.errorBarConfig?.thickness ?? 2,
-                              },
-                            });
-                          }}
-                          disabled={isLocked}
-                          className="border rounded px-1 py-0.5 outline-none flex-1"
-                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                          aria-label={t('layer.errorBarType', 'Error Bar Type')}
-                        >
-                          <option value="custom">{t('layer.errorBarCustom', 'Custom Column')}</option>
-                          <option value="sd">{t('layer.errorBarSD', 'SD (Std Dev)')}</option>
-                          <option value="se">{t('layer.errorBarSE', 'SE (Std Error)')}</option>
-                          <option value="ci95">{t('layer.errorBarCI95', '95% CI')}</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div className="flex gap-1.5 items-center">
-                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                        {t('layer.errorBarCapWidth', 'Cap Width')}
+
+                  <div className="flex flex-col gap-2">
+                    <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                      <span>{t('layer.errorBarType', 'Error Bar Type')}</span>
+                      <select
+                        value={layer.errorBarConfig?.type ?? 'custom'}
+                        onChange={(e) => {
+                          const type = e.target.value as 'sd' | 'se' | 'ci95' | 'custom';
+                          updateLayer(layer.id, {
+                            errorBarConfig: {
+                              type,
+                              capWidth: layer.errorBarConfig?.capWidth ?? 6,
+                              capStyle: layer.errorBarConfig?.capStyle ?? 'line',
+                              showCap: layer.errorBarConfig?.showCap ?? true,
+                              asymmetric: layer.errorBarConfig?.asymmetric ?? false,
+                              thickness: layer.errorBarConfig?.thickness ?? 2,
+                            },
+                          });
+                        }}
+                        disabled={isLocked}
+                        className="w-full border rounded px-1.5 py-0.5 outline-none"
+                        style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                        aria-label={t('layer.errorBarType', 'Error Bar Type')}
+                      >
+                        <option value="custom">{t('layer.errorBarCustom', 'Custom Column')}</option>
+                        <option value="sd">{t('layer.errorBarSD', 'SD (Std Dev)')}</option>
+                        <option value="se">{t('layer.errorBarSE', 'SE (Std Error)')}</option>
+                        <option value="ci95">{t('layer.errorBarCI95', '95% CI')}</option>
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorBarCapWidth', 'Cap Width')}</span>
                         <input
                           type="number"
                           min={0}
@@ -680,13 +680,13 @@ export default function LayerPanel() {
                             },
                           })}
                           disabled={isLocked}
-                          className="border rounded px-1 py-0.5 outline-none w-10 text-center"
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
                           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
                           aria-label={t('layer.errorBarCapWidth', 'Cap Width')}
                         />
                       </label>
-                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
-                        {t('layer.errorBarThickness', 'Thickness')}
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorBarThickness', 'Thickness')}</span>
                         <input
                           type="number"
                           min={1}
@@ -703,11 +703,13 @@ export default function LayerPanel() {
                             },
                           })}
                           disabled={isLocked}
-                          className="border rounded px-1 py-0.5 outline-none w-10 text-center"
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
                           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)', opacity: isLocked ? 0.6 : 1 }}
                           aria-label={t('layer.errorBarThickness', 'Thickness')}
                         />
                       </label>
+                    </div>
+                    <div className="flex items-center gap-3">
                       <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
                         <input
                           type="checkbox"
@@ -726,7 +728,7 @@ export default function LayerPanel() {
                           className="accent-sky-500"
                           aria-label={t('layer.errorBarShowCap', 'Show Cap')}
                         />
-                        {t('layer.errorBarShowCap', 'Cap')}
+                        <span>{t('layer.errorBarShowCap', 'Cap')}</span>
                       </label>
                       <label className="flex items-center gap-1 text-xs cursor-pointer" style={labelStyle}>
                         <input
@@ -746,120 +748,109 @@ export default function LayerPanel() {
                           className="accent-sky-500"
                           aria-label={t('layer.errorBarAsymmetric', 'Asymmetric')}
                         />
-                        {t('layer.errorBarAsymmetric', 'Asym')}
+                        <span>{t('layer.errorBarAsymmetric', 'Asym')}</span>
                       </label>
                     </div>
                   </div>
+
                   {ds && (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorColumn', 'Error Column')}
-                          <select
-                            value={layer.errorColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorColumn', 'Error Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorPlusColumn', 'Error+ Column')}
-                          <select
-                            value={layer.errorPlusColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorPlusColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorPlusColumn', 'Error+ Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorPlusColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorMinusColumn', 'Error− Column')}
-                          <select
-                            value={layer.errorMinusColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorMinusColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorMinusColumn', 'Error− Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorMinusColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorXColumn', 'X Error Column')}
-                          <select
-                            value={layer.errorXColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorXColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorXColumn', 'X Error Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorXPlusColumn', 'X Error+ Column')}
-                          <select
-                            value={layer.errorXPlusColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorXPlusColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorXPlusColumn', 'X Error+ Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorPlusColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="flex gap-1.5 items-center">
-                        <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
-                          {t('layer.errorXMinusColumn', 'X Error− Column')}
-                          <select
-                            value={layer.errorXMinusColumn ?? ''}
-                            onChange={(e) => updateLayer(layer.id, { errorXMinusColumn: e.target.value || undefined })}
-                            disabled={isLocked}
-                            className="border rounded px-1 py-0.5 outline-none flex-1"
-                            style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
-                            aria-label={t('layer.errorXMinusColumn', 'X Error− Column')}
-                          >
-                            <option value="">{t('layer.none')}</option>
-                            {errorMinusColumns.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorColumn', 'Error Column')}</span>
+                        <select
+                          value={layer.errorColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorColumn', 'Error Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorPlusColumn', 'Error+ Column')}</span>
+                        <select
+                          value={layer.errorPlusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorPlusColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorPlusColumn', 'Error+ Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorPlusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorMinusColumn', 'Error− Column')}</span>
+                        <select
+                          value={layer.errorMinusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorMinusColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorMinusColumn', 'Error− Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorMinusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorXColumn', 'X Error Column')}</span>
+                        <select
+                          value={layer.errorXColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorXColumn', 'X Error Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorXPlusColumn', 'X Error+ Column')}</span>
+                        <select
+                          value={layer.errorXPlusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXPlusColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorXPlusColumn', 'X Error+ Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorPlusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-xs" style={labelStyle}>
+                        <span>{t('layer.errorXMinusColumn', 'X Error− Column')}</span>
+                        <select
+                          value={layer.errorXMinusColumn ?? ''}
+                          onChange={(e) => updateLayer(layer.id, { errorXMinusColumn: e.target.value || undefined })}
+                          disabled={isLocked}
+                          className="w-full border rounded px-1.5 py-0.5 outline-none"
+                          style={{ ...selectStyle, opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.errorXMinusColumn', 'X Error− Column')}
+                        >
+                          <option value="">{t('layer.none')}</option>
+                          {errorMinusColumns.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
                   )}
                 </div>

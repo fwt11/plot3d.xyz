@@ -142,7 +142,7 @@ export default function Workspace() {
   const [showConfigPanel, setShowConfigPanel] = useState(true);
   const [dataTablePopout, setDataTablePopout] = useState(false);
   const [mainTab, setMainTab] = useState<'chart' | 'data'>('chart');
-  const [layerPanelWidth, setLayerPanelWidth] = useState(180);
+  const [layerPanelWidth, setLayerPanelWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(280);
   const [resizing, setResizing] = useState<'layerPanel' | 'configPanel' | null>(null);
   const theme = useUiStore((s) => s.theme);
@@ -168,7 +168,7 @@ export default function Workspace() {
     if (!resizing) return;
     const handleMouseMove = (e: MouseEvent) => {
       if (resizing === 'layerPanel') {
-        setLayerPanelWidth(Math.max(120, Math.min(400, e.clientX)));
+        setLayerPanelWidth(Math.max(180, Math.min(400, e.clientX)));
       } else if (resizing === 'configPanel') {
         setRightWidth(Math.max(200, Math.min(500, window.innerWidth - e.clientX)));
       }
