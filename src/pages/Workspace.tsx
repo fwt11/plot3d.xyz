@@ -254,6 +254,7 @@ export default function Workspace() {
               pointStyle: 'circle',
               pointSize: 6,
               fill: false,
+              fillOpacity: 0.35,
             });
           }
         }

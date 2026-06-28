@@ -41,7 +41,7 @@ const STYLE_PRESETS: StylePreset[] = [
     id: 'area-fill',
     nameKey: 'layer.presetAreaFill',
     defaultName: 'Area Fill',
-    apply: () => ({ lineStyle: 'solid', lineWidth: 3, pointStyle: 'none', pointSize: 4, fill: true }),
+    apply: () => ({ lineStyle: 'solid', lineWidth: 3, pointStyle: 'none', pointSize: 4, fill: true, fillOpacity: 0.4 }),
   },
   {
     id: 'bold',
@@ -69,6 +69,7 @@ export default function LayerPanel() {
   const [showPresetsFor, setShowPresetsFor] = useState<string | null>(null);
   const dragLayerIdRef = useRef<string | null>(null);
   const dragOverIndexRef = useRef<number | null>(null);
+  const dragOriginRef = useRef<'header' | 'body'>('header');
 
   const toggleExpand = (layerId: string) => {
     setExpandedLayers((prev) => {
@@ -257,7 +258,19 @@ export default function LayerPanel() {
             <div
               key={layer.id}
               draggable={!isLocked}
-              onDragStart={(e) => handleDragStart(e, layer.id)}
+              onMouseDown={(e) => {
+                // Record whether the drag originated inside the body (form controls) or the header.
+                const target = e.target as HTMLElement;
+                dragOriginRef.current = target.closest('.layer-card-body') ? 'body' : 'header';
+              }}
+              onDragStart={(e) => {
+                // Only allow reorder drag when starting from the header.
+                if (dragOriginRef.current === 'body') {
+                  e.preventDefault();
+                  return;
+                }
+                handleDragStart(e, layer.id);
+              }}
               onDragOver={(e) => handleDragOver(e, actualIndex)}
               onDrop={(e) => handleDrop(e, actualIndex)}
               onDragEnd={handleDragEnd}
@@ -352,6 +365,9 @@ export default function LayerPanel() {
                   <Trash2 size={12} />
                 </button>
               </div>
+
+              {/* Layer body: inner controls should not initiate the parent reorder drag */}
+              <div className="layer-card-body">
 
               {/* Style preset quick bar */}
               {showPresetsFor === layer.id && (
@@ -555,6 +571,46 @@ export default function LayerPanel() {
                       {t('layer.fill', 'Fill')}
                     </label>
                   </div>
+                  {(layer.fill || chartConfig.type === 'area' || (chartConfig.type === 'polar' && layer.fill)) && (
+                    <div className="flex gap-1.5 items-center">
+                      <label className="flex items-center gap-1 text-xs" style={labelStyle}>
+                        {t('layer.fillColor', 'Fill Color')}
+                        <input
+                          type="color"
+                          value={layer.fillColor ?? layer.color}
+                          onChange={(e) => updateLayer(layer.id, { fillColor: e.target.value })}
+                          disabled={isLocked}
+                          className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
+                          style={{ opacity: isLocked ? 0.6 : 1 }}
+                          aria-label={t('layer.fillColor', 'Fill Color')}
+                        />
+                      </label>
+                      <button
+                        onClick={() => updateLayer(layer.id, { fillColor: undefined })}
+                        disabled={isLocked || !layer.fillColor}
+                        className="text-xs transition-colors"
+                        style={{ color: layer.fillColor ? 'var(--accent)' : 'var(--text-faint)', opacity: isLocked ? 0.6 : 1 }}
+                        title={t('layer.fillColorFollowLine', 'Follow line color')}
+                      >
+                        ↔
+                      </button>
+                      <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
+                        {t('layer.fillOpacity', 'Fill Opacity')}
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={layer.fillOpacity ?? 0.35}
+                          onChange={(e) => updateLayer(layer.id, { fillOpacity: Math.max(0, Math.min(1, Number(e.target.value))) })}
+                          disabled={isLocked}
+                          className="flex-1 accent-sky-500"
+                          aria-label={t('layer.fillOpacity', 'Fill Opacity')}
+                        />
+                        <span className="w-8 text-right">{Math.round((layer.fillOpacity ?? 0.35) * 100)}%</span>
+                      </label>
+                    </div>
+                  )}
                   {!is3D && (
                     <div className="flex gap-1.5 items-center">
                       <label className="flex items-center gap-1 text-xs flex-1" style={labelStyle}>
@@ -809,6 +865,7 @@ export default function LayerPanel() {
                 </div>
               )}
             </div>
+            </div>
           );
         })}
         {filteredLayers.length === 0 && searchQuery && (
@@ -837,6 +894,7 @@ export default function LayerPanel() {
                   pointStyle: 'circle',
                   pointSize: 6,
                   fill: false,
+                  fillOpacity: 0.35,
                 });
               }
             }}

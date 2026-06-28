@@ -47,6 +47,7 @@ const defaultChartConfig: ChartConfig = {
       pointStyle: 'none',
       pointSize: 5,
       fill: false,
+      fillOpacity: 0.35,
     },
   ],
 };

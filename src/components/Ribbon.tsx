@@ -103,6 +103,7 @@ function QuickToolbar() {
         pointStyle: 'circle',
         pointSize: 6,
         fill: false,
+        fillOpacity: 0.35,
       });
       addToast(t('layer.addLayer'), 'success');
     }

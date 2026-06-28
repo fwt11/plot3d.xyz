@@ -16,6 +16,7 @@ import {
   lineStyleToDash,
   pointStyleToSymbol,
   hexToHue,
+  hexToRgba,
   toPlotlyColorScale,
   extractGridData,
   type ExpandedEntry,
@@ -720,6 +721,7 @@ export default function ChartView() {
             line: { color, dash: lineStyleToDash(layer.lineStyle), width: layer.lineWidth },
             marker: { symbol: pointSymbol, size: showPoints ? layer.pointSize : 0, color },
             fill: layer.fill ? 'toself' : undefined,
+            fillcolor: layer.fill ? hexToRgba(layer.fillColor ?? color, layer.fillOpacity ?? 0.35) : undefined,
           };
         }
 
@@ -757,7 +759,7 @@ export default function ChartView() {
 
         if (layer.fill || chartType === 'area') {
           trace.fill = 'tozeroy';
-          trace.fillcolor = color + '40';
+          trace.fillcolor = hexToRgba(layer.fillColor ?? color, layer.fillOpacity ?? 0.35);
         }
 
         if (layer.yAxisSide === 'right') {

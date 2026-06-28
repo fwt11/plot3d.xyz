@@ -59,6 +59,10 @@ export interface LayerConfig {
   pointStyle: 'circle' | 'square' | 'triangle' | 'none';
   pointSize: number;
   fill: boolean;
+  /** Fill opacity for area / filled traces (0-1). */
+  fillOpacity?: number;
+  /** Custom fill color. If omitted, the layer line color is used with fillOpacity applied. */
+  fillColor?: string;
   errorColumn?: string;
   errorPlusColumn?: string;
   errorMinusColumn?: string;

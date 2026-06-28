@@ -98,6 +98,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
           pointStyle: 'circle' as const,
           pointSize: 6,
           fill: false,
+          fillOpacity: 0.35,
         }];
       }
 
@@ -337,6 +338,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
               pointStyle: 'circle' as const,
               pointSize: 3,
               fill: false,
+              fillOpacity: 0.35,
             }];
           }
         }

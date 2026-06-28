@@ -113,6 +113,7 @@ export function MultiPeakFitModal({ onClose }: MultiPeakFitModalProps) {
         pointStyle: 'none',
         pointSize: 0,
         fill: false,
+        fillOpacity: 0.35,
         displayName: `MultiPeak: ${result.peaks.length} peaks`,
       });
       addToast(t('toast.fitCurveAdded'), 'success');

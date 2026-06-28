@@ -104,6 +104,8 @@ function sanitizeLayer(layer: unknown): LayerConfig | null {
     pointStyle: ['circle', 'square', 'triangle', 'none'].includes(l.pointStyle as string) ? (l.pointStyle as LayerConfig['pointStyle']) : 'circle',
     pointSize: typeof l.pointSize === 'number' ? l.pointSize : 6,
     fill: typeof l.fill === 'boolean' ? l.fill : false,
+    fillOpacity: typeof l.fillOpacity === 'number' ? Math.max(0, Math.min(1, l.fillOpacity)) : undefined,
+    fillColor: typeof l.fillColor === 'string' ? l.fillColor : undefined,
     errorColumn: typeof l.errorColumn === 'string' ? l.errorColumn : undefined,
     errorPlusColumn: typeof l.errorPlusColumn === 'string' ? l.errorPlusColumn : undefined,
     errorMinusColumn: typeof l.errorMinusColumn === 'string' ? l.errorMinusColumn : undefined,

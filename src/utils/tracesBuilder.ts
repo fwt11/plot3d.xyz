@@ -7,6 +7,23 @@ import { sampleStdDev, standardError, meanCI95HalfWidth } from '@/utils/statisti
 export { colorMaps } from '@/utils/colormaps';
 export type { ColorMapName } from '@/types';
 
+/** Convert hex color (#rrggbb or #rgb) to rgba string with given alpha (0-1). */
+export function hexToRgba(hex: string, alpha: number): string {
+  const sanitized = hex.replace('#', '');
+  let r = 0, g = 0, b = 0;
+  if (sanitized.length === 6) {
+    r = parseInt(sanitized.slice(0, 2), 16);
+    g = parseInt(sanitized.slice(2, 4), 16);
+    b = parseInt(sanitized.slice(4, 6), 16);
+  } else if (sanitized.length === 3) {
+    r = parseInt(sanitized[0] + sanitized[0], 16);
+    g = parseInt(sanitized[1] + sanitized[1], 16);
+    b = parseInt(sanitized[2] + sanitized[2], 16);
+  }
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 /** Map line style to Plotly dash string */
 export function lineStyleToDash(style: LayerConfig['lineStyle']): string {
   switch (style) {

@@ -242,6 +242,7 @@ function addFitCurve(fitResult: FitResult, t: (key: string) => string) {
       pointStyle: 'none',
       pointSize: 0,
       fill: false,
+      fillOpacity: 0.35,
       displayName: `Fit: ${fitResult.type}`,
     });
     addToast(t('toast.fitCurveAdded'), 'success');
