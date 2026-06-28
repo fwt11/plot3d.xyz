@@ -639,7 +639,7 @@ Expected: `src/utils/curveFitting.ts` branch coverage **≥ 95%**（spec §5.1 T
 
 ```bash
 git add src/utils/curveFitting.test.ts
-git commit -m "test(curveFitting): 添加 11 类拟合 + 统计函数的解析解单元测试"
+git commit -m "test(curveFitting): 添加 7 个 fit 函数 + 统计工具的解析解单元测试"
 ```
 
 ---
@@ -1189,14 +1189,22 @@ describe('multiPeakFit', () => {
 
 - [ ] **Step 4: 写 distributions.test.ts**
 
+> **实际 API**（src/utils/distributions.ts 验证）：
+> - 没有 `fCritical005` 这个函数
+> - 实际导出：`normalCdf`、`tCdf`、`tTwoTailedP`、`chi2Cdf`、`chi2P`、`fCdf`、`fP`、`tCritical005`、`chi2Critical005`
+> - F 分布的 critical value 用 `fCdf` 数值搜索；本测试**不写** fCritical005
+
 ```typescript
 // src/utils/distributions.test.ts
 import { describe, it, expect } from 'vitest';
 import {
   normalCdf,
+  tCdf,
+  chi2Cdf,
+  fCdf,
   tCritical005,
   chi2Critical005,
-  fCritical005,
+  fP,
 } from './distributions';
 
 describe('normalCdf', () => {
@@ -1241,16 +1249,41 @@ describe('chi2Critical005', () => {
   });
 });
 
-describe('fCritical005', () => {
-  it('returns ≈4.75 at df=(5, 10)', () => {
-    // F(0.05, 5, 10) = 3.326 (numerator df=5, denominator df=10)
-    // Adjust if signature is (numerator, denominator)
-    expect(fCritical005(5, 10)).toBeCloseTo(3.326, 3);
+describe('chi2Cdf / tCdf / fCdf / fP boundary behavior', () => {
+  it('chi2Cdf at 0 with k>0 returns 0', () => {
+    expect(chi2Cdf(0, 5)).toBe(0);
+  });
+
+  it('chi2Cdf at very large x returns ≈1', () => {
+    expect(chi2Cdf(100, 5)).toBeGreaterThan(0.9999);
+  });
+
+  it('tCdf at very large positive t returns ≈1', () => {
+    expect(tCdf(10, 5)).toBeGreaterThan(0.999);
+  });
+
+  it('tCdf at very large negative t returns ≈0', () => {
+    expect(tCdf(-10, 5)).toBeLessThan(0.001);
+  });
+
+  it('fP returns upper-tail p-value (small when F large)', () => {
+    // F=10 with d1=2, d2=10 → small p-value (means "significant")
+    const p = fP(10, 2, 10);
+    expect(p).toBeLessThan(0.05);
+    expect(p).toBeGreaterThan(0);
+  });
+
+  it('fCdf at F=0 returns 0', () => {
+    expect(fCdf(0, 2, 10)).toBe(0);
+  });
+
+  it('fCdf at very large F returns ≈1', () => {
+    expect(fCdf(100, 2, 10)).toBeGreaterThan(0.9999);
   });
 });
 ```
 
-> **注**：函数签名以 `src/utils/distributions.ts` 为准；按需调整参数顺序。
+> **注**：函数签名以 `src/utils/distributions.ts` 为准；按需调整参数顺序。`fCritical005` **不存在**，未写。
 
 - [ ] **Step 5: 跑测试**
 
