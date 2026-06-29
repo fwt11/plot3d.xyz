@@ -180,20 +180,53 @@ function inverseUpperTriangular(R: number[][]): number[][] | null {
  * Linear regression using least squares method.
  * Returns null if insufficient valid data points.
  */
-export function linearFit(x: number[], y: number[]): LinearFitResult | null {
-  const { x: xv, y: yv } = filterValidPairs(x, y);
-  if (xv.length < 2) return null;
+export interface FitOptions {
+  /** Optional weights per data point. Defaults to equal weights (unweighted OLS).
+   *  Use w = 1/σ² for inverse-variance weighting. */
+  weights?: number[];
+}
+
+/** Internal: filter valid pairs and apply weights. If weights are provided, returns
+ *  effective (weighted) inputs. Returns null effective length if no valid pairs. */
+function filterValidPairsWeighted(
+  x: number[],
+  y: number[],
+  weights?: number[],
+): { x: number[]; y: number[]; w: number[] } | null {
+  const n = Math.min(x.length, y.length);
+  const wLimit = weights?.length ?? n;
+  const xv: number[] = [];
+  const yv: number[] = [];
+  const wv: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (!Number.isFinite(x[i]) || !Number.isFinite(y[i])) continue;
+    const wRaw = weights ? weights[Math.min(i, wLimit - 1)] : 1;
+    const w = Number.isFinite(wRaw) ? wRaw : 0;
+    if (w <= 0) continue; // skip zero/negative weights
+    xv.push(x[i]);
+    yv.push(y[i]);
+    wv.push(w);
+  }
+  if (xv.length === 0) return null;
+  return { x: xv, y: yv, w: wv };
+}
+
+export function linearFit(x: number[], y: number[], options?: FitOptions): LinearFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
+  if (!filtered || filtered.x.length < 2) return null;
+  const { x: xv, y: yv, w: wv } = filtered;
 
   const n = xv.length;
   const p = 2;
-  const xMean = mean(xv);
-  const yMean = mean(yv);
+  const wSum = wv.reduce((s, v) => s + v, 0);
+  const xMean = wv.reduce((s, _, i) => s + wv[i] * xv[i], 0) / wSum;
+  const yMean = wv.reduce((s, _, i) => s + wv[i] * yv[i], 0) / wSum;
 
   let ssXY = 0;
   let ssXX = 0;
   for (let i = 0; i < n; i++) {
-    ssXY += (xv[i] - xMean) * (yv[i] - yMean);
-    ssXX += (xv[i] - xMean) ** 2;
+    ssXY += wv[i] * (xv[i] - xMean) * (yv[i] - yMean);
+    ssXX += wv[i] * (xv[i] - xMean) ** 2;
   }
 
   if (Math.abs(ssXX) < 1e-12) return null;
@@ -201,22 +234,29 @@ export function linearFit(x: number[], y: number[]): LinearFitResult | null {
   const slope = ssXY / ssXX;
   const intercept = yMean - slope * xMean;
 
-  // Fitted values and residuals
+  // Weighted fitted values and residuals
   const fittedValues = xv.map((xi) => slope * xi + intercept);
   const residuals = yv.map((yi, i) => yi - fittedValues[i]);
-  const stats = calculateErrorStats(yv, fittedValues);
-  if (!stats) return null;
+  const wSSE = residuals.reduce((s, r, i) => s + wv[i] * r * r, 0);
+  const sstDenom = yv.reduce((s, yi, i) => s + wv[i] * (yi - yMean) ** 2, 0);
+  const rSquared = sstDenom === 0 ? 1 : 1 - wSSE / sstDenom;
+  const weightedMean = (vals: number[]) => {
+    let s = 0;
+    for (let i = 0; i < vals.length; i++) s += wv[i] * vals[i];
+    return s / wSum;
+  };
+  const mae = weightedMean(residuals.map((r) => Math.abs(r)));
+  const rmse = Math.sqrt(wSSE / n); // RMSE uses unweighted n by convention
 
-  // Adjusted R²
-  const adjustedRSquared = n > p ? 1 - ((1 - stats.rSquared) * (n - 1)) / (n - p) : stats.rSquared;
+  const adjustedRSquared = n > p ? 1 - ((1 - rSquared) * (n - 1)) / (n - p) : rSquared;
 
-  // Parameter standard errors
-  const sse = stats.sse;
-  const residualSE = Math.sqrt(sse / (n - p));
+  // Weighted parameter standard errors
+  // For OLS, residual variance σ² = SSE / (n - p); for WLS, σ² = wSSE / (n - p)
+  // and Var(slope) = σ² / SSXX_w where SSXX_w = Σwᵢ(xᵢ-x̄ᵥ)²
+  const residualSE = Math.sqrt(wSSE / (n - p));
   const seSlope = residualSE / Math.sqrt(ssXX);
-  const seIntercept = residualSE * Math.sqrt(1 / n + (xMean * xMean) / ssXX);
+  const seIntercept = residualSE * Math.sqrt(1 / wSum + (xMean * xMean) / ssXX);
 
-  // 95% CI
   const tCrit = tCritical(n - p);
   const ciSlope: [number, number] = [slope - tCrit * seSlope, slope + tCrit * seSlope];
   const ciIntercept: [number, number] = [intercept - tCrit * seIntercept, intercept + tCrit * seIntercept];
@@ -224,12 +264,12 @@ export function linearFit(x: number[], y: number[]): LinearFitResult | null {
   const fullStats: FitStatistics = {
     n,
     p,
-    sse,
-    sst: stats.sst,
-    rSquared: stats.rSquared,
+    sse: wSSE,
+    sst: sstDenom,
+    rSquared,
     adjustedRSquared,
-    rmse: stats.rmse,
-    mae: stats.meanAbsError,
+    rmse,
+    mae,
     residualStandardError: residualSE,
     residuals,
     fittedValues,
@@ -240,7 +280,7 @@ export function linearFit(x: number[], y: number[]): LinearFitResult | null {
     parameterCI: [ciSlope, ciIntercept],
   };
 
-  return { slope, intercept, rSquared: stats.rSquared, stats: fullStats };
+  return { slope, intercept, rSquared, stats: fullStats };
 }
 
 /**
@@ -252,42 +292,44 @@ export function polynomialFit(
   x: number[],
   y: number[],
   degree: number,
+  options?: FitOptions,
 ): PolynomialFitResult | null {
   if (degree < 1 || degree > 6) return null;
 
-  const { x: xv, y: yv } = filterValidPairs(x, y);
-  if (xv.length <= degree) return null;
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
+  if (!filtered || filtered.x.length <= degree) return null;
+  const { x: xv, y: yv, w: wv } = filtered;
 
   const n = xv.length;
   const p = degree + 1;
 
-  // Build Vandermonde matrix: each row is [1, x, x², ..., x^degree]
-  const vandermonde: number[][] = xv.map((xi) => {
+  // Build weighted Vandermonde matrix: W^{1/2} * V
+  const wSqrt = wv.map((w) => Math.sqrt(w));
+  const vandermonde: number[][] = xv.map((xi, i) => {
     const row: number[] = [];
-    for (let j = 0; j <= degree; j++) {
-      row.push(xi ** j);
-    }
+    for (let j = 0; j <= degree; j++) row.push(wSqrt[i] * xi ** j);
     return row;
   });
+  // Right-hand side: W^{1/2} * y
+  const yWeighted = yv.map((yi, i) => wSqrt[i] * yi);
 
-  // Solve least squares via QR: A c = y  →  R c = Q^T y
+  // Solve weighted least squares via QR
   const qr = qrDecompose(vandermonde);
   if (!qr) return null;
 
   const qtb = new Array(degree + 1).fill(0);
   for (let j = 0; j <= degree; j++) {
     for (let i = 0; i < n; i++) {
-      qtb[j] += qr.Q[i][j] * yv[i];
+      qtb[j] += qr.Q[i][j] * yWeighted[i];
     }
   }
 
   const coeffsLowToHigh = solveUpperTriangular(qr.R, qtb);
   if (!coeffsLowToHigh) return null;
 
-  // Reverse to highest degree first
   const coefficients = [...coeffsLowToHigh].reverse();
 
-  // Fitted values and residuals
+  // Weighted fitted values and residuals
   const fittedValues = xv.map((xi) => {
     let yPred = 0;
     for (let j = 0; j <= degree; j++) {
@@ -296,16 +338,20 @@ export function polynomialFit(
     return yPred;
   });
   const residuals = yv.map((yi, i) => yi - fittedValues[i]);
+  const wSSE = residuals.reduce((s, r, i) => s + wv[i] * r * r, 0);
+  const wSum = wv.reduce((s, v) => s + v, 0);
 
-  const stats = calculateErrorStats(yv, fittedValues);
-  if (!stats) return null;
+  // Weighted R²
+  const yMeanW = wv.reduce((s, _, i) => s + wv[i] * yv[i], 0) / wSum;
+  const sstDenom = yv.reduce((s, yi, i) => s + wv[i] * (yi - yMeanW) ** 2, 0);
+  const rSquared = sstDenom === 0 ? 1 : 1 - wSSE / sstDenom;
+  const mae = residuals.reduce((s, r, i) => s + wv[i] * Math.abs(r), 0) / wSum;
+  const rmse = Math.sqrt(wSSE / n);
 
-  // Adjusted R²
-  const adjustedRSquared = n > p ? 1 - ((1 - stats.rSquared) * (n - 1)) / (n - p) : stats.rSquared;
+  const adjustedRSquared = n > p ? 1 - ((1 - rSquared) * (n - 1)) / (n - p) : rSquared;
 
-  // Parameter standard errors via covariance matrix: cov = s² * R⁻¹ R⁻ᵀ
-  const sse = stats.sse;
-  const residualSE = Math.sqrt(sse / (n - p));
+  // Parameter standard errors via covariance matrix: cov = σ² * R⁻¹ R⁻ᵀ (already weighted)
+  const residualSE = Math.sqrt(wSSE / (n - p));
   const RInv = inverseUpperTriangular(qr.R);
   const parameterSE: number[] = [];
   if (RInv) {
@@ -320,25 +366,23 @@ export function polynomialFit(
     for (let i = 0; i < p; i++) parameterSE.push(NaN);
   }
 
-  // 95% CI
   const tCrit = tCritical(n - p);
   const parameterCI: Array<[number, number]> = coeffsLowToHigh.map((c, i) => [
     c - tCrit * parameterSE[i],
     c + tCrit * parameterSE[i],
   ]);
 
-  // Parameter names: c₀ (intercept), c₁, c₂, ...
   const parameterNames = coeffsLowToHigh.map((_, i) => (i === 0 ? 'intercept' : `c${i}`));
 
   const fullStats: FitStatistics = {
     n,
     p,
-    sse,
-    sst: stats.sst,
-    rSquared: stats.rSquared,
+    sse: wSSE,
+    sst: sstDenom,
+    rSquared,
     adjustedRSquared,
-    rmse: stats.rmse,
-    mae: stats.meanAbsError,
+    rmse,
+    mae,
     residualStandardError: residualSE,
     residuals,
     fittedValues,
@@ -349,7 +393,7 @@ export function polynomialFit(
     parameterCI,
   };
 
-  return { coefficients, rSquared: stats.rSquared, stats: fullStats };
+  return { coefficients, rSquared, stats: fullStats };
 }
 
 /**

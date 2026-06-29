@@ -47,14 +47,15 @@ export async function runFit(
   type: FitType,
   x: number[],
   y: number[],
+  weights?: number[],
 ): Promise<FitWorkerResult> {
   const w = getWorker();
   if (!w) {
     // Fallback: run in main thread
-    return runFitSync(type, x, y);
+    return runFitSync(type, x, y, weights);
   }
   const id = nextId++;
-  const req: FitRequest = { id, type, x, y };
+  const req: FitRequest = { id, type, x, y, weights };
   return new Promise<FitWorkerResult>((resolve, reject) => {
     pending.set(id, {
       resolve: (res: FitResponse) => {
@@ -76,6 +77,7 @@ async function runFitSync(
   type: FitType,
   x: number[],
   y: number[],
+  weights?: number[],
 ): Promise<FitWorkerResult> {
   const {
     linearFit, polynomialFit, exponentialFit, logarithmicFit,
@@ -89,7 +91,7 @@ async function runFitSync(
   let stats: FitStatistics | null = null;
 
   if (type === 'linear') {
-    const r = linearFit(x, y);
+    const r = linearFit(x, y, weights ? { weights } : undefined);
     if (!r || !r.stats) throw new Error('FitFailed');
     stats = r.stats;
     const sign = r.intercept >= 0 ? '+' : '-';
@@ -133,7 +135,7 @@ async function runFitSync(
     fittedFn = (v: number) => L / (1 + Math.exp(-k * (v - x0)));
   } else if (type.startsWith('poly')) {
     const degree = parseInt(type.replace('poly', ''));
-    const r = polynomialFit(x, y, degree);
+    const r = polynomialFit(x, y, degree, weights ? { weights } : undefined);
     if (!r || !r.stats) throw new Error('FitFailed');
     stats = r.stats;
     const terms = r.coefficients.map((c, i) => {

@@ -32,6 +32,8 @@ export interface FitRequest {
   type: FitType;
   x: number[];
   y: number[];
+  /** Optional weights per data point (WLS). Defaults to equal weights (unweighted). */
+  weights?: number[];
 }
 
 export interface FitSuccessResponse {
@@ -55,6 +57,7 @@ function buildEquationAndFittedFn(
   type: FitType,
   x: number[],
   y: number[],
+  weights?: number[],
 ): { equation: string; fittedX: number[]; fittedY: number[]; stats: FitStatistics } | null {
   const xMin = Math.min(...x);
   const xMax = Math.max(...x);
@@ -64,7 +67,7 @@ function buildEquationAndFittedFn(
   let stats: FitStatistics | null = null;
 
   if (type === 'linear') {
-    const r = linearFit(x, y);
+    const r = linearFit(x, y, weights ? { weights } : undefined);
     if (!r || !r.stats) return null;
     stats = r.stats;
     const sign = r.intercept >= 0 ? '+' : '-';
@@ -108,7 +111,7 @@ function buildEquationAndFittedFn(
     fittedFn = (v: number) => L / (1 + Math.exp(-k * (v - x0)));
   } else if (type.startsWith('poly')) {
     const degree = parseInt(type.replace('poly', ''));
-    const r = polynomialFit(x, y, degree);
+    const r = polynomialFit(x, y, degree, weights ? { weights } : undefined);
     if (!r || !r.stats) return null;
     stats = r.stats;
     const terms = r.coefficients.map((c, i) => {
@@ -137,7 +140,7 @@ function buildEquationAndFittedFn(
 self.onmessage = (e: MessageEvent<FitRequest>) => {
   const req = e.data;
   try {
-    const result = buildEquationAndFittedFn(req.type, req.x, req.y);
+    const result = buildEquationAndFittedFn(req.type, req.x, req.y, req.weights);
     if (!result) {
       const err: FitErrorResponse = { id: req.id, success: false, error: 'FitFailed' };
       self.postMessage(err);
