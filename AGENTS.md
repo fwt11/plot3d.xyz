@@ -98,6 +98,29 @@ src/
     └── en.json                # 英文文案
 ```
 
+### Tier A 测试覆盖（spec §5.1，branch coverage ≥ 95% 目标）
+
+| 文件 | 行数 | Phase 0 实测 branch | 阻塞原因 |
+|------|------|---------------------|---------|
+| `src/utils/curveFitting.ts` | 1048 | 84% | 12 个 Gauss-Newton 收敛失败 / QR 逆 / tCritical 边界分支，需病态输入；Phase 1 跟进 |
+| `src/utils/statistics.ts` | 695 | 78% | 32 个导出 + 大量边界 case（相关系数 NaN、描述统计 1 元素等），Phase 0 仅覆盖主要 case；Phase 1+ 跟进 |
+| `src/utils/hypothesisTests.ts` | 626 | 88% | `shapiroWilk` Royston 近似在 n ≥ 4 时 `eps < 0` → NaN（**已存在 bug**，Phase 1 修复） |
+| `src/utils/dataProcessing.ts` | 597 | 78% | pchipInterp 内部 corner case + fillMissingValues fallback 路径难确定性触发 |
+| `src/utils/multiPeakFit.ts` | 393 | 93% | gaussianElim NaN 发散路径需病态输入 |
+| `src/utils/distributions.ts` | 277 | 91% | `tCritical005` 末尾 `return 1.96` 是死代码（前面分支已覆盖所有 df） |
+
+> **临时措施**：Phase 0 的 vitest 阈值按上述实测 branch 设置（≤ 100），未达 spec §5.1 的 95% 目标。**不允许"假装调高"——每个文件都在 PHASE-0.md 记录了具体阻塞原因**。
+
+### 大文件清单（>500 行）— Phase 2 拆分目标
+
+| 文件 | 行数 | 拆分计划 |
+|------|------|---------|
+| `src/components/ChartView.tsx` | 924 | Phase 2: 拆出 `TracesOverlay3D.tsx` / `ChartContextMenu.tsx` / `useChartInteractions.ts` hook |
+| `src/components/LayerPanel.tsx` | 909 | Phase 2: 拆出 `LayerStyleEditor.tsx`；排序拖拽抽到 `useLayerDragSort.ts` |
+| `src/components/DataTable.tsx` | 615 | 暂不拆（虚拟化已做） |
+| `src/components/ribbon/FileTab.tsx` | 620 | 暂不拆 |
+| `src/components/ExportModal.tsx` | 552 | 暂不拆 |
+
 ## 4. 构建与开发命令
 
 所有命令通过 `npm` 执行。
