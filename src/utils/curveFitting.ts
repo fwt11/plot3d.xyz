@@ -1046,3 +1046,154 @@ export function calculateErrorStats(
 
   return { sse, sst, rSquared, rmse, meanAbsError };
 }
+
+// --- Prediction band (95% CI for the mean response) ---
+
+export interface ConfidenceBand {
+  /** Query x values (where band is evaluated). */
+  x: number[];
+  /** Upper edge: ŷ(x) + tCrit · SE(prediction) */
+  upper: number[];
+  /** Lower edge: ŷ(x) - tCrit · SE(prediction) */
+  lower: number[];
+  /** Critical t value used (two-tailed, alpha=0.05 default). */
+  tCritical: number;
+}
+
+/** Supported fit types for prediction band (v1: linear + polynomial). */
+export type PredictionBandType = 'linear' | 'polynomial';
+
+/**
+ * Compute a 95% confidence band for the mean response ŷ(x).
+ * - Linear: SE(ŷ) = s · sqrt(1/n + (x - x̄)² / Sxx)
+ * - Polynomial (degree 1-6): SE(ŷ) = sqrt(x_pᵀ (XᵀX)⁻¹ x_p) · s
+ *   where x_p = [1, x, x², ..., x^deg]^T. Pass `data.degree` to specify the polynomial degree.
+ *
+ * Returns null for unsupported fit types, insufficient / singular data,
+ * or for polynomial without a specified `degree`.
+ */
+export function computePredictionBand(
+  type: PredictionBandType,
+  data: { x: number[]; y: number[]; degree?: number },
+  queryX: number[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  alpha: number = 0.05,
+): ConfidenceBand | null {
+  // alpha reserved for future use (custom confidence level); v1 hardcodes 0.05
+  void alpha;
+  const xArr = data.x;
+  const yArr = data.y;
+  if (xArr.length < 2 || xArr.length !== yArr.length) return null;
+
+  // Filter valid pairs
+  const xv: number[] = [];
+  const yv: number[] = [];
+  for (let i = 0; i < xArr.length; i++) {
+    if (Number.isFinite(xArr[i]) && Number.isFinite(yArr[i])) {
+      xv.push(xArr[i]);
+      yv.push(yArr[i]);
+    }
+  }
+  if (xv.length < 2) return null;
+
+  const n = xv.length;
+
+  if (type === 'linear') {
+    // Compute least squares
+    const xMean = xv.reduce((s, v) => s + v, 0) / n;
+    const yMean = yv.reduce((s, v) => s + v, 0) / n;
+    let ssXX = 0;
+    let ssXY = 0;
+    for (let i = 0; i < n; i++) {
+      ssXX += (xv[i] - xMean) ** 2;
+      ssXY += (xv[i] - xMean) * (yv[i] - yMean);
+    }
+    if (Math.abs(ssXX) < 1e-12) return null;
+    const slope = ssXY / ssXX;
+    const intercept = yMean - slope * xMean;
+
+    // SSE
+    let sse = 0;
+    for (let i = 0; i < n; i++) {
+      const yPred = slope * xv[i] + intercept;
+      sse += (yv[i] - yPred) ** 2;
+    }
+    const s = Math.sqrt(sse / (n - 2));
+    const tCrit = tCritical(n - 2);
+    const yPredAtQuery = (qx: number) => slope * qx + intercept;
+
+    const x: number[] = [];
+    const upper: number[] = [];
+    const lower: number[] = [];
+    for (const qx of queryX) {
+      if (!Number.isFinite(qx)) continue;
+      const yHat = yPredAtQuery(qx);
+      const se = s * Math.sqrt(1 / n + (qx - xMean) ** 2 / ssXX);
+      x.push(qx);
+      upper.push(yHat + tCrit * se);
+      lower.push(yHat - tCrit * se);
+    }
+    return { x, upper, lower, tCritical: tCrit };
+  }
+
+  if (type === 'polynomial') {
+    const degree = data.degree;
+    if (degree === undefined || degree < 1 || degree > 6) return null;
+    const p = degree + 1;
+    if (n <= degree) return null;
+
+    // Build Vandermonde and solve via QR
+    const vandermonde: number[][] = xv.map((xi) => {
+      const row: number[] = [];
+      for (let j = 0; j <= degree; j++) row.push(xi ** j);
+      return row;
+    });
+    const qr = qrDecompose(vandermonde);
+    if (!qr) return null;
+    const qtb = new Array(p).fill(0);
+    for (let j = 0; j < p; j++) {
+      for (let i = 0; i < n; i++) qtb[j] += qr.Q[i][j] * yv[i];
+    }
+    const coeffs = solveUpperTriangular(qr.R, qtb);
+    if (!coeffs) return null;
+    const RInv = inverseUpperTriangular(qr.R);
+    if (!RInv) return null;
+
+    // SSE
+    let sse = 0;
+    for (let i = 0; i < n; i++) {
+      let yp = 0;
+      for (let j = 0; j <= degree; j++) yp += coeffs[j] * xv[i] ** j;
+      sse += (yv[i] - yp) ** 2;
+    }
+    const df = n - p;
+    if (df <= 0) return null; // need at least 1 dof
+    const s = Math.sqrt(sse / df);
+    const tCrit = tCritical(df);
+
+    const x: number[] = [];
+    const upper: number[] = [];
+    const lower: number[] = [];
+    for (const qx of queryX) {
+      if (!Number.isFinite(qx)) continue;
+      // se = s * sqrt(x_p^T (X^T X)^{-1} x_p) = s * sqrt(Σ_i (Σ_j RInv[i][j] * qx^j)^2)
+      let se2 = 0;
+      for (let i = 0; i < p; i++) {
+        let rowSum = 0;
+        for (let j = 0; j < p; j++) {
+          rowSum += RInv[i][j] * qx ** j;
+        }
+        se2 += rowSum * rowSum;
+      }
+      const se = s * Math.sqrt(se2);
+      let yHat = 0;
+      for (let j = 0; j <= degree; j++) yHat += coeffs[j] * qx ** j;
+      x.push(qx);
+      upper.push(yHat + tCrit * se);
+      lower.push(yHat - tCrit * se);
+    }
+    return { x, upper, lower, tCritical: tCrit };
+  }
+
+  return null;
+}
