@@ -5,6 +5,7 @@ import { useFitStore, type FitResult } from '@/store/fitStore';
 import { useToastStore } from '@/store/toastStore';
 import { uid } from '@/utils/sampleData';
 import { fitResultToCSV, fitResultToText, equationToLatex, downloadTextFile, type FitExportData } from '@/utils/fitExport';
+import { buildFitEquationAnnotation } from '@/utils/fitAnnotation';
 import {
   TrendingUp,
   BarChart3,
@@ -14,6 +15,7 @@ import {
   Copy,
   Download,
   FileText,
+  Sigma,
 } from 'lucide-react';
 
 export function FitResultsBar() {
@@ -99,6 +101,12 @@ export function FitResultsBar() {
             icon={<FileText size={14} />}
             label="LaTeX"
             title={t('fit.exportLatex')}
+          />
+          <FitActionButton
+            onClick={() => pinEquationToChart(fitResult, t)}
+            icon={<Sigma size={14} />}
+            label={t('fit.pinEquation', { defaultValue: 'Pin to chart' })}
+            title={t('fit.pinEquation', { defaultValue: 'Pin equation to chart (LaTeX)' })}
           />
           <div style={{ width: '1px', height: '16px', background: 'var(--border)' }} className="mx-1" />
           <button
@@ -286,6 +294,13 @@ function exportFitLatex(fitResult: FitResult, t: (key: string) => string) {
   const latex = equationToLatex(fitResult.equation);
   downloadTextFile(latex, `fit_${fitResult.type}.tex`, 'application/x-tex;charset=utf-8');
   addToast(t('toast.exportSuccess'), 'success');
+}
+
+function pinEquationToChart(fitResult: FitResult, t: (key: string, options?: { defaultValue?: string }) => string) {
+  const addToast = useToastStore.getState().addToast;
+  const annotation = buildFitEquationAnnotation(fitResult);
+  useChartStore.getState().addAnnotation(annotation);
+  addToast(t('toast.annotationAdded', { defaultValue: 'Annotation added' }), 'info');
 }
 
 // --- Residual Plot Modal ---

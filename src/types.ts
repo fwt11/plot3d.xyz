@@ -115,7 +115,8 @@ export type AnnotationType =
   | 'hband'
   | 'vband'
   | 'dataLabel'
-  | 'image';
+  | 'image'
+  | 'fitEquation';
 
 export interface Annotation {
   id: string;
