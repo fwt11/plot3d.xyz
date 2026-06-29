@@ -1120,7 +1120,6 @@ export function computePredictionBand(
   type: PredictionBandType,
   data: { x: number[]; y: number[]; degree?: number },
   queryX: number[],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   alpha: number = 0.05,
 ): ConfidenceBand | null {
   // alpha reserved for future use (custom confidence level); v1 hardcodes 0.05
