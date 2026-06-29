@@ -6,6 +6,9 @@ import { useToastStore } from '@/store/toastStore';
 import { uid } from '@/utils/sampleData';
 import { fitResultToCSV, fitResultToText, equationToLatex, downloadTextFile, type FitExportData } from '@/utils/fitExport';
 import { buildFitEquationAnnotation } from '@/utils/fitAnnotation';
+import { fStatistic, fPValue, formatPValue } from '@/utils/fitReport';
+import { durbinWatson } from '@/utils/statistics';
+import { shapiroWilk } from '@/utils/hypothesisTests';
 import {
   TrendingUp,
   BarChart3,
@@ -208,6 +211,46 @@ function FitParametersTable({ fitResult }: { fitResult: FitResult }) {
       </table>
       <div className="mt-1" style={{ color: 'var(--text-muted)' }}>
         {t('fit.dof')} = {fitResult.dof} · SSE = {fitResult.stats.sse.toFixed(4)}
+      </div>
+      <FitOverallSignificance fitResult={fitResult} />
+      <FitResidualDiagnostics fitResult={fitResult} />
+    </div>
+  );
+}
+
+function FitOverallSignificance({ fitResult }: { fitResult: FitResult }) {
+  const F = fStatistic(fitResult.rSquared, fitResult.n, fitResult.stats.p);
+  const pVal = fPValue(F, fitResult.stats.p, fitResult.n);
+  if (!Number.isFinite(F) || !Number.isFinite(pVal)) return null;
+  return (
+    <div className="mt-1" style={{ color: 'var(--text-muted)' }}>
+      F({fitResult.stats.p - 1}, {fitResult.dof}) = {F.toFixed(3)} · p ={' '}
+      <span style={{ color: pVal < 0.05 ? 'var(--accent)' : 'var(--text-primary)' }}>
+        {formatPValue(pVal)}
+      </span>{' '}
+      {pVal < 0.05 ? '✓' : ''}
+    </div>
+  );
+}
+
+function FitResidualDiagnostics({ fitResult }: { fitResult: FitResult }) {
+  const residuals = fitResult.stats.residuals;
+  if (!residuals || residuals.length < 3) return null;
+  const dw = durbinWatson(residuals);
+  const sw = fitResult.n >= 3 ? shapiroWilk(residuals) : null;
+  return (
+    <div className="mt-1 grid grid-cols-2 gap-x-4" style={{ color: 'var(--text-muted)' }}>
+      <div>
+        Durbin-Watson = {Number.isFinite(dw) ? dw.toFixed(3) : '—'}{' '}
+        <span style={{ color: dw < 1.5 || dw > 2.5 ? 'var(--accent)' : 'inherit' }}>
+          {dw < 1.5 ? '(+) corr' : dw > 2.5 ? '(-) corr' : '(unbiased)'}
+        </span>
+      </div>
+      <div>
+        Shapiro-Wilk p = {sw && Number.isFinite(sw.pValue) ? formatPValue(sw.pValue) : '—'}{' '}
+        <span style={{ color: sw && sw.pValue < 0.05 ? 'var(--accent)' : 'inherit' }}>
+          {sw && sw.pValue < 0.05 ? '(non-normal)' : '(normal)'}
+        </span>
       </div>
     </div>
   );
