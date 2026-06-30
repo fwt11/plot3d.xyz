@@ -17,6 +17,9 @@ export default mergeConfig(
           'src/utils/dataProcessing.ts',
           'src/utils/multiPeakFit.ts',
           'src/utils/distributions.ts',
+          // Phase 2 Tier B/C files (spec §5.1)
+          'src/utils/tracesBuilder.ts',
+          'src/utils/layoutBuilder.ts',
         ],
         thresholds: {
           // Tier A target ≥ 95% branch (spec §5.1).
@@ -41,6 +44,10 @@ export default mergeConfig(
           // distributions.ts: tCritical005 has a dead-code fallback
           //   (return 1.96 at end — all df values are handled by prior branches)
           'src/utils/distributions.ts': { branches: 90, functions: 100, lines: 99 },
+          // Phase 2 Tier B/C: tracesBuilder (75% line), layoutBuilder (94% line)
+          // spec §5.1 Tier C: line coverage ≥ 70%
+          'src/utils/tracesBuilder.ts': { branches: 85, functions: 80, lines: 75 },
+          'src/utils/layoutBuilder.ts': { branches: 33, functions: 100, lines: 94 },
         },
       },
     },
