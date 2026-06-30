@@ -1,5 +1,5 @@
 import type { Annotation } from '@/types';
-import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
+import { renderLatexToHTML, extractLatex, isLatexContent, renderMixedContent } from '@/utils/latex';
 import { toDisplayPercent, readAxisRanges, type AxisRanges } from '@/utils/annotationCoords';
 
 function percent(v: number): string {
@@ -7,16 +7,25 @@ function percent(v: number): string {
 }
 
 function resolveContent(ann: Annotation): string {
-  if (ann.type === 'latex' || isLatexContent(ann.content)) {
+  // Legacy latex-type annotation or entire content wrapped in $...$
+  if ((ann.type as string) === 'latex' || isLatexContent(ann.content)) {
     const { latex, displayMode } = extractLatex(ann.content);
     return renderLatexToHTML(latex, displayMode);
   }
-  return ann.content.replace(/\{\{(x|y|z)\}\}/g, (_, key) => {
-    if (key === 'x' && ann.dataAttachment?.xValue !== undefined) return String(ann.dataAttachment.xValue);
-    if (key === 'y' && ann.dataAttachment?.yValue !== undefined) return String(ann.dataAttachment.yValue);
-    if (key === 'z' && ann.dataAttachment?.yValue !== undefined) return String(ann.dataAttachment.yValue);
-    return '';
-  });
+
+  // dataLabel template substitution
+  let content = ann.content;
+  if (ann.type === 'dataLabel') {
+    content = content.replace(/\{\{(x|y|z)\}\}/g, (_, key) => {
+      if (key === 'x' && ann.dataAttachment?.xValue !== undefined) return String(ann.dataAttachment.xValue);
+      if (key === 'y' && ann.dataAttachment?.yValue !== undefined) return String(ann.dataAttachment.yValue);
+      if (key === 'z' && ann.dataAttachment?.yValue !== undefined) return String(ann.dataAttachment.yValue);
+      return '';
+    });
+  }
+
+  // Mixed text + inline LaTeX
+  return renderMixedContent(content);
 }
 
 interface AnnotationRendererProps {

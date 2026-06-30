@@ -7,7 +7,7 @@ const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error
 const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
 const VALID_COLORMAPS: ChartConfig['colorMap'][] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma', 'cividis', 'inferno', 'magma', 'turbo', 'batlow'];
 const VALID_ANNOTATION_TYPES: AnnotationType[] = [
-  'text', 'latex', 'callout', 'arrow', 'line', 'bracket', 'rect', 'ellipse', 'polygon',
+  'text', 'callout', 'arrow', 'line', 'bracket', 'rect', 'ellipse', 'polygon',
   'hline', 'vline', 'hband', 'vband', 'dataLabel', 'image',
 ];
 
@@ -136,7 +136,12 @@ function sanitizeAnnotation(ann: unknown): Annotation | null {
   if (typeof ann !== 'object' || ann === null) return null;
   const a = ann as Record<string, unknown>;
   if (typeof a.id !== 'string' || typeof a.x !== 'number' || typeof a.y !== 'number') return null;
-  const type = VALID_ANNOTATION_TYPES.includes(a.type as AnnotationType) ? (a.type as AnnotationType) : 'text';
+  const rawType = a.type as string;
+  const type: AnnotationType = VALID_ANNOTATION_TYPES.includes(rawType as AnnotationType)
+    ? (rawType as AnnotationType)
+    : rawType === 'latex'
+      ? 'text'
+      : 'text';
 
   const coordMode = a.coordMode === 'data' ? 'data' : 'percent';
   const parsePoint = (p: unknown): { x: number; y: number } | undefined => {

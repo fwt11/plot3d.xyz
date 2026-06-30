@@ -185,7 +185,7 @@ export function AnnotationCanvas({
         return;
       }
 
-      if (activeTool === 'text' || activeTool === 'latex') {
+      if (activeTool === 'text') {
         const ann = createDefaultAnnotation(activeTool, t);
         const stored = toStored(x, y, ann.coordMode);
         ann.x = stored.x;
@@ -352,7 +352,7 @@ export function AnnotationCanvas({
 
   const handleAnnotationDoubleClick = useCallback(
     (_e: React.MouseEvent, ann: Annotation) => {
-      if (ann.type === 'text' || ann.type === 'latex' || ann.type === 'callout' || ann.type === 'dataLabel') {
+      if (ann.type === 'text' || ann.type === 'callout' || ann.type === 'dataLabel' || (ann.type as string) === 'latex') {
         setEditingId(ann.id);
       }
     },
@@ -401,7 +401,7 @@ export function AnnotationCanvas({
   const cursor = useMemo(() => {
     if (drag) return 'grabbing';
     if (activeTool === 'select') return 'default';
-    if (activeTool === 'text' || activeTool === 'latex' || activeTool === 'callout' || activeTool === 'dataLabel' || activeTool === 'hline' || activeTool === 'vline' || activeTool === 'image') return 'crosshair';
+    if (activeTool === 'text' || activeTool === 'callout' || activeTool === 'dataLabel' || activeTool === 'hline' || activeTool === 'vline' || activeTool === 'image') return 'crosshair';
     return 'crosshair';
   }, [activeTool, drag]);
 
@@ -664,11 +664,11 @@ function InlineTextEditor({
       autoFocus
       value={value}
       onChange={(e) => setValue(e.target.value)}
-      onBlur={() => onCommit(value)}
+      onBlur={() => onCommit(value.trim())}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          onCommit(value);
+          onCommit(value.trim());
         }
         if (e.key === 'Escape') {
           onCancel();

@@ -5,7 +5,6 @@ import {
   Type,
   ArrowUpRight,
   Square,
-  Sigma,
   MousePointer2,
   Minus,
   Brackets,
@@ -26,7 +25,6 @@ export type AnnotationTool = AnnotationType | 'select';
 export function getAnnotationTypes(t: (key: string) => string): { type: AnnotationType; label: string; icon: React.ReactNode }[] {
   return [
     { type: 'text', label: t('annotation.text'), icon: <Type size={16} /> },
-    { type: 'latex', label: t('annotation.latex'), icon: <Sigma size={16} /> },
     { type: 'arrow', label: t('annotation.arrow'), icon: <ArrowUpRight size={16} /> },
     { type: 'rect', label: t('annotation.rect'), icon: <Square size={16} /> },
   ];
@@ -36,7 +34,6 @@ export function getAnnotationTools(t: (key: string) => string): { type: Annotati
   return [
     { type: 'select', label: t('annotation.select'), icon: <MousePointer2 size={16} /> },
     { type: 'text', label: t('annotation.text'), icon: <Type size={16} /> },
-    { type: 'latex', label: t('annotation.latex'), icon: <Sigma size={16} /> },
     { type: 'callout', label: t('annotation.callout'), icon: <MessageSquare size={16} /> },
     { type: 'arrow', label: t('annotation.arrow'), icon: <ArrowUpRight size={16} /> },
     { type: 'line', label: t('annotation.line'), icon: <Minus size={16} /> },
@@ -55,8 +52,6 @@ export function getAnnotationTools(t: (key: string) => string): { type: Annotati
 
 function defaultContentFor(type: AnnotationType, t: (key: string) => string): string {
   switch (type) {
-    case 'latex':
-      return '$E = mc^2$';
     case 'dataLabel':
       return '{{y}}';
     case 'text':

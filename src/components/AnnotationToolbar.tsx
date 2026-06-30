@@ -40,7 +40,7 @@ const FONT_OPTIONS = [
 ];
 
 function isTextType(type: AnnotationType): boolean {
-  return ['text', 'latex', 'callout', 'dataLabel'].includes(type);
+  return ['text', 'callout', 'dataLabel'].includes(type) || (type as string) === 'latex';
 }
 
 function hasFill(type: AnnotationType): boolean {

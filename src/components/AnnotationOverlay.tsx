@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Annotation } from '@/types';
-import { renderLatexToHTML, extractLatex, isLatexContent } from '@/utils/latex';
+import { renderLatexToHTML, extractLatex, isLatexContent, renderMixedContent } from '@/utils/latex';
 
 /** Read the current X/Y axis ranges from the rendered Plotly chart so annotations in data mode can be positioned. */
 function readAxisRanges(plotDiv: HTMLElement | null): { xMin: number; xMax: number; yMin: number; yMax: number } | null {
@@ -143,13 +143,12 @@ export function AnnotationOverlay({
           );
         }
 
-        const isLatex = ann.type === 'latex' || isLatexContent(ann.content);
         let html: string;
-        if (isLatex) {
+        if ((ann.type as string) === 'latex' || isLatexContent(ann.content)) {
           const { latex, displayMode } = extractLatex(ann.content);
           html = renderLatexToHTML(latex, displayMode);
         } else {
-          html = ann.content;
+          html = renderMixedContent(ann.content);
         }
 
         return (

@@ -178,11 +178,11 @@ export default function AnnotationPanel() {
       </Row>
 
       {/* Content */}
-      {(ann.type === 'text' || ann.type === 'latex' || ann.type === 'callout' || ann.type === 'dataLabel') && (
+      {((ann.type as string) === 'latex' || ann.type === 'text' || ann.type === 'callout' || ann.type === 'dataLabel') && (
         <Section title={t('annotation.content')}>
           <textarea
             value={ann.content}
-            onChange={(e) => update({ content: e.target.value })}
+            onChange={(e) => update({ content: e.target.value.trim() })}
             rows={2}
             className="w-full border rounded px-2 py-1 text-xs outline-none focus:border-sky-500/50 font-mono"
             style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}

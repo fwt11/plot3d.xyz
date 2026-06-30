@@ -36,15 +36,55 @@ export function renderLatexToHTML(latex: string, displayMode = false): string {
 }
 
 export function isLatexContent(content: string): boolean {
-  return content.startsWith('$') && content.endsWith('$');
+  const trimmed = content.trim();
+  return trimmed.startsWith('$') && trimmed.endsWith('$');
 }
 
 export function extractLatex(content: string): { latex: string; displayMode: boolean } {
-  if (content.startsWith('$$') && content.endsWith('$$')) {
-    return { latex: content.slice(2, -2).trim(), displayMode: true };
+  const trimmed = content.trim();
+  if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+    return { latex: trimmed.slice(2, -2).trim(), displayMode: true };
   }
-  if (content.startsWith('$') && content.endsWith('$')) {
-    return { latex: content.slice(1, -1).trim(), displayMode: false };
+  if (trimmed.startsWith('$') && trimmed.endsWith('$')) {
+    return { latex: trimmed.slice(1, -1).trim(), displayMode: false };
   }
   return { latex: content, displayMode: false };
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/** Render text that may contain interspersed $...$ / $$...$$ LaTeX segments. */
+export function renderMixedContent(content: string): string {
+  // Match $$...$$ first, then $...$ (non-greedy, multi-line)
+  const regex = /(\$\$[\s\S]*?\$\$)|(\$[\s\S]*?\$)/g;
+  let result = '';
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    // Escape plain text before this match
+    result += escapeHtml(content.slice(lastIndex, match.index));
+
+    const full = match[0];
+    if (full.startsWith('$$')) {
+      const latex = full.slice(2, -2).trim();
+      result += renderLatexToHTML(latex, true);
+    } else {
+      const latex = full.slice(1, -1).trim();
+      result += renderLatexToHTML(latex, false);
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  // Remaining plain text
+  result += escapeHtml(content.slice(lastIndex));
+  return result;
 }
