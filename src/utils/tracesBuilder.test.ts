@@ -8,7 +8,7 @@ import {
   axisLabelText,
   buildErrorBar,
 } from './tracesBuilder';
-import type { DataColumn, ErrorBarConfig, LayerConfig } from '@/types';
+import type { DataColumn, ErrorBarConfig } from '@/types';
 
 describe('hexToRgba', () => {
   it('converts 6-char hex with alpha', () => {
@@ -197,10 +197,11 @@ describe('buildErrorBar (statistical mode)', () => {
     const result = buildErrorBar(undefined, undefined, undefined, '#000', cfg, xCol, yCol);
     expect(result).toBeDefined();
     // 2 unique X values → 2 SD values
-    expect(result!.array).toHaveLength(2);
+    const arr = result!.array as number[];
+    expect(arr).toHaveLength(2);
     // sample SD for [10,12,14] = sqrt(8/2) = 2; same for [20,22,24] (n-1 denominator)
-    expect(result!.array![0]).toBeCloseTo(2, 2);
-    expect(result!.array![1]).toBeCloseTo(2, 2);
+    expect(arr[0]).toBeCloseTo(2, 2);
+    expect(arr[1]).toBeCloseTo(2, 2);
     expect(result!.symmetric).toBe(true);
   });
 
@@ -219,5 +220,3 @@ describe('buildErrorBar (statistical mode)', () => {
   });
 });
 
-// Suppress unused-variable warning for LayerConfig type import (used in buildErrorBar but referenced only via type)
-type _ = LayerConfig;

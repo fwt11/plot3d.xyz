@@ -1,13 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { LIGHT_CHART_CSS_VARS, buildLayout, getThemeCssVars } from './layoutBuilder';
-import type { ChartConfig } from '@/types';
+import type { AxisConfig, ChartConfig, ExportConfig } from '@/types';
+
+const axis = (overrides: Partial<AxisConfig> = {}): AxisConfig => ({
+  label: '',
+  autoRange: true,
+  gridVisible: true,
+  logScale: false,
+  scientificNotation: false,
+  ...overrides,
+});
+
+const exportCfg: ExportConfig = {
+  resolutionMultiplier: 2,
+  background: 'theme',
+  figureMultiplier: 1,
+};
 
 const baseConfig: ChartConfig = {
   id: 'c1',
   type: 'line',
   title: 'Test',
-  xAxis: { label: 'X', unit: 's' },
-  yAxis: { label: 'Y' },
+  xAxis: axis({ label: 'X', unit: 's' }),
+  yAxis: axis({ label: 'Y' }),
   legend: { visible: true, position: 'top' },
   colorMap: 'viridis',
   layers: [],
@@ -16,7 +31,7 @@ const baseConfig: ChartConfig = {
   marginRight: 60,
   marginBottom: 60,
   marginLeft: 60,
-  exportConfig: { resolutionMultiplier: 2, background: 'theme' },
+  exportConfig: exportCfg,
   fontSize: 12,
 };
 
@@ -101,7 +116,7 @@ describe('buildLayout — 2D dual-Y axis', () => {
   it('adds yaxis2 when a layer has yAxisSide=right', () => {
     const cfg: ChartConfig = {
       ...baseConfig,
-      yAxisRight: { label: 'Right Y', unit: 'A' },
+      yAxisRight: axis({ label: 'Right Y', unit: 'A' }),
     };
     const expanded = [
       { layer: { id: 'L1', yAxisSide: 'right' as const, datasetId: 'd1', xColumn: 'x', yColumn: 'y', color: '#f00', visible: true, lineStyle: 'solid' as const, lineWidth: 1, pointStyle: 'circle' as const, pointSize: 4, fill: false }, dataset: {} as never },
