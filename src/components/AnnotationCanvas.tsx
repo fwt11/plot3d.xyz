@@ -372,14 +372,14 @@ export function AnnotationCanvas({
           setActiveTool('select');
         }
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !drawing) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !drawing && !editingId) {
         onRemove(selectedId);
         setSelectedId(null);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [drawing, finishDrawing, onRemove, selectedId, setActiveTool, setSelectedId]);
+  }, [drawing, editingId, finishDrawing, onRemove, selectedId, setActiveTool, setSelectedId]);
 
   // Clicking on empty chart area deselects the current annotation.
   useEffect(() => {
@@ -405,8 +405,8 @@ export function AnnotationCanvas({
     return 'crosshair';
   }, [activeTool, drag]);
 
-  // Container captures events only while drawing or dragging; otherwise Plotly keeps zoom/pan/hover.
-  const containerPointerEvents = activeTool === 'select' && !drag ? 'none' : 'auto';
+  // Container captures events only while drawing, dragging, or inline-editing; otherwise Plotly keeps zoom/pan/hover.
+  const containerPointerEvents = activeTool === 'select' && !drag && !editingAnnotation ? 'none' : 'auto';
 
   // Drawing preview
   const previewAnnotation = useMemo<Annotation | null>(() => {
@@ -657,10 +657,19 @@ function InlineTextEditor({
   onCancel: () => void;
 }) {
   const [value, setValue] = useState(annotation.content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const disp = toDisplayPercent(annotation.x, annotation.y, annotation.coordMode, axisRanges);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, []);
 
   return (
     <textarea
+      ref={textareaRef}
       autoFocus
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -674,7 +683,8 @@ function InlineTextEditor({
           onCancel();
         }
       }}
-      className="absolute z-10 text-xs outline-none resize-none border rounded px-1 py-0.5"
+      className="absolute z-10 text-xs outline-none resize-none border-2 rounded px-1 py-0.5 shadow-lg"
+      onMouseDown={(e) => e.stopPropagation()}
       style={{
         left: `${disp.x}%`,
         top: `${disp.y}%`,
@@ -687,6 +697,7 @@ function InlineTextEditor({
         fontWeight: annotation.fontWeight,
         background: 'var(--bg-input)',
         borderColor: 'var(--accent)',
+        pointerEvents: 'auto',
       }}
     />
   );

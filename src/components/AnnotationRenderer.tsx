@@ -148,15 +148,39 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, isSelected, on
           )}
         </defs>
         {ann.type === 'bracket' ? (
-          <path
-            d={`M ${x1} ${y1} L ${x1} ${Math.min(y1, y2) - (ann.bracketHeight ?? 12)} L ${x2} ${Math.min(y1, y2) - (ann.bracketHeight ?? 12)} L ${x2} ${y2}`}
-            fill="none"
-            stroke={lineColor}
-            strokeWidth={strokeWidth}
-            strokeDasharray={strokeDash}
-            markerStart={`url(#bracket-start-${ann.id})`}
-            markerEnd={`url(#bracket-end-${ann.id})`}
-          />
+          // Bracket path uses percent coords but SVG <path> d="..." has no % unit support,
+          // so decompose into three <line> elements which do accept percent attributes.
+          (() => {
+            const bh = ann.bracketHeight ?? 12;
+            const topY = Math.min(y1, y2) - bh;
+            return (
+              <>
+                <line
+                  x1={`${x1}%`} y1={`${y1}%`}
+                  x2={`${x1}%`} y2={`${topY}%`}
+                  stroke={lineColor}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDash}
+                  markerStart={`url(#bracket-start-${ann.id})`}
+                />
+                <line
+                  x1={`${x1}%`} y1={`${topY}%`}
+                  x2={`${x2}%`} y2={`${topY}%`}
+                  stroke={lineColor}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDash}
+                />
+                <line
+                  x1={`${x2}%`} y1={`${topY}%`}
+                  x2={`${x2}%`} y2={`${y2}%`}
+                  stroke={lineColor}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDash}
+                  markerEnd={`url(#bracket-end-${ann.id})`}
+                />
+              </>
+            );
+          })()
         ) : (
           <line
             x1={`${x1}%`}

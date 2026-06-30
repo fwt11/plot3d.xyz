@@ -71,7 +71,7 @@ function ToolbarButton({
   return (
     <button
       onClick={onClick}
-      className={`w-6 h-6 flex items-center justify-center rounded ${active ? 'bg-sky-500/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+      className={`w-5 h-5 flex items-center justify-center rounded ${active ? 'bg-sky-500/20' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
       title={title}
       style={{ color: danger ? '#fb7185' : active ? 'var(--accent)' : 'var(--text-secondary)' }}
     >
@@ -91,7 +91,7 @@ function ColorSwatch({
 }) {
   return (
     <label
-      className="relative flex items-center justify-center w-6 h-6 rounded cursor-pointer border"
+      className="relative flex items-center justify-center w-5 h-5 rounded cursor-pointer border"
       style={{ backgroundColor: value, borderColor: 'var(--border)' }}
       title={title}
     >
@@ -126,13 +126,21 @@ export function AnnotationToolbar({
   const showFill = hasFill(annotation.type);
   const showStroke = hasStroke(annotation.type);
 
+  // 当标注位于右侧时改用 right 定位，避免工具栏溢出右边缘。
+  // width: max-content 让工具栏按内容自然展开，不再受 absolute 元素 shrink-to-fit
+  // 的 available-width 压缩；配合固定的 maxWidth，内容超出时由 flex-wrap 自然换行，
+  // 换行行为与标注位置无关。
+  const isRightSide = disp.x > 50;
   return (
     <div
-      className="absolute z-20 flex flex-wrap items-center gap-1 px-1.5 py-1 rounded-md border shadow-sm max-w-[90%]"
+      className="absolute z-20 flex flex-wrap items-center gap-1 px-1.5 py-1 rounded-md border shadow-sm"
       style={{
-        left: `${disp.x}%`,
+        ...(isRightSide
+          ? { right: `${100 - disp.x}%`, transform: 'translate(50%, -130%)' }
+          : { left: `${disp.x}%`, transform: 'translate(-50%, -130%)' }),
         top: `${disp.y}%`,
-        transform: 'translate(-50%, -130%)',
+        width: 'max-content',
+        maxWidth: '340px',
         background: 'var(--bg-surface)',
         borderColor: 'var(--border)',
         pointerEvents: 'auto',
@@ -145,10 +153,9 @@ export function AnnotationToolbar({
           <select
             value={annotation.fontFamily ?? 'Arial, sans-serif'}
             onChange={(e) => onUpdate({ fontFamily: e.target.value })}
-            className="h-6 px-1 text-xs rounded border outline-none"
+            className="w-20 h-6 px-1 text-xs rounded border outline-none"
             style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            title={t('annotation.fontFamily')}
-          >
+            title={t('annotation.fontFamily')}>
             {FONT_OPTIONS.map((f) => (
               <option key={f.value} value={f.value}>{f.label}</option>
             ))}
@@ -161,7 +168,7 @@ export function AnnotationToolbar({
             step={1}
             value={annotation.fontSize}
             onChange={(e) => onUpdate({ fontSize: Number(e.target.value) })}
-            className="w-12 h-6 px-1 text-xs rounded border outline-none"
+            className="w-10 h-6 px-1 text-xs rounded border outline-none"
             style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             title={t('annotation.fontSize')}
           />
@@ -206,29 +213,31 @@ export function AnnotationToolbar({
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            active={annotation.textAlign === 'left'}
-            onClick={() => onUpdate({ textAlign: 'left' })}
-            title={t('annotation.alignLeft')}
-          >
-            <AlignLeft size={14} />
-          </ToolbarButton>
+          <div className="flex items-center gap-0.5 flex-nowrap">
+            <ToolbarButton
+              active={annotation.textAlign === 'left'}
+              onClick={() => onUpdate({ textAlign: 'left' })}
+              title={t('annotation.alignLeft')}
+            >
+              <AlignLeft size={14} />
+            </ToolbarButton>
 
-          <ToolbarButton
-            active={annotation.textAlign === 'center'}
-            onClick={() => onUpdate({ textAlign: 'center' })}
-            title={t('annotation.alignCenter')}
-          >
-            <AlignCenter size={14} />
-          </ToolbarButton>
+            <ToolbarButton
+              active={annotation.textAlign === 'center'}
+              onClick={() => onUpdate({ textAlign: 'center' })}
+              title={t('annotation.alignCenter')}
+            >
+              <AlignCenter size={14} />
+            </ToolbarButton>
 
-          <ToolbarButton
-            active={annotation.textAlign === 'right'}
-            onClick={() => onUpdate({ textAlign: 'right' })}
-            title={t('annotation.alignRight')}
-          >
-            <AlignRight size={14} />
-          </ToolbarButton>
+            <ToolbarButton
+              active={annotation.textAlign === 'right'}
+              onClick={() => onUpdate({ textAlign: 'right' })}
+              title={t('annotation.alignRight')}
+            >
+              <AlignRight size={14} />
+            </ToolbarButton>
+          </div>
 
           <ToolbarDivider />
         </>
@@ -279,7 +288,7 @@ export function AnnotationToolbar({
           step={0.05}
           value={opacity}
           onChange={(e) => onUpdate({ opacity: Number(e.target.value) })}
-          className="w-16 h-1 accent-sky-500 cursor-pointer"
+          className="w-12 h-1 accent-sky-500 cursor-pointer"
           title={t('annotation.opacity')}
         />
       </div>
