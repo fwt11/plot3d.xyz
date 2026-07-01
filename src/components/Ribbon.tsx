@@ -6,6 +6,7 @@ import { ChartTab } from './ribbon/ChartTab';
 import { AnnotationTab } from './ribbon/AnnotationTab';
 import { FitTab } from './ribbon/FitTab';
 import { StatsTab } from './ribbon/StatsTab';
+import { AboutTab } from './ribbon/AboutTab';
 import { HistoryPanel } from './HistoryPanel';
 import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
@@ -19,14 +20,16 @@ import { Download, FileUp, Plus, ChevronsDownUp, ChevronsUpDown, Undo2, Redo2, H
 import Plotly from 'plotly.js-dist-min';
 
 // ─── Ribbon Tab Types ───────────────────────────────────────────
-type RibbonTab = 'file' | 'transform' | 'stats' | 'fit' | 'chart' | 'annotation';
+type RibbonTab = 'file' | 'transform' | 'stats' | 'fit' | 'chart' | 'annotation' | 'about';
 
 const RIBBON_TAB_KEY = 'plot3d-ribbon-tab';
+
+const TAB_KEYS: RibbonTab[] = ['file', 'transform', 'stats', 'fit', 'chart', 'annotation', 'about'];
 
 function readStoredTab(): RibbonTab {
   try {
     const stored = localStorage.getItem(RIBBON_TAB_KEY);
-    if (stored && ['file', 'transform', 'stats', 'fit', 'chart', 'annotation'].includes(stored)) {
+    if (stored && TAB_KEYS.includes(stored as RibbonTab)) {
       return stored as RibbonTab;
     }
   } catch {
@@ -175,6 +178,7 @@ export default function Ribbon() {
     { key: 'fit', label: t('ribbon.fit') },
     { key: 'chart', label: t('ribbon.chart') },
     { key: 'annotation', label: t('ribbon.annotation') },
+    { key: 'about', label: t('ribbon.about') },
   ];
 
   return (
@@ -286,6 +290,7 @@ export default function Ribbon() {
           {activeTab === 'fit' && <FitTab />}
           {activeTab === 'chart' && <ChartTab />}
           {activeTab === 'annotation' && <AnnotationTab />}
+          {activeTab === 'about' && <AboutTab />}
         </div>
       )}
 

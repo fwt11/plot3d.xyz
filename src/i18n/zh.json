@@ -31,6 +31,7 @@
     "fit": "拟合",
     "chart": "图",
     "annotation": "标注",
+    "about": "关于",
     "collapse": "折叠",
     "expand": "展开",
     "doubleClickToCollapse": "双击标签折叠/展开"
@@ -708,5 +709,12 @@
     "height": "高",
     "confirmSave": "保存",
     "cancel": "取消"
+  },
+  "about": {
+    "project": "项目",
+    "info": "信息",
+    "github": "GitHub",
+    "githubRepo": "GitHub 仓库",
+    "tagline": "科研数据可视化工具"
   }
 }

@@ -31,6 +31,7 @@
     "fit": "Fit",
     "chart": "Chart",
     "annotation": "Annotation",
+    "about": "About",
     "collapse": "Collapse",
     "expand": "Expand",
     "doubleClickToCollapse": "Double-click tab to collapse/expand"
@@ -708,5 +709,12 @@
     "height": "H",
     "confirmSave": "Save",
     "cancel": "Cancel"
+  },
+  "about": {
+    "project": "Project",
+    "info": "Info",
+    "github": "GitHub",
+    "githubRepo": "GitHub Repository",
+    "tagline": "Scientific Data Visualization"
   }
 }
