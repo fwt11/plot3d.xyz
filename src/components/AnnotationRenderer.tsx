@@ -331,6 +331,8 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
     return (
       <svg
         className="absolute overflow-visible"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
         style={{
           left: percent(minX),
           top: percent(minY),
@@ -346,6 +348,7 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
           stroke={color}
           strokeWidth={strokeWidth}
           strokeDasharray={strokeDash}
+          vectorEffect="non-scaling-stroke"
           style={{ pointerEvents: 'auto', cursor: 'grab' }}
           onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
           onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}

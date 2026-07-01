@@ -62,6 +62,8 @@ export function AnnotationCanvas({
   const [drawing, setDrawing] = useState<DrawingState>(null);
   const [drag, setDrag] = useState<DragMode>(null);
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 });
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [mousePos, setMousePos] = useState<Point | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -198,6 +200,12 @@ export function AnnotationCanvas({
 
   const handleContainerMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      // Right-click finishes polygon drawing (same as Esc)
+      if (e.button === 2 && activeTool === 'polygon' && drawing?.tool === 'polygon') {
+        e.preventDefault();
+        finishDrawing(drawing);
+        return;
+      }
       if (e.button !== 0) return;
       const rect = getRect();
       if (!rect) return;
@@ -273,8 +281,18 @@ export function AnnotationCanvas({
       }
 
       if (activeTool === 'polygon') {
+        const now = Date.now();
+        const isDoubleClick = now - lastClickTime < 300;
+        setLastClickTime(now);
+
         setDrawing((prev) => {
           if (!prev || prev.tool !== 'polygon') return { tool: 'polygon', points: [{ x, y }] };
+          if (isDoubleClick && prev.points.length >= 3) {
+            setTimeout(() => {
+              finishDrawing({ tool: 'polygon', points: [...prev.points] });
+            }, 0);
+            return prev;
+          }
           return { ...prev, points: [...prev.points, { x, y }] };
         });
         return;
@@ -293,7 +311,7 @@ export function AnnotationCanvas({
         setDrawing({ tool: activeTool, start: { x, y }, current: { x, y } });
       }
     },
-    [activeTool, getRect, onAdd, setActiveTool, setEditingId, setSelectedId, t, toStored]
+    [activeTool, drawing, finishDrawing, getRect, onAdd, setActiveTool, setEditingId, setSelectedId, t, toStored]
   );
 
   const handleContainerMouseMove = useCallback(
@@ -302,7 +320,12 @@ export function AnnotationCanvas({
       if (!rect) return;
       const { x, y } = clientToPercent(e.clientX, e.clientY, rect);
 
-      if (drawing && drawing.tool !== 'polygon') {
+      if (drawing && drawing.tool === 'polygon') {
+        setMousePos({ x, y });
+        return;
+      }
+
+      if (drawing) {
         setDrawing({ ...drawing, current: { x, y } });
         return;
       }
@@ -333,6 +356,13 @@ export function AnnotationCanvas({
                 y: drag.initial.endPoint.y + dataDy,
               };
             }
+          } else if (drag.initial.type === 'polygon') {
+            if (drag.initial.polygonPoints) {
+              update.polygonPoints = drag.initial.polygonPoints.map((p) => ({
+                x: p.x + dataDx,
+                y: p.y + dataDy,
+              }));
+            }
           }
           onUpdateSilent(drag.id, update);
         } else if (drag.kind === 'endpoint' && selectedAnnotation) {
@@ -358,7 +388,7 @@ export function AnnotationCanvas({
   );
 
   const handleContainerMouseUp = useCallback(() => {
-    if (drawing) {
+    if (drawing && drawing.tool !== 'polygon') {
       finishDrawing(drawing);
     }
     if (drag) {
@@ -490,6 +520,9 @@ export function AnnotationCanvas({
       onMouseMove={handleContainerMouseMove}
       onMouseUp={handleContainerMouseUp}
       onMouseLeave={handleContainerMouseUp}
+      onContextMenu={(e) => {
+        if (activeTool === 'polygon' && drawing?.tool === 'polygon') e.preventDefault();
+      }}
     >
       {annotations.map((ann) => (
         <AnnotationRenderer
@@ -510,13 +543,27 @@ export function AnnotationCanvas({
           {drawing.points.map((p, i) => (
             <circle key={i} cx={`${p.x}%`} cy={`${p.y}%`} r={3} fill="var(--accent)" />
           ))}
-          {drawing.points.length > 1 && (
-            <polyline
-              points={drawing.points.map((p) => `${p.x},${p.y}`).join(' ')}
-              fill="none"
+          {drawing.points.length > 1 && drawing.points.slice(1).map((p, i) => (
+            <line
+              key={`line-${i}`}
+              x1={`${drawing.points[i].x}%`}
+              y1={`${drawing.points[i].y}%`}
+              x2={`${p.x}%`}
+              y2={`${p.y}%`}
+              stroke="var(--accent)"
+              strokeWidth={2}
+            />
+          ))}
+          {drawing.points.length >= 1 && mousePos && (
+            <line
+              x1={`${drawing.points[drawing.points.length - 1].x}%`}
+              y1={`${drawing.points[drawing.points.length - 1].y}%`}
+              x2={`${mousePos.x}%`}
+              y2={`${mousePos.y}%`}
               stroke="var(--accent)"
               strokeWidth={1}
               strokeDasharray="4 2"
+              strokeOpacity={0.7}
             />
           )}
         </svg>

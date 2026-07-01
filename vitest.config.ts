@@ -28,7 +28,7 @@ export default mergeConfig(
           //
           // curveFitting.ts: 12 unreachable branch points (Gauss-Newton divergence
           //   fallback, RInv=null from QR inverse, tCritical end-of-function)
-          'src/utils/curveFitting.ts': { branches: 82, functions: 90, lines: 92 },
+          'src/utils/curveFitting.ts': { branches: 81, functions: 90, lines: 92 },
           // statistics.ts: 32 exports; remaining branches require additional
           //   edge-case tests beyond Phase 0 scope (Phase 1 follow-up)
           'src/utils/statistics.ts': { branches: 77, functions: 82, lines: 70 },

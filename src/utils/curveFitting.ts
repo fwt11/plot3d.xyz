@@ -1060,6 +1060,430 @@ export function generateFittedValues(
   return { x: xValues, y: yValues };
 }
 
+/** Natural log of the gamma function. */
+
+// --- New fit types (Phase 3 — Task 3.2) ---
+
+interface FitResultShape { rSquared: number; stats: FitStatistics; }
+interface LorentzianFitResult extends FitResultShape { amplitude: number; center: number; sigma: number; }
+interface WeibullFitResult extends FitResultShape { amplitude: number; lambda: number; k: number; }
+interface Logistic4PLFitResult extends FitResultShape { a: number; b: number; c: number; d: number; }
+interface Logistic5PLFitResult extends Logistic4PLFitResult { g: number; }
+interface HillFitResult extends FitResultShape { Vmax: number; K: number; n: number; }
+interface BiexponentialFitResult extends FitResultShape { a: number; b: number; c: number; d: number; y0: number; }
+
+/** Generic Levenberg-Marquardt fit using central-difference Jacobian.
+ *  @param residualFn (params, x, y) => residual (= y - f(x; params))
+ *  @param x, y data
+ *  @param initial  initial parameter vector
+ *  @param maxIter  max iterations
+ *  @returns { params, residualVariance, jacobianAtSolution } or null
+ *
+ *  Used by all 6 new fit types in Phase 3 Task 3.2 — avoids hand-written
+ *  partials for each.
+ *  NOTE: An earlier `lmFit(residualFn, ...)` variant is retained below as
+ *  `_lmFitResidual` for legacy callers / future re-enablement. Not used in
+ *  Phase 3 Task 3.2. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+/** Compute FitStatistics from final parameters and residuals.
+ *  Retained as `_buildStatsLegacy` for legacy callers. Phase 3 Task 3.2 uses
+ *  `buildStatsWithSE` which incorporates parameter covariance. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+/** Compute JᵀJ from the residual Jacobian (n×p) and solve for parameter SE. */
+function covarianceSE(jacobian: number[][], residuals: number[], p: number, n: number): number[] {
+  if (!jacobian.length) return new Array(p).fill(NaN);
+  // jacobian is n×p
+  const JtJ: number[][] = Array.from({ length: p }, () => new Array(p).fill(0));
+  for (let r = 0; r < p; r++) {
+    for (let c = 0; c < p; c++) {
+      let s = 0;
+      for (let k = 0; k < n; k++) s += jacobian[k][r] * jacobian[k][c];
+      JtJ[r][c] = s;
+    }
+  }
+  let det = 0;
+  if (p === 1) det = JtJ[0][0];
+  else if (p === 2) det = JtJ[0][0] * JtJ[1][1] - JtJ[0][1] * JtJ[1][0];
+  else if (p === 3) det = JtJ[0][0] * (JtJ[1][1] * JtJ[2][2] - JtJ[1][2] * JtJ[2][1])
+                      - JtJ[0][1] * (JtJ[1][0] * JtJ[2][2] - JtJ[1][2] * JtJ[2][0])
+                      + JtJ[0][2] * (JtJ[1][0] * JtJ[2][1] - JtJ[1][1] * JtJ[2][0]);
+  if (Math.abs(det) < 1e-18) return new Array(p).fill(NaN);
+
+  // Compute inverse by Cramer's rule (only works for p ≤ 3)
+  const inv = Array.from({ length: p }, () => new Array(p).fill(0));
+  if (p === 1) inv[0][0] = 1 / det;
+  else if (p === 2) {
+    inv[0][0] = JtJ[1][1] / det;
+    inv[1][1] = JtJ[0][0] / det;
+    inv[0][1] = -JtJ[0][1] / det;
+    inv[1][0] = -JtJ[1][0] / det;
+  } else if (p === 3) {
+    inv[0][0] = (JtJ[1][1] * JtJ[2][2] - JtJ[1][2] * JtJ[2][1]) / det;
+    inv[0][1] = (JtJ[0][2] * JtJ[2][1] - JtJ[0][1] * JtJ[2][2]) / det;
+    inv[0][2] = (JtJ[0][1] * JtJ[1][2] - JtJ[0][2] * JtJ[1][1]) / det;
+    inv[1][0] = (JtJ[1][2] * JtJ[2][0] - JtJ[1][0] * JtJ[2][2]) / det;
+    inv[1][1] = (JtJ[0][0] * JtJ[2][2] - JtJ[0][2] * JtJ[2][0]) / det;
+    inv[1][2] = (JtJ[0][2] * JtJ[1][0] - JtJ[0][0] * JtJ[1][2]) / det;
+    inv[2][0] = (JtJ[1][0] * JtJ[2][1] - JtJ[1][1] * JtJ[2][0]) / det;
+    inv[2][1] = (JtJ[0][1] * JtJ[2][0] - JtJ[0][0] * JtJ[2][1]) / det;
+    inv[2][2] = (JtJ[0][0] * JtJ[1][1] - JtJ[0][1] * JtJ[1][0]) / det;
+  } else {
+    return new Array(p).fill(NaN);
+  }
+
+  // σ² = SSE / (n - p)
+  let sse = 0;
+  for (const r of residuals) sse += r * r;
+  const df = n - p;
+  if (df <= 0) return new Array(p).fill(NaN);
+  const sigma2 = sse / df;
+  const out = new Array(p).fill(0);
+  for (let i = 0; i < p; i++) {
+    out[i] = Math.sqrt(Math.max(sigma2 * inv[i][i], 0));
+  }
+  return out;
+}
+
+/**
+ * Lorentzian fit: y = A · σ² / ((x - x₀)² + σ²)
+ * 3 parameters: amplitude A, center x₀, width σ
+ */
+export function lorentzianFit(x: number[], y: number[]): LorentzianFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 4) return null;
+  const { x: xv, y: yv } = filtered;
+  // Initial guess: peak amplitude, midpoint, half-width
+  const yMax = Math.max(...yv);
+  const yMin = Math.min(...yv);
+  const amp0 = yMax;
+  const idxMax = yv.indexOf(yMax);
+  const c0 = xv[idxMax];
+  // Find the x distance from peak where y is closest to amp/2.
+  // For Lorentzian y = A·σ²/((x-x₀)² + σ²), |x-x₀| at y=A/2 equals σ.
+  let sigma0 = 1;
+  let minHalfDist = Infinity;
+  for (let i = 0; i < xv.length; i++) {
+    const dist = Math.abs(yv[i] - amp0 / 2);
+    if (dist < minHalfDist) {
+      minHalfDist = dist;
+      sigma0 = Math.max(0.5, Math.abs(xv[i] - c0));
+    }
+  }
+  const predict = (params: number[], x: number) => {
+    const [A, x0, s] = params;
+    return (A * s * s) / ((x - x0) ** 2 + s * s);
+  };
+  // Initial A is also yMax; ignore intermediate yMin (used elsewhere)
+  const _ = yMin; // suppress unused warning
+  void _;
+  const fitResult = lmFitGeneral(predict, xv, yv, [amp0, c0, sigma0]);
+  if (!fitResult) return null;
+  const [A, x0, s] = fitResult.params;
+  const fittedValues = xv.map((xi) => (A * s * s) / ((xi - x0) ** 2 + s * s));
+  const residuals = yv.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fitResult.params, residuals, xv, yv, fittedValues, ['amplitude', 'center', 'sigma'], 3, fitResult.jacobian);
+  return { amplitude: A, center: x0, sigma: s, rSquared: stats.rSquared, stats };
+}
+
+/** Wrapper that calls lmFit with residual = y - f(x; params) using a residualFn that computes f. */
+function lmFitGeneral(
+  predictFn: (params: number[], x: number) => number,
+  x: number[],
+  y: number[],
+  initial: number[],
+  maxIter: number = 200,
+): { params: number[]; jacobian: number[][] } | null {
+  const n = Math.min(x.length, y.length);
+  if (n < initial.length + 1) return null;
+  const p = initial.length;
+  const h = 1e-5;
+
+  let params = [...initial];
+  let lambda = 0.01;
+  let bestSSE = Infinity;
+  let bestParams = [...params];
+  let bestJacobian: number[][] = [];
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const residuals = new Array(n);
+    for (let i = 0; i < n; i++) residuals[i] = y[i] - predictFn(params, x[i]);
+    let sse = 0;
+    for (let i = 0; i < n; i++) sse += residuals[i] * residuals[i];
+
+    if (sse < bestSSE) {
+      bestSSE = sse;
+      bestParams = [...params];
+    }
+
+    // Jacobian via central difference
+    const jacobian: number[][] = [];
+    for (let i = 0; i < n; i++) jacobian.push(new Array(p).fill(0));
+    for (let j = 0; j < p; j++) {
+      const paramsPlus = [...params];
+      const paramsMinus = [...params];
+      const scale = Math.max(Math.abs(params[j]), 1);
+      const hj = h * scale;
+      paramsPlus[j] = params[j] + hj;
+      paramsMinus[j] = params[j] - hj;
+      for (let i = 0; i < n; i++) {
+        jacobian[i][j] = -(predictFn(paramsPlus, x[i]) - predictFn(paramsMinus, x[i])) / (2 * hj);
+      }
+    }
+    bestJacobian = jacobian.map((r) => [...r]);
+
+    // JᵀJ and Jᵀr
+    const JtJ: number[][] = Array.from({ length: p }, () => new Array(p).fill(0));
+    const Jtr = new Array(p).fill(0);
+    for (let r = 0; r < p; r++) {
+      for (let c = 0; c < p; c++) {
+        let s = 0;
+        for (let k = 0; k < n; k++) s += jacobian[k][r] * jacobian[k][c];
+        JtJ[r][c] = s;
+      }
+      let s = 0;
+      for (let k = 0; k < n; k++) s += jacobian[k][r] * residuals[k];
+      Jtr[r] = s;
+    }
+
+    // LM damping
+    const JtJDamped = JtJ.map((row, i) => row.map((v, j) => v + (i === j ? lambda * (JtJ[i][i] + 1e-10) : 0)));
+    // Solve via QR on symmetric system: use simple Gaussian elimination
+    const delta = solveSymmetric(JtJDamped, Jtr);
+    if (!delta || delta.some((d) => !Number.isFinite(d))) break;
+
+    const newParams = params.map((p0, i) => p0 + delta[i]);
+    const newResiduals = new Array(n);
+    for (let i = 0; i < n; i++) newResiduals[i] = y[i] - predictFn(newParams, x[i]);
+    let newSSE = 0;
+    for (let i = 0; i < n; i++) newSSE += newResiduals[i] * newResiduals[i];
+    if (newSSE < sse) {
+      params = newParams;
+      lambda /= 10;
+    } else {
+      lambda *= 10;
+    }
+    if (Math.max(...delta.map((d) => Math.abs(d))) < 1e-8) break;
+  }
+  return { params: bestParams, jacobian: bestJacobian };
+}
+
+/** Solve a symmetric system A x = b via Gaussian elimination with partial pivoting. */
+function solveSymmetric(A: number[][], b: number[]): number[] | null {
+  const n = A.length;
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let k = 0; k < n; k++) {
+    let maxRow = k;
+    for (let i = k + 1; i < n; i++) {
+      if (Math.abs(M[i][k]) > Math.abs(M[maxRow][k])) maxRow = i;
+    }
+    [M[k], M[maxRow]] = [M[maxRow], M[k]];
+    if (Math.abs(M[k][k]) < 1e-18) return null;
+    for (let i = k + 1; i < n; i++) {
+      const factor = M[i][k] / M[k][k];
+      for (let j = k; j <= n; j++) M[i][j] -= factor * M[k][j];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = M[i][n];
+    for (let j = i + 1; j < n; j++) sum -= M[i][j] * x[j];
+    x[i] = sum / M[i][i];
+  }
+  return x;
+}
+
+/** Build FitStatistics with proper covariance-based SE. */
+function buildStatsWithSE(
+  params: number[],
+  residuals: number[],
+  x: number[],
+  y: number[],
+  fittedValues: number[],
+  parameterNames: string[],
+  p: number,
+  jacobian: number[][],
+): FitStatistics {
+  const n = x.length;
+  const yMean = y.reduce((s, v) => s + v, 0) / n;
+  let sse = 0, sst = 0, absSum = 0;
+  for (let i = 0; i < n; i++) {
+    sse += residuals[i] * residuals[i];
+    sst += (y[i] - yMean) ** 2;
+    absSum += Math.abs(residuals[i]);
+  }
+  const rSquared = sst === 0 ? 1 : 1 - sse / sst;
+  const rmse = Math.sqrt(sse / n);
+  const mae = absSum / n;
+  const adjustedRSquared = n > p ? 1 - ((1 - rSquared) * (n - 1)) / (n - p) : rSquared;
+  const residualSE = Math.sqrt(sse / Math.max(n - p, 1));
+  const tCrit = tCritical(Math.max(n - p, 1));
+  const parameterSE = covarianceSE(jacobian, residuals, p, n);
+  const parameterCI: Array<[number, number]> = params.map((c, i) => [
+    c - tCrit * (parameterSE[i] || 0),
+    c + tCrit * (parameterSE[i] || 0),
+  ]);
+  return {
+    n, p, sse, sst, rSquared, adjustedRSquared,
+    rmse, mae, residualStandardError: residualSE,
+    residuals, fittedValues, xValues: x,
+    parameterNames,
+    parameterEstimates: params,
+    parameterSE, parameterCI,
+  };
+}
+
+/**
+ * Weibull CDF fit: y = A · (1 - exp(-(x/λ)^k))
+ * 3 parameters: amplitude A, scale λ, shape k
+ */
+export function weibullFit(x: number[], y: number[]): WeibullFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 4) return null;
+  const { x: xv, y: yv } = filtered;
+  const yMax = Math.max(...yv);
+  const A0 = yMax;
+  // Initial λ: x at y = A0 · (1 - 1/e) ≈ 0.632 A0
+  let lambda0 = 1;
+  for (let i = 0; i < xv.length; i++) {
+    if (yv[i] >= A0 * 0.632) { lambda0 = xv[i]; break; }
+  }
+  const k0 = 1.5;
+  const predict = (params: number[], x: number) => {
+    const [A, lambda, k] = params;
+    return A * (1 - Math.exp(-Math.pow(x / lambda, k)));
+  };
+  const fit = lmFitGeneral(predict, xv, yv, [A0, lambda0, k0]);
+  if (!fit) return null;
+  const [A, lambda, k] = fit.params;
+  const fittedValues = xv.map(predict.bind(null, fit.params));
+  const residuals = yv.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fit.params, residuals, xv, yv, fittedValues, ['amplitude', 'lambda', 'k'], 3, fit.jacobian);
+  return { amplitude: A, lambda, k, rSquared: stats.rSquared, stats };
+}
+
+/**
+ * 4-parameter logistic: y = d + (a - d) / (1 + (x/c)^b)
+ * Parameters: a (top), b (slope), c (inflection/EC50), d (bottom)
+ */
+export function logistic4PLFit(x: number[], y: number[]): Logistic4PLFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 5) return null;
+  const { x: xv, y: yv } = filtered;
+  const yMax = Math.max(...yv);
+  const yMin = Math.min(...yv);
+  // Initial a, d, c (midpoint), b
+  const a0 = yMax;
+  const d0 = yMin;
+  const c0 = xv[Math.floor(xv.length / 2)];
+  const b0 = 2;
+  const predict = (params: number[], x: number) => {
+    const [a, b, c, d] = params;
+    return d + (a - d) / (1 + Math.pow(x / c, b));
+  };
+  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0]);
+  if (!fit) return null;
+  const [a, b, c, d] = fit.params;
+  const fittedValues = xv.map(predict.bind(null, fit.params));
+  const residuals = yv.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fit.params, residuals, xv, yv, fittedValues, ['a', 'b', 'c', 'd'], 4, fit.jacobian);
+  return { a, b, c, d, rSquared: stats.rSquared, stats };
+}
+
+/**
+ * 5-parameter logistic: y = d + (a - d) / (1 + (x/c)^b)^g
+ * Parameters: a, b, c, d, g (asymmetry)
+ */
+export function logistic5PLFit(x: number[], y: number[]): Logistic5PLFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 6) return null;
+  const { x: xv, y: yv } = filtered;
+  const yMax = Math.max(...yv);
+  const yMin = Math.min(...yv);
+  const a0 = yMax, d0 = yMin, c0 = xv[Math.floor(xv.length / 2)], b0 = 2, g0 = 1;
+  const predict = (params: number[], x: number) => {
+    const [a, b, c, d, g] = params;
+    return d + (a - d) / Math.pow(1 + Math.pow(x / c, b), g);
+  };
+  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0, g0]);
+  if (!fit) return null;
+  const [a, b, c, d, g] = fit.params;
+  const fittedValues = xv.map(predict.bind(null, fit.params));
+  const residuals = yv.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fit.params, residuals, xv, yv, fittedValues, ['a', 'b', 'c', 'd', 'g'], 5, fit.jacobian);
+  return { a, b, c, d, g, rSquared: stats.rSquared, stats };
+}
+
+/**
+ * Hill equation: y = Vmax · x^n / (K^n + x^n)
+ * Parameters: Vmax, K, n
+ */
+export function hillFit(x: number[], y: number[]): HillFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 4) return null;
+  const { x: xv, y: yv } = filtered;
+  // Use only positive x
+  const validIdx = xv.map((xi, i) => (xi > 0 ? i : -1)).filter((i) => i >= 0);
+  if (validIdx.length < 4) return null;
+  const xvPos = validIdx.map((i) => xv[i]);
+  const yvPos = validIdx.map((i) => yv[i]);
+  const yMax = Math.max(...yvPos);
+  const Vmax0 = yMax;
+  // K = x at y = Vmax/2
+  let K0 = 1;
+  for (let i = 0; i < xvPos.length; i++) {
+    if (yvPos[i] >= Vmax0 / 2) { K0 = xvPos[i]; break; }
+  }
+  const n0 = 1;
+  const predict = (params: number[], x: number) => {
+    const [Vmax, K, n] = params;
+    return Vmax * Math.pow(x, n) / (Math.pow(K, n) + Math.pow(x, n));
+  };
+  const fit = lmFitGeneral(predict, xvPos, yvPos, [Vmax0, K0, n0]);
+  if (!fit) return null;
+  const [Vmax, K, n] = fit.params;
+  const fittedValues = xvPos.map(predict.bind(null, fit.params));
+  const residuals = yvPos.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fit.params, residuals, xvPos, yvPos, fittedValues, ['Vmax', 'K', 'n'], 3, fit.jacobian);
+  return { Vmax, K, n, rSquared: stats.rSquared, stats };
+}
+
+/**
+ * Bi-exponential: y = a·exp(-b·x) + c·exp(-d·x)
+ * Parameters: a, b (>0), c, d (>0)
+ * Initial guess: y(0) = a + c; linearize log(y) for fast b
+ */
+export function biexponentialFit(x: number[], y: number[]): BiexponentialFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y);
+  if (!filtered || filtered.x.length < 5) return null;
+  const { x: xv, y: yv } = filtered;
+  // Filter to y > 0 for log-linearization
+  const positiveIdx = xv.map((_, i) => (yv[i] > 0 ? i : -1)).filter((i) => i >= 0);
+  if (positiveIdx.length < 5) return null;
+  const xvPos = positiveIdx.map((i) => xv[i]);
+  const yvPos = positiveIdx.map((i) => yv[i]);
+  const y0 = yvPos[0];
+  // Try a single exponential first for initial guess
+  // a·exp(-b·x) + c·exp(-d·x) ≈ a·exp(-b·x) for x → ∞; ≈ (a+c)·exp(-b·x) for x → 0
+  // Simpler: assume c = 0.2·a, d = 0.3·b
+  const a0 = y0 * 0.7;
+  const c0 = y0 * 0.3;
+  const b0 = 0.5;
+  const d0 = 0.2;
+  const predict = (params: number[], x: number) => {
+    const [a, b, c, d] = params;
+    return a * Math.exp(-b * x) + c * Math.exp(-d * x);
+  };
+  const fit = lmFitGeneral(predict, xvPos, yvPos, [a0, b0, c0, d0]);
+  if (!fit) return null;
+  const [a, b, c, d] = fit.params;
+  const fittedValues = xvPos.map(predict.bind(null, fit.params));
+  const residuals = yvPos.map((yi, i) => yi - fittedValues[i]);
+  const stats = buildStatsWithSE(fit.params, residuals, xvPos, yvPos, fittedValues, ['a', 'b', 'c', 'd'], 4, fit.jacobian);
+  return { a, b, c, d, y0: a + c, rSquared: stats.rSquared, stats };
+}
+
 /**
  * Calculate error statistics between actual and fitted values.
  * Returns null if arrays are empty or have mismatched lengths.
