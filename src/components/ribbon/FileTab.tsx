@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2 } from 'lucide-react';
 import type { Dataset } from '@/types';
 import { uid, createSampleSineDataset, createSampleSurfaceDataset, createSampleScatter3DDataset, createSampleBarDataset } from '@/utils/sampleData';
 import Papa from 'papaparse';
@@ -14,6 +14,7 @@ import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
 import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
+import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
 import { ExportModal } from '@/components/ExportModal';
 
 /** Parse a single CSV/XLSX file into a Dataset. */
@@ -493,6 +494,19 @@ export function FileTab() {
     addToast(t('toast.exportSuccess'), 'success');
   };
 
+  const handleExportMatplotlib = () => {
+    const allDatasets = useDatasetStore.getState().datasets;
+    try {
+      downloadMatplotlibScript(chartConfig, allDatasets, {
+        dpi: exportConfig.resolutionMultiplier * 96,
+        filename: chartConfig.title || 'chart',
+      });
+      addToast(t('toast.exportSuccess'), 'success');
+    } catch {
+      addToast(t('toast.exportFailed'), 'error');
+    }
+  };
+
   const handleSaveProject = () => {
     try {
       const dsState = useDatasetStore.getState();
@@ -608,6 +622,10 @@ export function FileTab() {
         <button onClick={handleExportTIFF} className="ribbon-btn" title={t('file.exportTiff')} aria-label={t('file.exportTiff')}>
           <Download size={16} />
           <span className="text-xs">TIFF</span>
+        </button>
+        <button onClick={handleExportMatplotlib} className="ribbon-btn" title={t('file.exportMatplotlib')} aria-label={t('file.exportMatplotlib')}>
+          <FileCode2 size={16} />
+          <span className="text-xs">Python</span>
         </button>
         <button onClick={() => setShowExportModal(true)} className="ribbon-btn" title={t('file.exportAdvanced', 'Advanced Export')} aria-label={t('file.exportAdvanced', 'Advanced Export')}>
           <Settings size={16} />

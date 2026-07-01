@@ -22,6 +22,7 @@ import {
 } from '@/utils/tracesBuilder';
 import { buildLayout, getThemeCssVars } from '@/utils/layoutBuilder';
 import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
+import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
 import { loadPlotly, getPlotlyModule } from '@/utils/plotlyLoader';
 import { generateSegmentColors } from '@/utils/segmentColors';
 
@@ -287,6 +288,21 @@ export default function ChartView() {
           }
         },
       },
+      {
+        label: t('context.exportMatplotlib'),
+        icon: <FileCode size={14} />,
+        onClick: () => {
+          try {
+            downloadMatplotlibScript(chartConfig, datasets, {
+              dpi: resolutionMultiplier * 96,
+              filename: chartConfig.title || 'chart',
+            });
+            addToast(t('toast.exportSuccess'), 'success');
+          } catch {
+            addToast(t('toast.exportFailed'), 'error');
+          }
+        },
+      },
     ];
 
     let items: MenuItemOrSeparator[];
@@ -364,7 +380,7 @@ export default function ChartView() {
     }
 
     showContextMenu(e, items);
-  }, [chartConfig, is3DType, theme, t, addToast, duplicateAnnotation, bringAnnotationToFront, sendAnnotationToBack, updateAnnotation, removeAnnotation, setSelectedAnnotationId, setEditingAnnotationId]);
+  }, [chartConfig, datasets, is3DType, theme, t, addToast, duplicateAnnotation, bringAnnotationToFront, sendAnnotationToBack, updateAnnotation, removeAnnotation, setSelectedAnnotationId, setEditingAnnotationId]);
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
