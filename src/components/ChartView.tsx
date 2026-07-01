@@ -21,7 +21,7 @@ import {
   type ExpandedEntry,
 } from '@/utils/tracesBuilder';
 import { buildLayout, getThemeCssVars } from '@/utils/layoutBuilder';
-import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
+import { export3DToPng, serialize2DChartSVG, export2DChartPNGFromSVG } from '@/utils/exportLayout';
 import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
 import { loadPlotly, getPlotlyModule } from '@/utils/plotlyLoader';
 import { generateSegmentColors } from '@/utils/segmentColors';
@@ -178,16 +178,15 @@ export default function ChartView() {
             } else {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
-              const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
-              await Plotly.downloadImage({ data, layout }, {
-                format: 'png',
+              const dataUrl = await export2DChartPNGFromSVG(plotlyDiv, {
                 scale: resolutionMultiplier,
-                width,
-                height,
-                bgcolor: exportBg ?? 'rgba(0,0,0,0)',
-                filename: chartConfig.title || 'chart',
+                backgroundColor: exportBg,
+                figureMultiplier,
               });
+              const link = document.createElement('a');
+              link.download = (chartConfig.title || 'chart') + '.png';
+              link.href = dataUrl;
+              link.click();
               addToast(t('toast.exportSuccess'), 'success');
             }
           } catch {
@@ -206,16 +205,13 @@ export default function ChartView() {
           try {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
-            const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
-            await Plotly.downloadImage({ data, layout }, {
-              format: 'svg',
-              scale: resolutionMultiplier,
-              width,
-              height,
-              bgcolor: exportBg ?? 'rgba(0,0,0,0)',
-              filename: chartConfig.title || 'chart',
-            });
+            const svgString = await serialize2DChartSVG(plotlyDiv, { backgroundColor: exportBg });
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const link = document.createElement('a');
+            link.download = (chartConfig.title || 'chart') + '.svg';
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
             addToast(t('toast.exportSuccess'), 'success');
           } catch {
             addToast(t('toast.exportFailed'), 'error');
@@ -241,14 +237,10 @@ export default function ChartView() {
             } else {
               const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
               if (!plotlyDiv) return;
-              const Plotly = (await import('plotly.js-dist-min')).default;
-              const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
-              const dataUrl = await Plotly.toImage({ data, layout }, {
-                format: 'png',
+              const dataUrl = await export2DChartPNGFromSVG(plotlyDiv, {
                 scale: resolutionMultiplier,
-                width,
-                height,
-                bgcolor: exportBg ?? 'rgba(0,0,0,0)',
+                backgroundColor: exportBg,
+                figureMultiplier,
               });
               const response = await fetch(dataUrl);
               const blob = await response.blob();
@@ -271,16 +263,7 @@ export default function ChartView() {
           try {
             const plotlyDiv = containerRef.current?.querySelector('.js-plotly-plot') as HTMLElement | null;
             if (!plotlyDiv) return;
-            const Plotly = (await import('plotly.js-dist-min')).default;
-            const { data, layout, width, height } = buildExportPayload(plotlyDiv, chartConfig, 2, figureMultiplier);
-            const dataUrl = await Plotly.toImage({ data, layout }, {
-              format: 'svg',
-              scale: resolutionMultiplier,
-              width,
-              height,
-              bgcolor: exportBg ?? 'rgba(0,0,0,0)',
-            });
-            const svgText = atob(dataUrl.split(',')[1]);
+            const svgText = await serialize2DChartSVG(plotlyDiv, { backgroundColor: exportBg });
             await navigator.clipboard.writeText(svgText);
             addToast(t('toast.copySuccess'), 'success');
           } catch {

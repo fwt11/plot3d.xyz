@@ -5,10 +5,9 @@ import { useUiStore } from '@/store/uiStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { Download, X, Eye } from 'lucide-react';
-import Plotly from 'plotly.js-dist-min';
 
 import { encodeTiff } from '@/utils/tiffEncoder';
-import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
+import { export3DToPng, serialize2DChartSVG, export2DChartPNGFromSVG } from '@/utils/exportLayout';
 
 type PdfPageSize = 'a4' | 'a3' | 'letter' | 'legal' | 'auto';
 type ExportFormat = 'png' | 'svg' | 'pdf' | 'tiff';
@@ -80,13 +79,11 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, chartConfig, 2);
-          const dataUrl = await Plotly.toImage({ data, layout }, {
-            format: 'png',
+          const dataUrl = await export2DChartPNGFromSVG(div, {
             scale,
             width: options.width,
             height: options.height,
-            bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+            backgroundColor: bgColor,
           });
           setPreviewUrl(dataUrl);
           return;
@@ -120,13 +117,11 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, chartConfig, 2);
-          const dataUrl = await Plotly.toImage({ data, layout }, {
-            format: 'png',
+          const dataUrl = await export2DChartPNGFromSVG(div, {
             scale,
             width: options.width,
             height: options.height,
-            bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+            backgroundColor: bgColor,
           });
           downloadDataUrl(dataUrl, `${filename}.png`);
           return;
@@ -154,15 +149,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       }
       const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
       if (div) {
-        const { data, layout } = buildExportPayload(div, chartConfig, 2);
-        const dataUrl = await Plotly.toImage({ data, layout }, {
-          format: 'svg',
-          scale,
-          width: options.width,
-          height: options.height,
-          bgcolor: bgColor ?? 'rgba(0,0,0,0)',
-        });
-        const svgString = decodeURIComponent(dataUrl.split(',')[1] ?? '');
+        const svgString = await serialize2DChartSVG(div, { backgroundColor: bgColor });
         const blob = new Blob([svgString], { type: 'image/svg+xml' });
         downloadBlob(blob, `${filename}.svg`);
         return;
@@ -179,13 +166,11 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (div) {
-          const { data, layout } = buildExportPayload(div, chartConfig, 2);
-          imgData = await Plotly.toImage({ data, layout }, {
-            format: 'png',
+          imgData = await export2DChartPNGFromSVG(div, {
             scale,
             width: options.width,
             height: options.height,
-            bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+            backgroundColor: bgColor,
           });
         } else {
           return;
@@ -263,13 +248,11 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
       if (!is3D) {
         const div = document.querySelector('.js-plotly-plot') as HTMLElement | null;
         if (!div) return;
-        const { data, layout } = buildExportPayload(div, chartConfig, 2);
-        pngDataUrl = await Plotly.toImage({ data, layout }, {
-          format: 'png',
+        pngDataUrl = await export2DChartPNGFromSVG(div, {
           scale,
           width: options.width,
           height: options.height,
-          bgcolor: bgColor ?? 'rgba(0,0,0,0)',
+          backgroundColor: bgColor,
         });
       } else {
         const container3D = document.querySelector('[data-chart-area-3d]') as HTMLElement | null;

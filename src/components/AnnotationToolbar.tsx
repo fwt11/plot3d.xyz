@@ -134,6 +134,7 @@ export function AnnotationToolbar({
   return (
     <div
       className="absolute z-20 flex flex-wrap items-center gap-1 px-1.5 py-1 rounded-md border shadow-sm"
+      data-export-exclude="true"
       style={{
         ...(isRightSide
           ? { right: `${100 - disp.x}%`, transform: 'translate(50%, calc(-100% - 98px))' }

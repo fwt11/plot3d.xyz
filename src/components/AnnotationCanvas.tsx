@@ -693,7 +693,7 @@ function SelectionOverlay({
   }
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} data-export-exclude="true">
       {isConnector && handleEndpointPos && (
         <>
           {/* Endpoint handle */}
@@ -844,6 +844,7 @@ function InlineTextEditor({
         }
       }}
       className="absolute z-10 text-xs outline-none resize-none border-2 rounded px-1 py-0.5 shadow-lg"
+      data-export-exclude="true"
       onMouseDown={(e) => e.stopPropagation()}
       style={{
         left: `${disp.x}%`,
