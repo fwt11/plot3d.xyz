@@ -269,11 +269,16 @@ export async function export3DToPng(
  * on-screen rendering, avoiding coordinate conversion and re-rendering
  * artifacts.
  *
- * The Plotly `<svg.main-svg>` is cloned directly (it uses inline attributes
- * for all visual properties, so it is self-contained). The annotation overlay
- * (mixed HTML + SVG with percentage-based positioning) is converted to a
- * `<foreignObject>` via `html-to-image.toSvg`, which inlines all computed
- * CSS styles so the result renders correctly as standalone SVG.
+ * Plotly v3 renders 2D charts using multiple stacked `<svg.main-svg>` elements:
+ *   - SVG #0: background, drag layer, cartesianlayer (axes, grid, traces)
+ *   - SVG #1: infolayer (legend, axis titles, chart title), menulayer, zoomlayer
+ *   - SVG #2: hoverlayer (interactive only, not needed for export)
+ *
+ * We clone SVGs #0 and #1 and merge their child `<g>` elements into a single
+ * SVG, preserving the correct z-order. The annotation overlay (mixed HTML +
+ * SVG with percentage-based positioning) is converted to a `<foreignObject>`
+ * via `html-to-image.toSvg`, which inlines all computed CSS styles so the
+ * result renders correctly as standalone SVG.
  */
 export async function serialize2DChartSVG(
   plotlyDiv: HTMLElement,
@@ -281,18 +286,31 @@ export async function serialize2DChartSVG(
     backgroundColor?: string;
   } = {},
 ): Promise<string> {
-  // 1. Find Plotly's main SVG element
-  const plotlySvg = plotlyDiv.querySelector('svg.main-svg') as SVGSVGElement | null;
-  if (!plotlySvg) throw new Error('Plotly main SVG not found');
+  // 1. Find all Plotly main SVG elements (Plotly v3 uses multiple stacked SVGs)
+  const plotlySvgs = plotlyDiv.querySelectorAll('svg.main-svg');
+  if (plotlySvgs.length === 0) throw new Error('Plotly main SVG not found');
 
-  // 2. Clone the Plotly SVG (self-contained — Plotly sets fill/stroke/font
-  //    etc. as attributes, not CSS classes, so the clone renders correctly
-  //    without external stylesheets)
-  const svgClone = plotlySvg.cloneNode(true) as SVGSVGElement;
+  // 2. Use the first SVG as the base clone (it has the correct dimensions)
+  const baseSvg = plotlySvgs[0] as SVGSVGElement;
+  const svgClone = baseSvg.cloneNode(true) as SVGSVGElement;
   svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   svgClone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-  // 3. Insert a background rect if a background color is specified.
+  // 3. Merge child elements from SVG #1 (infolayer with legend, axis titles,
+  //    chart title) into the clone. Skip SVG #2 (hoverlayer — interactive only).
+  //    Also merge <defs> from SVG #1 to ensure referenced elements (gradients,
+  //    clipPaths etc.) are available.
+  if (plotlySvgs.length > 1) {
+    const infoSvg = plotlySvgs[1] as SVGSVGElement;
+    for (const child of Array.from(infoSvg.children)) {
+      // Skip hoverlayer (only useful for interactive display)
+      const className = child.getAttribute('class') || '';
+      if (className.includes('hoverlayer')) continue;
+      svgClone.appendChild(child.cloneNode(true));
+    }
+  }
+
+  // 4. Insert a background rect if a background color is specified.
   //    This goes behind all Plotly content. If Plotly's own paper_bgcolor is
   //    opaque it will cover this rect; if transparent, the rect shows through.
   if (options.backgroundColor) {
@@ -303,14 +321,14 @@ export async function serialize2DChartSVG(
     svgClone.insertBefore(bg, svgClone.firstChild);
   }
 
-  // 4. Find the annotation canvas (sibling of plotlyDiv within the chart
+  // 5. Find the annotation canvas (sibling of plotlyDiv within the chart
   //    container — both are direct children of the container div)
   const chartContainer = plotlyDiv.parentElement;
   const annotationCanvas = chartContainer?.querySelector('.annotation-canvas') as HTMLElement | null;
 
   if (annotationCanvas) {
     try {
-      // 5. Convert annotation canvas to an SVG fragment via html-to-image.
+      // 6. Convert annotation canvas to an SVG fragment via html-to-image.
       //    This produces a full <svg> with a <foreignObject> wrapping the
       //    cloned DOM tree, with all computed CSS styles inlined.
       const { toSvg } = await import('html-to-image');
@@ -329,7 +347,7 @@ export async function serialize2DChartSVG(
         backgroundColor: undefined,
       });
 
-      // 6. Parse the annotation SVG and extract the <foreignObject>.
+      // 7. Parse the annotation SVG and extract the <foreignObject>.
       //    html-to-image returns: data:image/svg+xml;charset=utf-8,<encoded SVG>
       const annotationSvgText = decodeURIComponent(
         annotationSvgDataUrl.replace(/^data:image\/svg\+xml;charset=utf-8,/, ''),
@@ -339,7 +357,7 @@ export async function serialize2DChartSVG(
       const foreignObject = annotationDoc.querySelector('foreignObject');
 
       if (foreignObject) {
-        // 7. Make the inner wrapper div fill the foreignObject so that
+        // 8. Make the inner wrapper div fill the foreignObject so that
         //    percentage-based annotation positions resolve correctly when
         //    the SVG is resized or rendered at a different resolution.
         const innerDiv = foreignObject.querySelector('div');
@@ -347,7 +365,7 @@ export async function serialize2DChartSVG(
           innerDiv.style.width = '100%';
           innerDiv.style.height = '100%';
         }
-        // 8. Append the foreignObject (with annotations) to the Plotly SVG
+        // 9. Append the foreignObject (with annotations) to the Plotly SVG
         svgClone.appendChild(foreignObject);
       }
     } catch {
@@ -356,7 +374,7 @@ export async function serialize2DChartSVG(
     }
   }
 
-  // 9. Serialize the combined SVG to a string
+  // 10. Serialize the combined SVG to a string
   const serializer = new XMLSerializer();
   let svgString = serializer.serializeToString(svgClone);
   if (!svgString.startsWith('<?xml')) {
