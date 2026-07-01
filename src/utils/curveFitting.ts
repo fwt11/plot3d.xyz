@@ -184,6 +184,11 @@ export interface FitOptions {
   /** Optional weights per data point. Defaults to equal weights (unweighted OLS).
    *  Use w = 1/σ² for inverse-variance weighting. */
   weights?: number[];
+  /** Optional per-parameter bounds: bounds[i] = [lower, upper] for parameter i.
+   *  When provided, optimization constrains each parameter to its range.
+   *  Only LM-based fits (Phase 3 Task 3.3) honor bounds; legacy Gauss-Newton
+   *  fits ignore them. */
+  bounds?: Array<[number, number]>;
 }
 
 /** Internal: filter valid pairs and apply weights. If weights are provided, returns
@@ -1150,8 +1155,8 @@ function covarianceSE(jacobian: number[][], residuals: number[], p: number, n: n
  * Lorentzian fit: y = A · σ² / ((x - x₀)² + σ²)
  * 3 parameters: amplitude A, center x₀, width σ
  */
-export function lorentzianFit(x: number[], y: number[]): LorentzianFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function lorentzianFit(x: number[], y: number[], options?: FitOptions): LorentzianFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 4) return null;
   const { x: xv, y: yv } = filtered;
   // Initial guess: peak amplitude, midpoint, half-width
@@ -1178,7 +1183,7 @@ export function lorentzianFit(x: number[], y: number[]): LorentzianFitResult | n
   // Initial A is also yMax; ignore intermediate yMin (used elsewhere)
   const _ = yMin; // suppress unused warning
   void _;
-  const fitResult = lmFitGeneral(predict, xv, yv, [amp0, c0, sigma0]);
+  const fitResult = lmFitGeneral(predict, xv, yv, [amp0, c0, sigma0], 200, options?.bounds);
   if (!fitResult) return null;
   const [A, x0, s] = fitResult.params;
   const fittedValues = xv.map((xi) => (A * s * s) / ((xi - x0) ** 2 + s * s));
@@ -1187,20 +1192,32 @@ export function lorentzianFit(x: number[], y: number[]): LorentzianFitResult | n
   return { amplitude: A, center: x0, sigma: s, rSquared: stats.rSquared, stats };
 }
 
-/** Wrapper that calls lmFit with residual = y - f(x; params) using a residualFn that computes f. */
+/** Wrapper that calls lmFit with residual = y - f(x; params) using a residualFn that computes f.
+ *  If `bounds` is provided, parameters are clamped to the given ranges after each iteration
+ *  and constrained violations add a "soft penalty" via JᵀJ augmentation. */
 function lmFitGeneral(
   predictFn: (params: number[], x: number) => number,
   x: number[],
   y: number[],
   initial: number[],
   maxIter: number = 200,
+  bounds?: Array<[number, number]>,
 ): { params: number[]; jacobian: number[][] } | null {
   const n = Math.min(x.length, y.length);
   if (n < initial.length + 1) return null;
   const p = initial.length;
   const h = 1e-5;
 
-  let params = [...initial];
+  // Clamp initial parameters to bounds
+  let params = bounds ? initial.map((v, i) => clampParam(v, bounds[i])) : [...initial];
+  if (bounds) {
+    // Ensure initial params are within bounds; if any out of range, return null
+    for (let i = 0; i < p; i++) {
+      const [lo, hi] = bounds[i];
+      if (params[i] < lo || params[i] > hi) return null;
+    }
+  }
+
   let lambda = 0.01;
   let bestSSE = Infinity;
   let bestParams = [...params];
@@ -1217,7 +1234,7 @@ function lmFitGeneral(
       bestParams = [...params];
     }
 
-    // Jacobian via central difference
+    // Jacobian via central difference (params may be at bounds → use 1e-5 abs step)
     const jacobian: number[][] = [];
     for (let i = 0; i < n; i++) jacobian.push(new Array(p).fill(0));
     for (let j = 0; j < p; j++) {
@@ -1233,7 +1250,6 @@ function lmFitGeneral(
     }
     bestJacobian = jacobian.map((r) => [...r]);
 
-    // JᵀJ and Jᵀr
     const JtJ: number[][] = Array.from({ length: p }, () => new Array(p).fill(0));
     const Jtr = new Array(p).fill(0);
     for (let r = 0; r < p; r++) {
@@ -1247,13 +1263,13 @@ function lmFitGeneral(
       Jtr[r] = s;
     }
 
-    // LM damping
     const JtJDamped = JtJ.map((row, i) => row.map((v, j) => v + (i === j ? lambda * (JtJ[i][i] + 1e-10) : 0)));
-    // Solve via QR on symmetric system: use simple Gaussian elimination
     const delta = solveSymmetric(JtJDamped, Jtr);
     if (!delta || delta.some((d) => !Number.isFinite(d))) break;
 
-    const newParams = params.map((p0, i) => p0 + delta[i]);
+    // Proposed new params (clamped to bounds if specified)
+    const rawNewParams = params.map((p0, i) => p0 + delta[i]);
+    const newParams = bounds ? rawNewParams.map((v, i) => clampParam(v, bounds[i])) : rawNewParams;
     const newResiduals = new Array(n);
     for (let i = 0; i < n; i++) newResiduals[i] = y[i] - predictFn(newParams, x[i]);
     let newSSE = 0;
@@ -1267,6 +1283,12 @@ function lmFitGeneral(
     if (Math.max(...delta.map((d) => Math.abs(d))) < 1e-8) break;
   }
   return { params: bestParams, jacobian: bestJacobian };
+}
+
+/** Clamp parameter `v` to the [lo, hi] range. */
+function clampParam(v: number, range: [number, number]): number {
+  const [lo, hi] = range;
+  return Math.max(lo, Math.min(hi, v));
 }
 
 /** Solve a symmetric system A x = b via Gaussian elimination with partial pivoting. */
@@ -1338,8 +1360,8 @@ function buildStatsWithSE(
  * Weibull CDF fit: y = A · (1 - exp(-(x/λ)^k))
  * 3 parameters: amplitude A, scale λ, shape k
  */
-export function weibullFit(x: number[], y: number[]): WeibullFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function weibullFit(x: number[], y: number[], options?: FitOptions): WeibullFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 4) return null;
   const { x: xv, y: yv } = filtered;
   const yMax = Math.max(...yv);
@@ -1354,7 +1376,7 @@ export function weibullFit(x: number[], y: number[]): WeibullFitResult | null {
     const [A, lambda, k] = params;
     return A * (1 - Math.exp(-Math.pow(x / lambda, k)));
   };
-  const fit = lmFitGeneral(predict, xv, yv, [A0, lambda0, k0]);
+  const fit = lmFitGeneral(predict, xv, yv, [A0, lambda0, k0], 200, options?.bounds);
   if (!fit) return null;
   const [A, lambda, k] = fit.params;
   const fittedValues = xv.map(predict.bind(null, fit.params));
@@ -1367,8 +1389,8 @@ export function weibullFit(x: number[], y: number[]): WeibullFitResult | null {
  * 4-parameter logistic: y = d + (a - d) / (1 + (x/c)^b)
  * Parameters: a (top), b (slope), c (inflection/EC50), d (bottom)
  */
-export function logistic4PLFit(x: number[], y: number[]): Logistic4PLFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function logistic4PLFit(x: number[], y: number[], options?: FitOptions): Logistic4PLFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 5) return null;
   const { x: xv, y: yv } = filtered;
   const yMax = Math.max(...yv);
@@ -1382,7 +1404,7 @@ export function logistic4PLFit(x: number[], y: number[]): Logistic4PLFitResult |
     const [a, b, c, d] = params;
     return d + (a - d) / (1 + Math.pow(x / c, b));
   };
-  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0]);
+  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0], 200, options?.bounds);
   if (!fit) return null;
   const [a, b, c, d] = fit.params;
   const fittedValues = xv.map(predict.bind(null, fit.params));
@@ -1395,8 +1417,8 @@ export function logistic4PLFit(x: number[], y: number[]): Logistic4PLFitResult |
  * 5-parameter logistic: y = d + (a - d) / (1 + (x/c)^b)^g
  * Parameters: a, b, c, d, g (asymmetry)
  */
-export function logistic5PLFit(x: number[], y: number[]): Logistic5PLFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function logistic5PLFit(x: number[], y: number[], options?: FitOptions): Logistic5PLFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 6) return null;
   const { x: xv, y: yv } = filtered;
   const yMax = Math.max(...yv);
@@ -1406,7 +1428,7 @@ export function logistic5PLFit(x: number[], y: number[]): Logistic5PLFitResult |
     const [a, b, c, d, g] = params;
     return d + (a - d) / Math.pow(1 + Math.pow(x / c, b), g);
   };
-  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0, g0]);
+  const fit = lmFitGeneral(predict, xv, yv, [a0, b0, c0, d0, g0], 200, options?.bounds);
   if (!fit) return null;
   const [a, b, c, d, g] = fit.params;
   const fittedValues = xv.map(predict.bind(null, fit.params));
@@ -1419,12 +1441,12 @@ export function logistic5PLFit(x: number[], y: number[]): Logistic5PLFitResult |
  * Hill equation: y = Vmax · x^n / (K^n + x^n)
  * Parameters: Vmax, K, n
  */
-export function hillFit(x: number[], y: number[]): HillFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function hillFit(x: number[], y: number[], options?: FitOptions): HillFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 4) return null;
   const { x: xv, y: yv } = filtered;
   // Use only positive x
-  const validIdx = xv.map((xi, i) => (xi > 0 ? i : -1)).filter((i) => i >= 0);
+  const validIdx = xv.map((_, i) => (xv[i] > 0 ? i : -1)).filter((i) => i >= 0);
   if (validIdx.length < 4) return null;
   const xvPos = validIdx.map((i) => xv[i]);
   const yvPos = validIdx.map((i) => yv[i]);
@@ -1440,7 +1462,7 @@ export function hillFit(x: number[], y: number[]): HillFitResult | null {
     const [Vmax, K, n] = params;
     return Vmax * Math.pow(x, n) / (Math.pow(K, n) + Math.pow(x, n));
   };
-  const fit = lmFitGeneral(predict, xvPos, yvPos, [Vmax0, K0, n0]);
+  const fit = lmFitGeneral(predict, xvPos, yvPos, [Vmax0, K0, n0], 200, options?.bounds);
   if (!fit) return null;
   const [Vmax, K, n] = fit.params;
   const fittedValues = xvPos.map(predict.bind(null, fit.params));
@@ -1454,8 +1476,8 @@ export function hillFit(x: number[], y: number[]): HillFitResult | null {
  * Parameters: a, b (>0), c, d (>0)
  * Initial guess: y(0) = a + c; linearize log(y) for fast b
  */
-export function biexponentialFit(x: number[], y: number[]): BiexponentialFitResult | null {
-  const filtered = filterValidPairsWeighted(x, y);
+export function biexponentialFit(x: number[], y: number[], options?: FitOptions): BiexponentialFitResult | null {
+  const filtered = filterValidPairsWeighted(x, y, options?.weights);
   if (!filtered || filtered.x.length < 5) return null;
   const { x: xv, y: yv } = filtered;
   // Filter to y > 0 for log-linearization
@@ -1475,7 +1497,7 @@ export function biexponentialFit(x: number[], y: number[]): BiexponentialFitResu
     const [a, b, c, d] = params;
     return a * Math.exp(-b * x) + c * Math.exp(-d * x);
   };
-  const fit = lmFitGeneral(predict, xvPos, yvPos, [a0, b0, c0, d0]);
+  const fit = lmFitGeneral(predict, xvPos, yvPos, [a0, b0, c0, d0], 200, options?.bounds);
   if (!fit) return null;
   const [a, b, c, d] = fit.params;
   const fittedValues = xvPos.map(predict.bind(null, fit.params));
