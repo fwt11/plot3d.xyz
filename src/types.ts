@@ -156,6 +156,8 @@ export interface Annotation {
   ellipseRadii?: { rx: number; ry: number };
   polygonPoints?: { x: number; y: number }[];
   bracketHeight?: number;
+  bracketTopX?: number;
+  bracketTopY?: number;
 
   // Reference lines / bands
   referenceValue?: number | [number, number];

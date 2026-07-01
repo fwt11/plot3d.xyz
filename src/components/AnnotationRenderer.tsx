@@ -1,6 +1,6 @@
 import type { Annotation } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent, renderMixedContent } from '@/utils/latex';
-import { toDisplayPercent, readAxisRanges, type AxisRanges } from '@/utils/annotationCoords';
+import { toDisplayPercent, readAxisRanges, rotatePointIsometric, type AxisRanges } from '@/utils/annotationCoords';
 
 function percent(v: number): string {
   return `${v}%`;
@@ -30,13 +30,14 @@ function resolveContent(ann: Annotation): string {
 
 interface AnnotationRendererProps {
   annotation: Annotation;
-  axisRanges?: AxisRanges | null;
+  axisRanges: AxisRanges | null;
+  containerAspectRatio?: number;
   isSelected?: boolean;
   onMouseDown?: (e: React.MouseEvent, ann: Annotation) => void;
   onDoubleClick?: (e: React.MouseEvent, ann: Annotation) => void;
 }
 
-export function AnnotationRenderer({ annotation: ann, axisRanges, isSelected, onMouseDown, onDoubleClick }: AnnotationRendererProps) {
+export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspectRatio = 1, isSelected, onMouseDown, onDoubleClick }: AnnotationRendererProps) {
   if (!ann.visible) return null;
 
   const ranges = axisRanges ?? readAxisRanges(document.querySelector('.js-plotly-plot') as HTMLElement | null);
@@ -152,31 +153,73 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, isSelected, on
           // so decompose into three <line> elements which do accept percent attributes.
           (() => {
             const bh = ann.bracketHeight ?? 12;
-            const topY = Math.min(y1, y2) - bh;
+            const rot = ann.rotation ?? 0;
+            const t1x = x1;
+            const t1y = y1 - bh;
+            const t2x = x2;
+            const t2y = y2 - bh;
+            const midX = (t1x + t2x) / 2;
+            const midY = (t1y + t2y) / 2;
+            const s = rotatePointIsometric(x1, y1, midX, midY, rot, containerAspectRatio);
+            const t1 = rotatePointIsometric(t1x, t1y, midX, midY, rot, containerAspectRatio);
+            const t2 = rotatePointIsometric(t2x, t2y, midX, midY, rot, containerAspectRatio);
+            const e = rotatePointIsometric(x2, y2, midX, midY, rot, containerAspectRatio);
             return (
               <>
+                {/* Visible bracket lines */}
                 <line
-                  x1={`${x1}%`} y1={`${y1}%`}
-                  x2={`${x1}%`} y2={`${topY}%`}
+                  x1={`${s.x}%`} y1={`${s.y}%`}
+                  x2={`${t1.x}%`} y2={`${t1.y}%`}
                   stroke={lineColor}
                   strokeWidth={strokeWidth}
                   strokeDasharray={strokeDash}
                   markerStart={`url(#bracket-start-${ann.id})`}
                 />
                 <line
-                  x1={`${x1}%`} y1={`${topY}%`}
-                  x2={`${x2}%`} y2={`${topY}%`}
+                  x1={`${t1.x}%`} y1={`${t1.y}%`}
+                  x2={`${t2.x}%`} y2={`${t2.y}%`}
                   stroke={lineColor}
                   strokeWidth={strokeWidth}
                   strokeDasharray={strokeDash}
                 />
                 <line
-                  x1={`${x2}%`} y1={`${topY}%`}
-                  x2={`${x2}%`} y2={`${y2}%`}
+                  x1={`${t2.x}%`} y1={`${t2.y}%`}
+                  x2={`${e.x}%`} y2={`${e.y}%`}
                   stroke={lineColor}
                   strokeWidth={strokeWidth}
                   strokeDasharray={strokeDash}
                   markerEnd={`url(#bracket-end-${ann.id})`}
+                />
+                {/* Invisible clickable lines covering the whole bracket path */}
+                <line
+                  x1={`${s.x}%`} y1={`${s.y}%`}
+                  x2={`${t1.x}%`} y2={`${t1.y}%`}
+                  stroke="transparent"
+                  strokeWidth={Math.max(strokeWidth + 12, 16)}
+                  style={{ pointerEvents: 'auto', cursor: onMouseDown ? 'grab' : 'default' }}
+                  onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
+                  onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
+                  data-annotation-id={ann.id}
+                />
+                <line
+                  x1={`${t1.x}%`} y1={`${t1.y}%`}
+                  x2={`${t2.x}%`} y2={`${t2.y}%`}
+                  stroke="transparent"
+                  strokeWidth={Math.max(strokeWidth + 12, 16)}
+                  style={{ pointerEvents: 'auto', cursor: onMouseDown ? 'grab' : 'default' }}
+                  onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
+                  onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
+                  data-annotation-id={ann.id}
+                />
+                <line
+                  x1={`${t2.x}%`} y1={`${t2.y}%`}
+                  x2={`${e.x}%`} y2={`${e.y}%`}
+                  stroke="transparent"
+                  strokeWidth={Math.max(strokeWidth + 12, 16)}
+                  style={{ pointerEvents: 'auto', cursor: onMouseDown ? 'grab' : 'default' }}
+                  onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
+                  onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
+                  data-annotation-id={ann.id}
                 />
               </>
             );
@@ -193,19 +236,21 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, isSelected, on
             markerEnd={ann.type === 'arrow' ? `url(#arrowhead-${ann.id})` : undefined}
           />
         )}
-        {/* Invisible clickable stroke for easier selection */}
-        <line
-          x1={`${x1}%`}
-          y1={`${y1}%`}
-          x2={`${x2}%`}
-          y2={`${y2}%`}
-          stroke="transparent"
-          strokeWidth={Math.max(strokeWidth + 8, 12)}
-          style={{ pointerEvents: 'auto', cursor: onMouseDown ? 'grab' : 'default' }}
-          onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
-          onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
-          data-annotation-id={ann.id}
-        />
+        {/* Invisible clickable stroke for arrow/line */}
+        {ann.type !== 'bracket' && (
+          <line
+            x1={`${x1}%`}
+            y1={`${y1}%`}
+            x2={`${x2}%`}
+            y2={`${y2}%`}
+            stroke="transparent"
+            strokeWidth={Math.max(strokeWidth + 8, 12)}
+            style={{ pointerEvents: 'auto', cursor: onMouseDown ? 'grab' : 'default' }}
+            onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
+            onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
+            data-annotation-id={ann.id}
+          />
+        )}
       </svg>
     );
   }

@@ -63,6 +63,50 @@ export function toDisplayPercent(
   };
 }
 
+/** Rotate a point (px,py) around a center (cx,cy) by angleDeg degrees. */
+export function rotatePoint(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  angleDeg: number,
+): { x: number; y: number } {
+  const rad = (angleDeg * Math.PI) / 180;
+  const dx = px - cx;
+  const dy = py - cy;
+  return {
+    x: cx + dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: cy + dx * Math.sin(rad) + dy * Math.cos(rad),
+  };
+}
+
+/**
+ * Rotate a point in percent coordinates while compensating for container aspect ratio.
+ * Percent coords are non-isometric (1% x != 1% y when width != height), so naive rotation
+ * distorts angles. This normalizes to an isometric pixel space, rotates, then converts back.
+ */
+export function rotatePointIsometric(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  angleDeg: number,
+  aspectRatio: number, // width / height
+): { x: number; y: number } {
+  const rad = (angleDeg * Math.PI) / 180;
+  // Normalize to isometric space: scale x by aspectRatio so 1 unit = 1 pixel-height
+  const dx = (px - cx) * aspectRatio;
+  const dy = py - cy;
+  // Rotate in isometric space
+  const dxR = dx * Math.cos(rad) - dy * Math.sin(rad);
+  const dyR = dx * Math.sin(rad) + dy * Math.cos(rad);
+  // Convert back to percent space
+  return {
+    x: cx + dxR / aspectRatio,
+    y: cy + dyR,
+  };
+}
+
 /** Convert a mouse percent to stored coordinates based on coordMode. */
 export function toStoredCoords(
   x: number,

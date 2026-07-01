@@ -10,6 +10,7 @@ import {
   toStoredCoords,
   toDisplayPercent,
   clampPercent,
+  rotatePointIsometric,
   type AxisRanges,
 } from '@/utils/annotationCoords';
 
@@ -23,7 +24,7 @@ type DrawingState =
 type DragMode =
   | { kind: 'move'; id: string; startMouse: Point; start: Point; initial: Annotation }
   | { kind: 'resize'; id: string; handle: string; startMouse: Point; initial: Annotation }
-  | { kind: 'rotate'; id: string; startMouse: Point; initialRotation: number; center: Point }
+  | { kind: 'rotate'; id: string; initialRotation: number; centerPx: { x: number; y: number }; startAngle: number }
   | { kind: 'endpoint'; id: string; field: 'arrowTo' | 'endPoint'; startMouse: Point; start: Point; initial: Annotation }
   | { kind: 'anchor'; id: string; startMouse: Point; start: Point; initial: Annotation }
   | null;
@@ -60,6 +61,24 @@ export function AnnotationCanvas({
 
   const [drawing, setDrawing] = useState<DrawingState>(null);
   const [drag, setDrag] = useState<DragMode>(null);
+  const [containerSize, setContainerSize] = useState({ w: 800, h: 600 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setContainerSize({ w: rect.width, h: rect.height });
+    };
+    update();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener('resize', update);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, []);
 
   const zoom = useChartInteractionStore((s) => s.zoom);
   // Re-read axis ranges whenever the zoom state changes so data-coordinate annotations track pan/zoom.
@@ -159,6 +178,14 @@ export function AnnotationCanvas({
         ann.x = storedStart.x;
         ann.y = storedStart.y;
         ann.endPoint = toStored(current.x, current.y, ann.coordMode);
+        if (tool === 'bracket') {
+          const bh = ann.bracketHeight ?? 12;
+          const beamX = (start.x + current.x) / 2;
+          const beamY = Math.min(start.y, current.y) - bh;
+          const storedBeam = toStored(beamX, beamY, ann.coordMode);
+          ann.bracketTopX = storedBeam.x;
+          ann.bracketTopY = storedBeam.y;
+        }
       }
 
       onAdd(ann);
@@ -318,6 +345,12 @@ export function AnnotationCanvas({
           const nextY = clampPercent(drag.start.y + dy);
           const stored = toStored(nextX, nextY, drag.initial.coordMode);
           onUpdateSilent(drag.id, { x: stored.x, y: stored.y });
+        } else if (drag.kind === 'rotate' && selectedAnnotation) {
+          const currentAngle = Math.atan2(e.clientY - drag.centerPx.y, e.clientX - drag.centerPx.x) * 180 / Math.PI;
+          let newRotation = drag.initialRotation + (currentAngle - drag.startAngle);
+          while (newRotation > 180) newRotation -= 360;
+          while (newRotation < -180) newRotation += 360;
+          onUpdateSilent(drag.id, { rotation: newRotation });
         }
       }
     },
@@ -463,13 +496,14 @@ export function AnnotationCanvas({
           key={ann.id}
           annotation={ann}
           axisRanges={axisRanges}
+          containerAspectRatio={containerSize.w / containerSize.h}
           isSelected={ann.id === selectedId}
           onMouseDown={handleAnnotationMouseDown}
           onDoubleClick={handleAnnotationDoubleClick}
         />
       ))}
       {previewAnnotation && (
-        <AnnotationRenderer annotation={previewAnnotation} axisRanges={axisRanges} isSelected={false} />
+        <AnnotationRenderer annotation={previewAnnotation} axisRanges={axisRanges} containerAspectRatio={containerSize.w / containerSize.h} isSelected={false} />
       )}
       {drawing?.tool === 'polygon' && (
         <svg className="absolute inset-0 w-full h-full pointer-events-none">
@@ -487,19 +521,23 @@ export function AnnotationCanvas({
           )}
         </svg>
       )}
-      {selectedAnnotation && activeTool === 'select' && (
+      {selectedAnnotation && activeTool === 'select' && !editingAnnotation && (
         <SelectionOverlay
           annotation={selectedAnnotation}
           axisRanges={axisRanges}
+          containerAspectRatio={containerSize.w / containerSize.h}
           onEndpointDown={(field, start) => {
             setDrag({ kind: 'endpoint', id: selectedAnnotation.id, field, startMouse: start, start, initial: selectedAnnotation });
           }}
           onAnchorDown={(start) => {
             setDrag({ kind: 'anchor', id: selectedAnnotation.id, startMouse: start, start, initial: selectedAnnotation });
           }}
+          onRotateDown={(centerPx, startAngle) => {
+            setDrag({ kind: 'rotate', id: selectedAnnotation.id, initialRotation: selectedAnnotation.rotation ?? 0, centerPx, startAngle });
+          }}
         />
       )}
-      {selectedAnnotation && activeTool === 'select' && !editingAnnotation && (
+      {selectedAnnotation && activeTool === 'select' && !editingAnnotation && !drag && (
         <AnnotationToolbar
           annotation={selectedAnnotation}
           axisRanges={axisRanges}
@@ -532,13 +570,17 @@ export function AnnotationCanvas({
 function SelectionOverlay({
   annotation,
   axisRanges,
+  containerAspectRatio = 1,
   onEndpointDown,
   onAnchorDown,
+  onRotateDown,
 }: {
   annotation: Annotation;
   axisRanges: AxisRanges | null;
+  containerAspectRatio?: number;
   onEndpointDown: (field: 'arrowTo' | 'endPoint', start: Point) => void;
   onAnchorDown: (start: Point) => void;
+  onRotateDown?: (centerPx: { x: number; y: number }, startAngle: number) => void;
 }) {
   const disp = toDisplayPercent(annotation.x, annotation.y, annotation.coordMode, axisRanges);
   const endpoint = annotation.type === 'arrow' || annotation.type === 'callout'
@@ -566,11 +608,46 @@ function SelectionOverlay({
     onAnchorDown(clientToPercent(e.clientX, e.clientY, rect));
   };
 
+  const handleRotateMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!onRotateDown || !dispEndpoint) return;
+    const target = e.currentTarget.parentElement?.parentElement as HTMLElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const bh = annotation.bracketHeight ?? 12;
+    const t1x = disp.x;
+    const t1y = disp.y - bh;
+    const t2x = dispEndpoint.x;
+    const t2y = dispEndpoint.y - bh;
+    const midX = (t1x + t2x) / 2;
+    const midY = (t1y + t2y) / 2;
+    const centerPx = { x: rect.left + (rect.width * midX) / 100, y: rect.top + (rect.height * midY) / 100 };
+    const startAngle = Math.atan2(e.clientY - centerPx.y, e.clientX - centerPx.x) * 180 / Math.PI;
+    onRotateDown(centerPx, startAngle);
+  };
+
   const isConnector = annotation.type === 'arrow' || annotation.type === 'line' || annotation.type === 'bracket' || annotation.type === 'callout';
+
+  // For bracket: rotate handle positions to match the rendered bracket, compensating for aspect ratio
+  let handleEndpointPos = dispEndpoint;
+  let handleAnchorPos = disp;
+  if (annotation.type === 'bracket' && dispEndpoint) {
+    const bh = annotation.bracketHeight ?? 12;
+    const t1x = disp.x;
+    const t1y = disp.y - bh;
+    const t2x = dispEndpoint.x;
+    const t2y = dispEndpoint.y - bh;
+    const midX = (t1x + t2x) / 2;
+    const midY = (t1y + t2y) / 2;
+    const rot = annotation.rotation ?? 0;
+    handleEndpointPos = rotatePointIsometric(dispEndpoint.x, dispEndpoint.y, midX, midY, rot, containerAspectRatio);
+    handleAnchorPos = rotatePointIsometric(disp.x, disp.y, midX, midY, rot, containerAspectRatio);
+  }
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
-      {isConnector && dispEndpoint && (
+      {isConnector && handleEndpointPos && (
         <>
           {/* Endpoint handle */}
           <g
@@ -578,8 +655,8 @@ function SelectionOverlay({
             onMouseDown={(e) => handleEndpointMouseDown(e, annotation.type === 'arrow' || annotation.type === 'callout' ? 'arrowTo' : 'endPoint')}
           >
             <circle
-              cx={`${dispEndpoint.x}%`}
-              cy={`${dispEndpoint.y}%`}
+              cx={`${handleEndpointPos.x}%`}
+              cy={`${handleEndpointPos.y}%`}
               r={6}
               fill="var(--accent)"
               stroke="#fff"
@@ -594,14 +671,50 @@ function SelectionOverlay({
         onMouseDown={handleAnchorMouseDown}
       >
         <circle
-          cx={`${disp.x}%`}
-          cy={`${disp.y}%`}
+          cx={`${handleAnchorPos.x}%`}
+          cy={`${handleAnchorPos.y}%`}
           r={5}
           fill="var(--accent)"
           stroke="#fff"
           strokeWidth={2}
         />
       </g>
+      {/* Rotation handle for bracket */}
+      {annotation.type === 'bracket' && dispEndpoint && onRotateDown && (
+        <g
+          style={{ cursor: 'grab', pointerEvents: 'auto' }}
+          onMouseDown={handleRotateMouseDown}
+        >
+          <circle
+            cx={`${(() => {
+              const bh = annotation.bracketHeight ?? 12;
+              const t1x = disp.x;
+              const t1y = disp.y - bh;
+              const t2x = dispEndpoint.x;
+              const t2y = dispEndpoint.y - bh;
+              const midX = (t1x + t2x) / 2;
+              const midY = (t1y + t2y) / 2;
+              const r = rotatePointIsometric(midX, midY - 12, midX, midY, annotation.rotation ?? 0, containerAspectRatio);
+              return `${r.x}%`;
+            })()}`}
+            cy={`${(() => {
+              const bh = annotation.bracketHeight ?? 12;
+              const t1x = disp.x;
+              const t1y = disp.y - bh;
+              const t2x = dispEndpoint.x;
+              const t2y = dispEndpoint.y - bh;
+              const midX = (t1x + t2x) / 2;
+              const midY = (t1y + t2y) / 2;
+              const r = rotatePointIsometric(midX, midY - 12, midX, midY, annotation.rotation ?? 0, containerAspectRatio);
+              return `${r.y}%`;
+            })()}`}
+            r={5}
+            fill="#f59e0b"
+            stroke="#fff"
+            strokeWidth={2}
+          />
+        </g>
+      )}
       {annotation.type === 'rect' && annotation.rectSize && (
         <rect
           x={`${disp.x - annotation.rectSize.w / 2}%`}

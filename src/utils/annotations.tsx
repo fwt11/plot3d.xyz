@@ -100,7 +100,7 @@ export function createDefaultAnnotation(
     case 'line':
       return { ...base, content: '', endPoint: { x: 70, y: 30 } };
     case 'bracket':
-      return { ...base, content: '', endPoint: { x: 70, y: 50 }, bracketHeight: 12 };
+      return { ...base, content: '', endPoint: { x: 70, y: 50 }, bracketHeight: 12, bracketTopX: 50, bracketTopY: 38 };
     case 'rect':
       return { ...base, content: '', rectSize: { w: 20, h: 15 }, fillColor: base.color };
     case 'ellipse':

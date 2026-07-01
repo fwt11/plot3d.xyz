@@ -136,8 +136,8 @@ export function AnnotationToolbar({
       className="absolute z-20 flex flex-wrap items-center gap-1 px-1.5 py-1 rounded-md border shadow-sm"
       style={{
         ...(isRightSide
-          ? { right: `${100 - disp.x}%`, transform: 'translate(50%, -130%)' }
-          : { left: `${disp.x}%`, transform: 'translate(-50%, -130%)' }),
+          ? { right: `${100 - disp.x}%`, transform: 'translate(50%, calc(-100% - 98px))' }
+          : { left: `${disp.x}%`, transform: 'translate(-50%, calc(-100% - 98px))' }),
         top: `${disp.y}%`,
         width: 'max-content',
         maxWidth: '340px',
@@ -292,6 +292,21 @@ export function AnnotationToolbar({
           title={t('annotation.opacity')}
         />
       </div>
+
+      <ToolbarDivider />
+
+      {/* Rotation */}
+      <input
+        type="number"
+        min={-360}
+        max={360}
+        step={1}
+        value={Math.round(annotation.rotation ?? 0)}
+        onChange={(e) => onUpdate({ rotation: Number(e.target.value) })}
+        className="w-10 h-5 px-1 text-xs rounded border outline-none text-center"
+        style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+        title={t('annotation.rotation')}
+      />
 
       <ToolbarDivider />
 
