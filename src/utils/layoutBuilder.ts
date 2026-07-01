@@ -151,8 +151,16 @@ export function buildLayout(
     const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
 
     const xAxisConfig: Record<string, unknown> = {
-      title: { text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary }, standoff: 10 },
-      type: chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category'),
+      title: {
+        text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.timezone && chartConfig.xAxis.timezone !== 'UTC'
+          ? `${chartConfig.xAxis.timezone}`
+          : chartConfig.xAxis.unit),
+        font: { size: chartConfig.fontSize, color: cssVars.textSecondary },
+        standoff: 10,
+      },
+      type: chartConfig.xAxis.timezone
+        ? 'date'
+        : (chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category')),
       gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
       gridwidth: 1,
       zeroline: false,
@@ -169,6 +177,20 @@ export function buildLayout(
       tickangle: chartConfig.xAxis.tickAngle ?? 0,
       automargin: true,
     };
+    // Phase 4 Task 4.1: set Plotly timezone (UTC default)
+    if (chartConfig.xAxis.timezone) {
+      xAxisConfig.timezone = chartConfig.xAxis.timezone;
+    }
+    if (chartConfig.xAxis.timezone) {
+      xAxisConfig.tickformatstops = [
+        // Auto tick format ladders for date axes
+        { dtickrange: [60 * 1000, 3600 * 1000], value: '%H:%M' },
+        { dtickrange: [3600 * 1000, 86400 * 1000], value: '%H:%M' },
+        { dtickrange: [86400 * 1000, 86400 * 1000 * 30], value: '%b %d' },
+        { dtickrange: [86400 * 1000 * 30, 86400 * 1000 * 365], value: '%b %Y' },
+        { dtickrange: [86400 * 1000 * 365, undefined], value: '%Y' },
+      ];
+    }
     if (chartConfig.xAxis.scientificNotation) xAxisConfig.tickformat = '.2e';
     if (!chartConfig.xAxis.autoRange && chartConfig.xAxis.min !== undefined && chartConfig.xAxis.max !== undefined) {
       xAxisConfig.range = [chartConfig.xAxis.min, chartConfig.xAxis.max];

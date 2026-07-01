@@ -184,3 +184,36 @@ describe('buildLayout — log scale', () => {
     expect(yaxis.type).toBe('log');
   });
 });
+
+describe('buildLayout — date axis (Phase 4 Task 4.1)', () => {
+  it('uses date type when xAxis.timezone is set', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      xAxis: { ...baseConfig.xAxis, timezone: 'UTC' },
+    };
+    const result = buildLayout(cfg, LIGHT_CHART_CSS_VARS, false, false, false, [], false);
+    const xaxis = result.xaxis as { type: string; timezone?: string };
+    expect(xaxis.type).toBe('date');
+    expect(xaxis.timezone).toBe('UTC');
+  });
+
+  it('includes tickformatstops for automatic date tick selection', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      xAxis: { ...baseConfig.xAxis, timezone: 'America/New_York' },
+    };
+    const result = buildLayout(cfg, LIGHT_CHART_CSS_VARS, false, false, false, [], false);
+    const xaxis = result.xaxis as { tickformatstops?: Array<{ dtickrange: [number, number]; value: string }> };
+    expect(xaxis.tickformatstops).toBeDefined();
+    expect(xaxis.tickformatstops!.length).toBeGreaterThan(0);
+    // Covers second, minute, hour, day, month, year ranges
+    expect(xaxis.tickformatstops!.some((s) => s.value.includes('%H:%M'))).toBe(true);
+  });
+
+  it('falls back to linear/category when timezone is undefined', () => {
+    const result = buildLayout(baseConfig, LIGHT_CHART_CSS_VARS, false, false, false, [], false);
+    const xaxis = result.xaxis as { type: string; timezone?: string };
+    expect(xaxis.timezone).toBeUndefined();
+    expect(xaxis.type).not.toBe('date');
+  });
+});

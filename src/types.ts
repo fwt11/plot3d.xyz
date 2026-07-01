@@ -38,6 +38,13 @@ export interface AxisConfig {
   categoryAxis?: boolean;
   /** Tick label rotation angle in degrees. */
   tickAngle?: number;
+  /**
+   * Phase 4 Task 4.1: time / date axis support.
+   * When set, the X axis is rendered as a Plotly `date` type. The value is a
+   * IANA timezone name (e.g. "UTC", "America/New_York"); when omitted,
+   * defaults to "UTC". The `unit` field annotates the timezone in the axis
+   * label when it differs from "UTC" (e.g. "Time (NY)"). */
+  timezone?: string;
 }
 
 export interface LegendConfig {
