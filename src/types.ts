@@ -213,6 +213,8 @@ export interface ChartConfig {
   colorMap: ColorMapName;
   layers: LayerConfig[];
   annotations: Annotation[];
+  /** Phase 4 Task 4.5: inset plots (small panels embedded in the main chart). */
+  insets?: InsetConfig[];
   marginTop: number;
   marginRight: number;
   marginBottom: number;
@@ -222,3 +224,29 @@ export interface ChartConfig {
 }
 
 export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma' | 'cividis' | 'inferno' | 'magma' | 'turbo' | 'batlow';
+
+/**
+ * Phase 4 Task 4.5: Inset (small panel embedded in the main chart).
+ * v1 supports a static rectangular frame at one of four corners;
+ * no drag / no collision detection (per spec).
+ */
+export type InsetPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export interface InsetConfig {
+  id: string;
+  visible: boolean;
+  /** Inset position on the main chart (1-100 percent coordinates). */
+  position: InsetPosition;
+  /** Width in percent of the main chart area (default 25). */
+  widthPercent?: number;
+  /** Height in percent of the main chart area (default 25). */
+  heightPercent?: number;
+  /** Border color (default semi-transparent black). */
+  borderColor?: string;
+  /** Background color (default semi-transparent white). */
+  backgroundColor?: string;
+  /** Optional fixed X range (data coords); if omitted, uses paper coordinates only. */
+  xRange?: [number, number];
+  /** Optional fixed Y range (data coords); if omitted, uses paper coordinates only. */
+  yRange?: [number, number];
+}

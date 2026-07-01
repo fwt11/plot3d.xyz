@@ -281,3 +281,53 @@ export function buildLayout(
 
   return result;
 }
+
+/**
+ * Phase 4 Task 4.5: build Plotly shapes for chart insets.
+ * Each inset is rendered as a rectangular frame at one of four corners.
+ * v1 does not render data inside insets — only the frame.
+ */
+export function buildInsets(
+  chartConfig: Pick<ChartConfig, 'insets' | 'marginTop' | 'marginLeft' | 'marginRight' | 'marginBottom'>,
+): Array<Record<string, unknown>> {
+  if (!chartConfig.insets || chartConfig.insets.length === 0) return [];
+  const shapes: Array<Record<string, unknown>> = [];
+  for (const inset of chartConfig.insets) {
+    if (!inset.visible) continue;
+    const w = (inset.widthPercent ?? 25) / 100;
+    const h = (inset.heightPercent ?? 25) / 100;
+    // Anchor at one of four corners (paper coordinates with margin offsets).
+    // Paper domain is [0, 1] in x and y; inset x in [0, 1] excluding margins.
+    let x0: number, x1: number, y0: number, y1: number;
+    switch (inset.position) {
+      case 'top-left':
+        x0 = 0.01; x1 = 0.01 + w;
+        y1 = 0.99; y0 = 0.99 - h;
+        break;
+      case 'top-right':
+        x1 = 0.99; x0 = 0.99 - w;
+        y1 = 0.99; y0 = 0.99 - h;
+        break;
+      case 'bottom-left':
+        x0 = 0.01; x1 = 0.01 + w;
+        y0 = 0.01; y1 = 0.01 + h;
+        break;
+      case 'bottom-right':
+        x1 = 0.99; x0 = 0.99 - w;
+        y0 = 0.01; y1 = 0.01 + h;
+        break;
+    }
+    shapes.push({
+      type: 'rect',
+      xref: 'paper',
+      yref: 'paper',
+      x0, x1, y0, y1,
+      line: {
+        color: inset.borderColor ?? 'rgba(0,0,0,0.5)',
+        width: 1,
+      },
+      fillcolor: inset.backgroundColor ?? 'rgba(255,255,255,0.1)',
+    });
+  }
+  return shapes;
+}

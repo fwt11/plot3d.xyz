@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { LIGHT_CHART_CSS_VARS, buildLayout, getThemeCssVars } from './layoutBuilder';
-import type { AxisConfig, ChartConfig, ExportConfig } from '@/types';
+import { LIGHT_CHART_CSS_VARS, buildLayout, buildInsets, getThemeCssVars } from './layoutBuilder';
+import type { AxisConfig, ChartConfig, ExportConfig, InsetConfig } from '@/types';
 
 const axis = (overrides: Partial<AxisConfig> = {}): AxisConfig => ({
   label: '',
@@ -215,5 +215,78 @@ describe('buildLayout — date axis (Phase 4 Task 4.1)', () => {
     const xaxis = result.xaxis as { type: string; timezone?: string };
     expect(xaxis.timezone).toBeUndefined();
     expect(xaxis.type).not.toBe('date');
+  });
+});
+
+describe('buildInsets (Phase 4 Task 4.5)', () => {
+  const inset = (position: InsetConfig['position']): InsetConfig => ({
+    id: 'i1',
+    visible: true,
+    position,
+    widthPercent: 30,
+    heightPercent: 20,
+  });
+
+  it('returns empty array when no insets', () => {
+    expect(buildInsets({ marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0 })).toEqual([]);
+  });
+
+  it('skips hidden insets', () => {
+    expect(buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [{ ...inset('top-right'), visible: false }],
+    })).toEqual([]);
+  });
+
+  it('renders top-right inset at high x and y', () => {
+    const shapes = buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [inset('top-right')],
+    });
+    expect(shapes).toHaveLength(1);
+    const s = shapes[0] as { x0: number; x1: number; y0: number; y1: number; type: string };
+    expect(s.type).toBe('rect');
+    expect(s.x1).toBeCloseTo(0.99, 2);
+    expect(s.x0).toBeCloseTo(0.69, 2); // 0.99 - 0.30
+    expect(s.y1).toBeCloseTo(0.99, 2);
+  });
+
+  it('renders bottom-left inset at low x and y', () => {
+    const shapes = buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [inset('bottom-left')],
+    });
+    const s = shapes[0] as { x0: number; y0: number };
+    expect(s.x0).toBeCloseTo(0.01, 2);
+    expect(s.y0).toBeCloseTo(0.01, 2);
+  });
+
+  it('respects widthPercent and heightPercent', () => {
+    const customInset: InsetConfig = { ...inset('top-left'), widthPercent: 50, heightPercent: 10 };
+    const shapes = buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [customInset],
+    });
+    const s = shapes[0] as { x0: number; x1: number; y0: number; y1: number };
+    expect(s.x1 - s.x0).toBeCloseTo(0.5, 2);
+    expect(s.y1 - s.y0).toBeCloseTo(0.1, 2);
+  });
+
+  it('uses paper coordinates (xref/yref = paper)', () => {
+    const shapes = buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [inset('bottom-right')],
+    });
+    const s = shapes[0] as { xref: string; yref: string };
+    expect(s.xref).toBe('paper');
+    expect(s.yref).toBe('paper');
+  });
+
+  it('supports multiple insets simultaneously', () => {
+    const shapes = buildInsets({
+      marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0,
+      insets: [inset('top-left'), inset('bottom-right')],
+    });
+    expect(shapes).toHaveLength(2);
   });
 });
