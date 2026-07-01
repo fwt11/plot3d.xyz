@@ -1194,8 +1194,9 @@ export function lorentzianFit(x: number[], y: number[], options?: FitOptions): L
 
 /** Wrapper that calls lmFit with residual = y - f(x; params) using a residualFn that computes f.
  *  If `bounds` is provided, parameters are clamped to the given ranges after each iteration
- *  and constrained violations add a "soft penalty" via JᵀJ augmentation. */
-function lmFitGeneral(
+ *  and constrained violations add a "soft penalty" via JᵀJ augmentation.
+ *  Exported for use by globalFit (Phase 3 Task 3.5). */
+export function lmFitGeneral(
   predictFn: (params: number[], x: number) => number,
   x: number[],
   y: number[],
@@ -1685,4 +1686,203 @@ export function computePredictionBand(
   }
 
   return null;
+}
+
+// --- Global fit (Phase 3 Task 3.5) ---
+
+/** Specification for a single dataset in a global (multi-dataset) fit. */
+export interface GlobalFitDataset {
+  x: number[];
+  y: number[];
+  /**
+   * Predict function for THIS dataset using the combined parameter vector.
+   * Caller decides the parameter-slot layout (e.g. [local1, local2, shared]).
+   */
+  predict: (params: number[], x: number) => number;
+}
+
+/** Result of a global fit: optimal parameter vector + R² + total SSE. */
+export interface GlobalFitResult {
+  params: number[];
+  rSquared: number;
+  sse: number;
+  n: number;
+}
+
+/**
+ * Global (multi-dataset) least-squares fit via Levenberg-Marquardt.
+ *
+ * Concatenates the residuals from all datasets and runs a single LM
+ * optimization over the combined parameter vector. Supports per-dataset
+ * local parameters AND shared parameters — caller controls layout via
+ * each `datasets[i].predict`.
+ *
+ * Minimum 2 valid datasets required.
+ */
+export function globalFit(
+  datasets: GlobalFitDataset[],
+  initial: number[],
+  options?: { maxIter?: number },
+): GlobalFitResult | null {
+  if (datasets.length < 2) return null;
+  // Filter each dataset to finite-value pairs.
+  const filteredDatasets: { x: number[]; y: number[]; predict: GlobalFitDataset['predict'] }[] = [];
+  for (const ds of datasets) {
+    if (ds.x.length < 2 || ds.x.length !== ds.y.length) continue;
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i < ds.x.length; i++) {
+      if (Number.isFinite(ds.x[i]) && Number.isFinite(ds.y[i])) {
+        x.push(ds.x[i]);
+        y.push(ds.y[i]);
+      }
+    }
+    if (x.length >= 2) filteredDatasets.push({ x, y, predict: ds.predict });
+  }
+  if (filteredDatasets.length < 2) return null;
+
+  // Concatenate (x, y) pairs across datasets into a single array.
+  const xAll: number[] = [];
+  const yAll: number[] = [];
+  for (let d = 0; d < filteredDatasets.length; d++) {
+    const ds = filteredDatasets[d];
+    for (let i = 0; i < ds.x.length; i++) {
+      xAll.push(ds.x[i]);
+      yAll.push(ds.y[i]);
+    }
+  }
+
+  // Per-row dataset tag (which dataset does row i belong to?).
+  const tag: number[] = [];
+  for (let d = 0; d < filteredDatasets.length; d++) {
+    for (let i = 0; i < filteredDatasets[d].x.length; i++) tag.push(d);
+  }
+
+  // Shared counter — lmFitGeneral calls predictFn in three sequential patterns:
+  //   (1) residuals: n calls (i = 0..n-1)
+  //   (2) jacobian: p * n calls (j = 0..p-1, i = 0..n-1) twice (params+/-)
+  //   (3) newParams residuals: n calls
+  // All sequential by `i`, so a single counter is safe.
+  let counter = 0;
+  const wrappedPredict = (params: number[], x: number) => {
+    const idx = counter++;
+    return filteredDatasets[tag[idx]].predict(params, x);
+  };
+
+  // NB: lmFitGeneral may call predictFn in different orders depending on
+  // branch path. To be robust, we re-implement the inner LM loop here
+  // using our counter.
+  const fit = lmFitGlobal(wrappedPredict, xAll, yAll, initial, options?.maxIter ?? 200, tag, filteredDatasets);
+  if (!fit) return null;
+
+  // Compute R² across all datasets with the returned params.
+  const n = yAll.length;
+  let sse = 0;
+  const yMean = yAll.reduce((s, v) => s + v, 0) / n;
+  for (let i = 0; i < n; i++) {
+    const pred = filteredDatasets[tag[i]].predict(fit, xAll[i]);
+    const r = yAll[i] - pred;
+    sse += r * r;
+  }
+  let sst = 0;
+  for (let i = 0; i < n; i++) sst += (yAll[i] - yMean) ** 2;
+  const rSquared = sst === 0 ? 1 : 1 - sse / sst;
+  return { params: fit, rSquared, sse, n };
+}
+
+// Note: this is a separate LM implementation from `lmFitGeneral` because that
+// function's `predictFn` signature is `predict(params, x)`, which doesn't expose
+// the row index. For global fitting with per-dataset dispatch, our wrapper
+// closure above maintains a counter that aligns predict calls with dataset
+// rows via the `tag` array. We re-implement the LM loop here so that we
+// control counter resets between "outer" iterations.
+function lmFitGlobal(
+  predict: (params: number[], x: number) => void,
+  x: number[],
+  y: number[],
+  initial: number[],
+  maxIter: number,
+  tag: number[],
+  datasets: { predict: GlobalFitDataset['predict'] }[],
+): number[] | null {
+  const n = Math.min(x.length, y.length);
+  if (n < initial.length + 1) return null;
+  const p = initial.length;
+  const h = 1e-5;
+  let params = [...initial];
+  let lambda = 0.01;
+  let bestSSE = Infinity;
+  let bestParams = [...params];
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    // Counter reset at the start of each lmFitGlobal iteration
+    let counter = 0;
+    const predictAt = (paramsVec: number[], idx: number) =>
+      datasets[tag[idx]].predict(paramsVec, x[idx]);
+
+    // Residuals
+    const residuals = new Array(n);
+    for (let i = 0; i < n; i++) {
+      counter++;
+      residuals[i] = y[i] - predictAt(params, i);
+      // silence unused 'predict' warning (kept for API parity)
+      void predict;
+    }
+    let sse = 0;
+    for (let i = 0; i < n; i++) sse += residuals[i] * residuals[i];
+    if (sse < bestSSE) bestSSE = sse, bestParams = [...params];
+
+    // Jacobian (central difference)
+    const jacobian: number[][] = [];
+    for (let i = 0; i < n; i++) jacobian.push(new Array(p).fill(0));
+    counter = 0; // reset
+    for (let j = 0; j < p; j++) {
+      const paramsPlus = [...params];
+      const paramsMinus = [...params];
+      const scale = Math.max(Math.abs(params[j]), 1);
+      const hj = h * scale;
+      paramsPlus[j] = params[j] + hj;
+      paramsMinus[j] = params[j] - hj;
+      for (let i = 0; i < n; i++) {
+        counter++;
+        jacobian[i][j] = -(predictAt(paramsPlus, i) - predictAt(paramsMinus, i)) / (2 * hj);
+      }
+    }
+
+    // JᵀJ and Jᵀr
+    const JtJ: number[][] = Array.from({ length: p }, () => new Array(p).fill(0));
+    const Jtr = new Array(p).fill(0);
+    for (let r = 0; r < p; r++) {
+      for (let c = 0; c < p; c++) {
+        let s = 0;
+        for (let k = 0; k < n; k++) s += jacobian[k][r] * jacobian[k][c];
+        JtJ[r][c] = s;
+      }
+      let s = 0;
+      for (let k = 0; k < n; k++) s += jacobian[k][r] * residuals[k];
+      Jtr[r] = s;
+    }
+
+    const JtJDamped = JtJ.map((row, i) => row.map((v, j) => v + (i === j ? lambda * (JtJ[i][i] + 1e-10) : 0)));
+    const delta = solveSymmetric(JtJDamped, Jtr);
+    if (!delta || delta.some((d) => !Number.isFinite(d))) break;
+
+    counter = 0; // reset
+    const rawNewParams = params.map((p0, i) => p0 + delta[i]);
+    const newResiduals = new Array(n);
+    for (let i = 0; i < n; i++) {
+      counter++;
+      newResiduals[i] = y[i] - predictAt(rawNewParams, i);
+    }
+    let newSSE = 0;
+    for (let i = 0; i < n; i++) newSSE += newResiduals[i] * newResiduals[i];
+    if (newSSE < sse) {
+      params = rawNewParams;
+      lambda /= 10;
+    } else {
+      lambda *= 10;
+    }
+    if (Math.max(...delta.map((d) => Math.abs(d))) < 1e-8) break;
+  }
+  return bestParams;
 }
