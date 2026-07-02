@@ -173,10 +173,11 @@ function varName(prefix: string, idx: number): string {
 function buildAnnotationCode(ann: Annotation, idx: number): string | null {
   if (!ann.visible) return null;
   const v = varName('ann', idx);
+  // Convert $$..$$ (KaTeX-style) → $..$ (matplotlib mathtext inline math)
+  const txt = latexForMatplotlib(ann.content || '');
   // Percent-coord annotations: use fig.text (figure-level coords 0-100)
   if (ann.coordMode === 'percent') {
     if (ann.type === 'text' || ann.type === 'latex' || ann.type === 'callout' || ann.type === 'fitEquation') {
-      const txt = ann.content || '';
       return `${v} = fig.text(${fmtNum(ann.x / 100)}, ${fmtNum(ann.y / 100)}, '${pyEscape(txt)}', fontsize=${ann.fontSize}, color='${pyEscape(ann.color)}', ha='center', va='center')`;
     }
     // Other types in percent mode: skip (best-effort)
@@ -188,7 +189,6 @@ function buildAnnotationCode(ann: Annotation, idx: number): string | null {
     case 'callout':
     case 'latex':
     case 'fitEquation': {
-      const txt = ann.content || '';
       // matplotlib mathtext uses $...$ inline; content with $$...$$ stays as-is
       return `${v} = ax.annotate(${pyStrList([txt])}[0], xy=(${fmtNum(ann.x)}, ${fmtNum(ann.y)}), fontsize=${ann.fontSize}, color='${pyEscape(ann.color)}')`;
     }
@@ -218,6 +218,16 @@ function buildAnnotationCode(ann: Annotation, idx: number): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * Convert KaTeX-style display math `$$ ... $$` to matplotlib mathtext inline `$ ... $`.
+ * matplotlib mathtext rejects `$$` (only supports single-`$` inline math mode),
+ * so we strip the outer pair. Content without `$$` is returned unchanged.
+ */
+export function latexForMatplotlib(content: string): string {
+  // Replace each occurrence of $$...$$ with $...$ (multi-line and inline alike).
+  return content.replace(/\$\$([\s\S]*?)\$\$/g, (_, body) => '$' + body + '$');
 }
 
 /** Main entry point: generate a self-contained matplotlib script from chart config + datasets. */

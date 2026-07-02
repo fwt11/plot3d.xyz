@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateMatplotlibScript } from './matplotlibExporter';
+import { generateMatplotlibScript, latexForMatplotlib } from './matplotlibExporter';
 import type { ChartConfig, Dataset } from '@/types';
 
 const sampleDatasets: Dataset[] = [
@@ -266,5 +266,77 @@ describe('generateMatplotlibScript (Phase 5 Task 5.1)', () => {
     const script = generateMatplotlibScript(cfg, sampleDatasets);
     // mathtext uses $...$ inline; should pass through
     expect(script).toContain('y = 2x + 1');
+  });
+});
+
+describe('latexForMatplotlib', () => {
+  it('converts $$..$$ (KaTeX display math) to $..$ (matplotlib mathtext inline)', () => {
+    expect(latexForMatplotlib('$$e=mc^2$$')).toBe('$e=mc^2$');
+  });
+
+  it('converts multi-line display math', () => {
+    expect(latexForMatplotlib('$$y = 2x + 1$$')).toBe('$y = 2x + 1$');
+  });
+
+  it('handles multiple display math blocks in same string', () => {
+    expect(latexForMatplotlib('Title: $$e=mc^2$$ and $$\\alpha$$')).toBe('Title: $e=mc^2$ and $\\alpha$');
+  });
+
+  it('passes through single-$ inline math unchanged', () => {
+    expect(latexForMatplotlib('$e=mc^2$')).toBe('$e=mc^2$');
+  });
+
+  it('passes through plain text unchanged', () => {
+    expect(latexForMatplotlib('Plain text label')).toBe('Plain text label');
+  });
+
+  it('handles empty string', () => {
+    expect(latexForMatplotlib('')).toBe('');
+  });
+});
+
+describe('generateMatplotlibScript with KaTeX display math (bug repro)', () => {
+  it('does not emit $$..$$ to ax.annotate (matplotlib mathtext incompatibility)', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'fitEquation',
+          x: 2.5, y: 35,
+          content: '$$ y = 2.0000x + 1.0000 $$',  // equationToLatex format
+          fontSize: 12,
+          color: '#000',
+          visible: true,
+          coordMode: 'data',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    // Should NOT contain "$$" (which breaks matplotlib mathtext)
+    expect(script).not.toContain('$$');
+    // Should contain single-$ inline math (note: spaces inside $$ are preserved)
+    expect(script).toContain('y = 2.0000x + 1.0000');
+  });
+
+  it('converts percent-coord KaTeX display math to single-$ in fig.text', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'latex',
+          x: 50, y: 95,
+          content: '$$\\int_0^\\infty e^{-x} dx = 1$$',
+          fontSize: 12,
+          color: '#000',
+          visible: true,
+          coordMode: 'percent',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toContain('fig.text');
+    expect(script).not.toContain('$$');
   });
 });
