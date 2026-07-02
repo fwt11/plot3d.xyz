@@ -109,6 +109,7 @@ export interface ErrorBarConfig {
 
 export type AnnotationType =
   | 'text'
+  | 'latex'
   | 'callout'
   | 'arrow'
   | 'line'

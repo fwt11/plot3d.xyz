@@ -98,4 +98,173 @@ describe('generateMatplotlibScript (Phase 5 Task 5.1)', () => {
     const script = generateMatplotlibScript(baseConfig, sampleDatasets, { dpi: 600 });
     expect(script).toContain('600');
   });
+
+  it('exports data-coord text annotations as ax.annotate', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'text',
+          x: 2.5,
+          y: 35,
+          content: 'Peak here',
+          fontSize: 12,
+          color: '#ef4444',
+          visible: true,
+          coordMode: 'data',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toMatch(/ax\.annotate.*Peak here/);
+  });
+
+  it('exports percent-coord text annotations as fig.text', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'text',
+          x: 50,
+          y: 95,
+          content: 'Top center',
+          fontSize: 12,
+          color: '#000',
+          visible: true,
+          coordMode: 'percent',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toMatch(/fig\.text.*Top center/);
+  });
+
+  it('exports horizontal line annotations as axhline', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'hline',
+          x: 0,
+          y: 25,
+          content: '',
+          fontSize: 12,
+          color: '#888',
+          visible: true,
+          coordMode: 'data',
+          referenceValue: 25,
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toContain('axhline');
+  });
+
+  it('exports vertical line annotations as axvline', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'vline',
+          x: 3,
+          y: 0,
+          content: '',
+          fontSize: 12,
+          color: '#888',
+          visible: true,
+          coordMode: 'data',
+          referenceValue: 3,
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toContain('axvline');
+  });
+
+  it('exports rect annotations as plt.Rectangle patches', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'rect',
+          x: 1, y: 20,
+          content: '',
+          fontSize: 12,
+          color: '#888',
+          visible: true,
+          coordMode: 'data',
+          rectSize: { w: 2, h: 10 },
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toContain('plt.Rectangle');
+  });
+
+  it('exports arrow annotations with arrowprops', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'arrow',
+          x: 1, y: 10,
+          content: '',
+          fontSize: 12,
+          color: '#000',
+          visible: true,
+          coordMode: 'data',
+          endPoint: { x: 4, y: 30 },
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).toMatch(/arrowprops/);
+  });
+
+  it('skips invisible annotations', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'text',
+          x: 2, y: 30,
+          content: 'Should not appear',
+          fontSize: 12,
+          color: '#000',
+          visible: false, // hidden
+          coordMode: 'data',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    expect(script).not.toContain('Should not appear');
+  });
+
+  it('exports LaTeX-rendered annotations via mathtext', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      annotations: [
+        {
+          id: 'a1',
+          type: 'latex',
+          x: 2.5, y: 35,
+          content: '$y = 2x + 1$',
+          fontSize: 12,
+          color: '#000',
+          visible: true,
+          coordMode: 'data',
+        },
+      ],
+    };
+    const script = generateMatplotlibScript(cfg, sampleDatasets);
+    // mathtext uses $...$ inline; should pass through
+    expect(script).toContain('y = 2x + 1');
+  });
 });

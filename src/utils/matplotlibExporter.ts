@@ -171,13 +171,25 @@ function varName(prefix: string, idx: number): string {
 
 /** Build the Python code for a single annotation (best-effort, common types only). */
 function buildAnnotationCode(ann: Annotation, idx: number): string | null {
-  // Only data-coord annotations can be reasonably mapped; percent-coord ones are skipped
-  if (ann.coordMode !== 'data') return null;
+  if (!ann.visible) return null;
   const v = varName('ann', idx);
+  // Percent-coord annotations: use fig.text (figure-level coords 0-100)
+  if (ann.coordMode === 'percent') {
+    if (ann.type === 'text' || ann.type === 'latex' || ann.type === 'callout' || ann.type === 'fitEquation') {
+      const txt = ann.content || '';
+      return `${v} = fig.text(${fmtNum(ann.x / 100)}, ${fmtNum(ann.y / 100)}, '${pyEscape(txt)}', fontsize=${ann.fontSize}, color='${pyEscape(ann.color)}', ha='center', va='center')`;
+    }
+    // Other types in percent mode: skip (best-effort)
+    return null;
+  }
+  // Data-coord annotations
   switch (ann.type) {
     case 'text':
-    case 'callout': {
+    case 'callout':
+    case 'latex':
+    case 'fitEquation': {
       const txt = ann.content || '';
+      // matplotlib mathtext uses $...$ inline; content with $$...$$ stays as-is
       return `${v} = ax.annotate(${pyStrList([txt])}[0], xy=(${fmtNum(ann.x)}, ${fmtNum(ann.y)}), fontsize=${ann.fontSize}, color='${pyEscape(ann.color)}')`;
     }
     case 'hline':
@@ -453,10 +465,10 @@ export function generateMatplotlibScript(
   lines.push('');
 
   // ─── Annotations ──────────────────────────────────────
-  const dataAnnotations = chartConfig.annotations.filter((a) => a.visible && a.coordMode === 'data');
-  if (dataAnnotations.length > 0) {
+  const visibleAnnotations = chartConfig.annotations.filter((a) => a.visible);
+  if (visibleAnnotations.length > 0) {
     lines.push('# ─── Annotations ──────────────────────────────────────────────');
-    dataAnnotations.forEach((ann, i) => {
+    visibleAnnotations.forEach((ann, i) => {
       const code = buildAnnotationCode(ann, i);
       if (code) lines.push(code);
     });
