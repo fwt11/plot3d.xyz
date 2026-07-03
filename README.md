@@ -1,155 +1,222 @@
-# plot3d.xyz — 科研数据可视化工具
+# plot3d.xyz
 
-plot3d.xyz 是一款面向科研工作者的交互式数据可视化应用，支持 2D/3D 图表创建、数据编辑、标注与导出，适合论文配图与数据探索。
+An interactive browser-based data visualization app for scientific research. Create publication-quality 2D and 3D charts from CSV/Excel data, with built-in curve fitting, annotations, and one-click export to common formats.
 
-## 功能特性
+> Designed for researchers in materials science, statistics, and experimental science who need to produce paper figures or explore data interactively.
 
-### 图表类型
+## Highlights
 
-| 2D 图表 | 3D 图表 |
-|---------|---------|
-| 折线图 (Line) | 曲面图 (Surface) |
-| 散点图 (Scatter) | 3D 散点 (Scatter 3D) |
-| 柱状图 (Bar) | 等高线 (Contour 3D) |
-| 面积图 (Area) | 3D 柱状 (Bar 3D) |
-| 饼图 (Pie) | |
-| 极坐标图 (Polar) | |
+- **16 chart types** — 2D (line, scatter, bar, area, pie, polar, box, histogram, heatmap, violin) and 3D (surface, scatter3d, contour3d, bar3d, isosurface, volume).
+- **Spreadsheet data editor** — import CSV/XLSX, edit cells in place, manage column types (X/Y/Z/label/error/…), add computed columns, apply math transforms.
+- **Curve fitting** — linear, polynomial (1–6), exponential, logarithmic, power, Gaussian, logistic, plus multi-peak fitting; R², RMSE, MAE, confidence bands, parameter bounds, global fit.
+- **Statistics** — descriptive statistics, hypothesis tests (t-test, chi-square, normality…), distribution functions.
+- **Annotations** — text, LaTeX (KaTeX), arrows, rectangles, lines; percent or data-coordinate positioning; drag-to-move.
+- **Export** — PNG, SVG, PDF, TIFF, with configurable DPI (1×/2×/4×) and background; right-click any chart to export or copy to clipboard.
+- **14 journal templates** — Nature, Science, ACS, Elsevier, Angewandte, Cell, PRL (single & double column).
+- **Reproducibility** — `.plot3d` project files (v6, line-based JSON with content-hash IDs); Matplotlib script export for offline plotting; shareable URL encoding.
+- **Bilingual UI** — English and Simplified Chinese.
 
-### 数据处理
+## Quick start
 
-- **导入**：CSV、Excel (.xlsx)
-- **编辑**：单元格直接编辑、添加/删除行列、列类型设置 (X/Y/Z/label/error)
-- **变换**：数学函数 (log, sqrt, abs, exp, 1/x)、三角函数、排序、归一化、计算列
-- **生成**：正弦波、Sinc 曲面、球体、随机数据等示例数据集
+### Requirements
 
-### 图表配置
+- Node.js ≥ 18
+- npm ≥ 9
 
-- 坐标轴：标签、范围、对数刻度、科学计数法、网格线
-- 多图层：独立数据集映射、颜色/线型/点型配置、双 Y 轴
-- 误差棒：支持对称/非对称误差列
-- 颜色映射：jet、viridis、hot、coolwarm、parula、plasma、cividis（色盲友好）、inferno、magma、turbo、batlow（色盲友好）
-- 图例：显示/隐藏、位置调整
-
-### 标注系统
-
-- 文本标注、LaTeX 公式 (KaTeX)、箭头、矩形
-- 标注可拖拽移动，支持百分比/数据坐标模式
-
-### 3D 场景
-
-- 交互式旋转/缩放/平移
-- 坐标轴标签、范围、网格线统一配置
-- 专业颜色映射与色条
-- 矢量导出 (SVG/PDF)
-
-### 曲线拟合
-
-- 线性回归、多项式回归 (1-6 阶)、指数拟合
-- 拟合统计量：R²、RMSE、MAE
-
-### 导出
-
-- PNG、SVG、PDF、EPS、TIFF (300 DPI)
-- 分辨率倍率 (1x/2x/4x)
-- 背景透明/白色/跟随主题
-- 图表右键可直接导出或复制到剪贴板
-
-### 项目文件
-
-- `.plot3d` 工程文件格式，保存完整状态（数据集、图表配置、主题、语言）
-- Ctrl+S 快速保存，文件菜单打开项目
-
-### 其他
-
-- 撤销/重做 (Ctrl+Z / Ctrl+Y)，最多 50 步历史
-- 深色/浅色主题切换
-- 中/英双语界面
-- 自定义右键上下文菜单（数据表格、图表画布、图层面板）
-
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 18
-- npm >= 9
-
-### 安装与运行
+### Install & run
 
 ```bash
-# 安装依赖
 npm install
-
-# 启动开发服务器
-npm run dev
-
-# 构建生产版本
-npm run build
-
-# 预览生产版本
-npm run preview
+npm run dev      # start Vite dev server with HMR
+npm run build    # production build (tsc + vite)
+npm run preview  # preview the production build
 ```
 
-### 开发命令
+### Available scripts
 
-| 命令 | 说明 |
-|------|------|
-| `npm run dev` | 启动 Vite 开发服务器 (HMR) |
-| `npm run build` | TypeScript 编译 + Vite 构建 |
-| `npm run preview` | 预览构建产物 |
-| `npm run lint` | ESLint 代码检查 |
-| `npm run check` | TypeScript 类型检查 (strict 模式) |
+| Command           | What it does                                          |
+| ----------------- | ----------------------------------------------------- |
+| `npm run dev`     | Start the Vite dev server                             |
+| `npm run build`   | Type-check then build the production bundle           |
+| `npm run preview` | Serve the built `dist/` for verification              |
+| `npm run lint`    | ESLint with TypeScript, React Hooks, and react-refresh rules |
+| `npm run check`   | `tsc --noEmit` strict type-check                      |
+| `npm run test`    | Run the Vitest suite (unit tests)                     |
+| `npm run test:coverage` | Vitest with v8 coverage report                  |
 
-## 技术栈
+## Features in detail
 
-- **框架**：React 18 + TypeScript (strict 模式)
-- **构建**：Vite 6
-- **图表渲染**：Plotly.js（2D + 3D 统一引擎，懒加载）
-- **状态管理**：Zustand v5
-- **样式**：Tailwind CSS 3 + CSS 变量
-- **国际化**：i18next + react-i18next
-- **数据处理**：PapaParse (CSV)、SheetJS (Excel)
-- **导出**：jsPDF (PDF)、html-to-image (光栅化)
-- **LaTeX**：KaTeX
+### Chart types
 
-## 项目结构
+**2D** — line, scatter, bar, area, pie, polar, box plot, histogram, heatmap, violin.
+
+**3D** — surface, scatter3d, contour3d, bar3d, isosurface, volume rendering.
+
+All share one Plotly.js engine (lazy-loaded on first chart view) with a unified layout builder.
+
+### Data handling
+
+- **Import** — CSV (PapaParse), Excel `.xlsx`/`.xls` (SheetJS).
+- **Edit** — in-place cell editing (silent on each keystroke, snapshot on blur so undo history stays clean), column add/delete, column-type switching.
+- **Transforms** — math functions (log, sqrt, abs, exp, 1/x), trig, sort, normalize, fill/interpolate missing values, remove outliers, smoothing.
+- **Computed columns** — formula expressions across existing columns.
+- **Generated samples** — sine wave, sinc surface, sphere, random data, and others.
+
+### Charts configuration
+
+- **Axes** — label, unit, range, log scale, scientific notation, gridlines, tick rotation, date/time axis with IANA timezone.
+- **Multi-layer** — independent dataset-per-layer mapping, color/line-style/point-style per layer, dual Y-axis.
+- **Error bars** — symmetric (single error column), asymmetric (plus/minus), X-direction error bars, and statistical error (SD/SE/CI95) computed from repeated measurements.
+- **Colormaps** — jet, viridis, hot, coolwarm, parula, plasma, cividis (color-blind-friendly), inferno, magma, turbo, batlow (color-blind-friendly).
+- **Inset frames** — small inset plots at any of the four corners (Phase 4.5).
+- **Legend** — show/hide, six positions including in-plot corners.
+
+### Annotations
+
+- Text, LaTeX (KaTeX) with safe sanitization, arrows, rectangles, lines.
+- Positioned in percent (relative to plot area) or data coordinates — works on 3D too.
+- Lockable, reorderable (bring-to-front / send-to-back), copy/paste/duplicate.
+
+### Curve fitting
+
+- **Built-in models** — linear, polynomial (1–6), exponential, logarithmic, power, Gaussian, logistic.
+- **Multi-peak fitting** — sum of Gaussians/Lorentzians with peak detection.
+- **Diagnostics** — R², RMSE, MAE, confidence bands, parameter uncertainty.
+- **Weighted least squares** — column-driven or stat-driven weights.
+- **Global fit** — fit one model across multiple layers simultaneously.
+- **Web Worker** — heavy computations run off the main thread (`src/workers/fitWorker.ts`).
+
+### Statistics
+
+Descriptive stats, correlation, t-test, chi-square, Shapiro–Wilk normality, peak detection.
+
+### Export
+
+- **Vector**: SVG (2D), PDF via `jsPDF` (rasterized for 3D).
+- **Raster**: PNG (1×/2×/4× DPI), TIFF.
+- **Matplotlib script** — export a `.py` script that reproduces the current chart at the chosen DPI. Useful when reviewers require Matplotlib-specific output.
+- **Background** — transparent, white, or follow the active theme.
+- **Right-click any chart** for a context menu with quick export / copy-to-clipboard.
+
+### Project files & sharing
+
+- **`.plot3d` v6** — single-file JSON that captures datasets, chart config, theme, and language. Auto-migrates from older versions on load. Size cap: 50 MB.
+- **Shareable URLs** — base64url-encoded chart config in the URL hash (`#d=...`), no server required. 8 KB limit.
+- **Save**: `Ctrl/Cmd + S`. Open from the File tab in the Ribbon.
+
+### Other
+
+- Undo / redo (`Ctrl+Z` / `Ctrl+Y` or `Ctrl+Shift+Z`) — up to 50 history steps, with branching.
+- Dark and light themes (toggle from the UI; persisted to `localStorage`).
+- English and Simplified Chinese (toggle from the UI; persisted to `localStorage`).
+- Custom right-click context menus on the data table, chart canvas, and layer panel.
+- Keyboard shortcuts for layer add, chart-type switch, zoom in/out, reset, find in table, and annotation tool switching.
+
+## Tech stack
+
+- **Framework** — React 18, TypeScript (strict mode).
+- **Build** — Vite 6 with manual chunking (`plotly`, `xlsx`, `export`, `vendor`).
+- **Chart engine** — Plotly.js (`plotly.js-dist-min`, lazy-loaded) + `react-plotly.js` factory.
+- **State** — Zustand v5, split by domain (datasets, chart, history, UI, chart interaction, toasts).
+- **Styling** — Tailwind CSS 3 + CSS variables (theme driven by `[data-theme]` on `<html>`).
+- **i18n** — i18next + react-i18next.
+- **Data** — PapaParse (CSV), SheetJS (Excel).
+- **Export** — jsPDF (PDF), html-to-image (raster), Plotly native downloadImage, custom TIFF encoder.
+- **LaTeX** — KaTeX.
+- **Tests** — Vitest + v8 coverage (384+ tests across fitting, statistics, project file, share, templates, Matplotlib exporter).
+
+## Project layout
 
 ```
 src/
-├── components/          # UI 组件
-│   ├── ribbon/          # Ribbon 工具栏标签页
-│   ├── ChartView.tsx    # 统一 2D/3D 图表渲染
-│   ├── ConfigPanel.tsx  # 右侧配置面板
-│   ├── ContextMenu.tsx  # 自定义右键菜单
-│   ├── DataTable.tsx    # 数据表格
-│   └── LayerPanel.tsx   # 图层管理
-├── pages/               # 页面组件
-│   └── Workspace.tsx    # 主工作区
-├── store/               # Zustand 状态管理
-│   ├── chartStore.ts    # 图表配置
-│   ├── datasetStore.ts  # 数据集管理
-│   ├── historyStore.ts  # 撤销/重做历史
-│   └── uiStore.ts       # 主题与语言
-├── utils/               # 工具函数
-│   ├── chart.ts         # 图表类型判断
-│   ├── colormaps.ts     # 颜色映射（含色盲友好）
-│   ├── curveFitting.ts  # 曲线拟合算法
-│   ├── projectFile.ts   # .plot3d 项目文件
-│   ├── sampleData.ts    # 示例数据生成
-│   ├── annotations.tsx  # 标注工具
-│   └── latex.ts         # LaTeX 渲染
-├── i18n/                # 国际化
-│   ├── en.json          # 英文
-│   ├── zh.json          # 中文
-│   └── index.ts         # i18next 配置
-├── types.ts             # TypeScript 类型定义
-├── App.tsx              # 应用入口
-└── main.tsx             # 渲染入口
+├── components/          UI components
+│   ├── ribbon/          Ribbon toolbar tabs (File, Chart, Transform, Fit, Stats, Generate, Annotation)
+│   ├── ChartView.tsx    Unified 2D/3D chart renderer (lazy-loads Plotly)
+│   ├── ConfigPanel.tsx  Right-side chart configuration panel
+│   ├── ContextMenu.tsx  Custom right-click menu
+│   ├── DataTable.tsx    Spreadsheet data editor
+│   ├── LayerPanel.tsx   Layer management
+│   ├── TemplatePanel.tsx Journal & custom templates
+│   ├── AnnotationCanvas.tsx / AnnotationOverlay.tsx / AnnotationPanel.tsx / AnnotationToolbar.tsx
+│   ├── ExportModal.tsx  Export configuration
+│   ├── HistoryPanel.tsx Undo/redo tree
+│   ├── MultiPeakFitModal.tsx
+│   ├── ComputedColumnModal.tsx
+│   ├── DataProcessingModal.tsx
+│   ├── TransformPreviewModal.tsx
+│   ├── FindReplaceModal.tsx
+│   ├── FloatingPanel.tsx
+│   ├── Toast.tsx        Toast notifications
+│   ├── ConfirmDialog.tsx Confirmation dialog
+│   └── ErrorBoundary.tsx
+├── pages/
+│   └── Workspace.tsx    Main workspace layout
+├── store/               Zustand stores
+│   ├── chartStore.ts    Chart config, layers, annotations
+│   ├── datasetStore.ts  Dataset CRUD & transforms
+│   ├── historyStore.ts  Undo/redo + branching history (cap 50 / 10 branches)
+│   ├── uiStore.ts       Theme + language (localStorage-persisted)
+│   ├── chartInteractionStore.ts  Hover + zoom state
+│   ├── toastStore.ts
+│   ├── confirmStore.ts
+│   └── plotStore.ts     Re-exports for external use
+├── utils/               Pure helpers
+│   ├── chart.ts         Chart-type utilities
+│   ├── tracesBuilder.ts Plotly trace construction
+│   ├── layoutBuilder.ts Plotly layout construction
+│   ├── colormaps.ts     Colormap data
+│   ├── curveFitting.ts  Curve-fit algorithms (QR, Gauss–Newton)
+│   ├── multiPeakFit.ts  Multi-peak fitting
+│   ├── dataProcessing.ts Smoothing, interpolation, outliers
+│   ├── statistics.ts    Descriptive statistics + correlation
+│   ├── hypothesisTests.ts t-test, chi-square, normality
+│   ├── peakDetection.ts
+│   ├── fitAnnotation.ts Annotate fitted curves on charts
+│   ├── fitReport.ts     Statistical reports from fits
+│   ├── fitExport.ts     Export fitted curves (CSV/JSON)
+│   ├── fitWorkerClient.ts Web Worker client
+│   ├── projectFile.ts   .plot3d v6 format (serialize/deserialize + migration)
+│   ├── projectFileV6.ts Content-hash IDs, stable stringify
+│   ├── shareLink.ts     URL hash sharing
+│   ├── journalTemplates.ts 14 journal templates
+│   ├── matplotlibExporter.ts Matplotlib script generator
+│   ├── tiffEncoder.ts   TIFF writer
+│   ├── sampleData.ts    Sample datasets + uid
+│   ├── annotations.tsx  Annotation helpers
+│   ├── latex.ts         KaTeX rendering + sanitization
+│   ├── contextMenu.ts
+│   └── plotlyLoader.ts  Lazy-loads Plotly + react-plotly factory
+├── workers/
+│   └── fitWorker.ts     Heavy fitting off the main thread
+├── i18n/
+│   ├── index.ts         i18next setup
+│   ├── en.json
+│   └── zh.json
+├── App.tsx              Root: ErrorBoundary, Workspace, ConfirmDialog
+├── main.tsx             React render entry
+├── types.ts             Core domain types
+├── index.css            Tailwind + CSS-variable themes
+└── assets/
 ```
+
+## Browser support
+
+Modern evergreen browsers (Chrome, Edge, Firefox, Safari) with ES2020 support. The Chart 3D exports rely on `html-to-image` rasterization; some printers/PDF readers handle 3D raster differently than true vector — prefer SVG/PDF for 2D output when sending to journals.
+
+## Known limitations
+
+- **EPS export** is SVG or PNG renamed to `.eps` (no real PostScript). UI flags it as experimental.
+- **PDF export** embeds PNG for both 2D and 3D (not a true vector PDF).
+- **DataTable** renders all rows with controlled `<input>` elements; thousands of rows will feel sluggish. Virtual scrolling is not yet wired in.
+- **`isosurface3d` / `volume3d` plot types** are declared in the type union but rely on Plotly's experimental support and may behave inconsistently for very large grids.
+
+See `AGENTS.md` for full development conventions, security notes, and `.plot3d` migration policy.
 
 ## License
 
 [GNU General Public License v3.0](LICENSE)
 
-## 历史
+## History
 
-- 旧评审归档（**已过期**）：[REVIEW-2026-06-21.md](./REVIEW-2026-06-21.md)（2026-06-21 写，多数 P0/P1 项已在 2026-06-28 前修复。最新的现状评估见 [改进计划设计文档 §0.1](./docs/superpowers/specs/2026-06-28-plot3d-improvement-plan-design.md#01-起点澄清现有计划已大部分落地)）
+- Older review (now stale): [`REVIEW-2026-06-21.md`](./REVIEW-2026-06-21.md) — written 2026-06-21, most P0/P1 items were resolved by 2026-06-28. For current state see [`docs/superpowers/specs/2026-06-28-plot3d-improvement-plan-design.md`](./docs/superpowers/specs/2026-06-28-plot3d-improvement-plan-design.md).
+- Phase summaries: [`PHASE-0.md`](./PHASE-0.md) through [`PHASE-5.md`](./PHASE-5.md) document the iterative delivery (test framework, 17 fit models, axis/inset improvements, Matplotlib exporter, .plot3d v6, journal templates, share URLs).
