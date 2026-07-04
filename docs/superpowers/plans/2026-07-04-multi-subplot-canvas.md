@@ -926,7 +926,7 @@ export function decodeShareFigure(url: string): FigureConfig | null {
 
 - [ ] **Step 4: Wire the caller + toast**
 
-Find the share caller (`grep -rn "encodeShareUrl" src`). Update it to call `encodeShareFigure(useChartStore.getState().figure)`; if it returns null, `addToast(t('toast.shareTooLarge', ...), 'warning')`. On load, if a `#d=` hash is present, `decodeShareFigure` and `useChartStore.setState({ figure })`. Add `toast.shareTooLarge` to both locale files.
+Find the share caller (`grep -rn "encodeShareUrl" src`). This is a **rename/migration**, not an additive call: replace each `encodeShareUrl(chartConfig)` call with `encodeShareFigure(useChartStore.getState().figure)`; if it returns null, `addToast(t('toast.shareTooLarge', ...), 'warning')`. Likewise replace `decodeShareUrl` on load with `decodeShareFigure`; if a `#d=` hash decodes, `useChartStore.setState({ figure })`. Once no callers remain, delete the now-unused `encodeShareUrl`/`decodeShareUrl` (and their tests, if any). Add `toast.shareTooLarge` to both locale files.
 
 - [ ] **Step 5: Run tests + type-check**
 
@@ -973,7 +973,7 @@ Add `exportFigureToSvg` that, for each cell, awaits `serialize2DChartSVG` (2D) o
 
 - [ ] **Step 3: Wire the grid export entry**
 
-In `ChartView.tsx` (grid path), add a container-level right-click handler that, when the figure has >1 cell, offers "Export figure as PNG/SVG" which collects the cell divs (`container.querySelectorAll('[data-chart-area]')`) and calls the composite functions with the active subplot's `exportConfig`. Keep `SubplotView`'s existing per-cell right-click export for single-cell export. For 1×1, behavior is unchanged (SubplotView handles it directly).
+In `ChartView.tsx` (grid path), add a container-level right-click handler that, when the figure has >1 cell, offers "Export figure as PNG/SVG". Read `rows`/`cols`/`gap` and the active subplot's `exportConfig` from the store, collect the cell divs (`container.querySelectorAll('[data-chart-area]')` → `HTMLElement[]`), and call `exportFigureToPng(cellDivs, rows, cols, gap, { scale: exportConfig.resolutionMultiplier, backgroundColor, figureMultiplier: exportConfig.figureMultiplier })` (and the SVG variant). Keep `SubplotView`'s existing per-cell right-click export for single-cell export. For 1×1, behavior is unchanged (SubplotView handles it directly).
 
 - [ ] **Step 4: Manual verification (no unit test — canvas/DOM heavy)**
 
@@ -1093,7 +1093,7 @@ git commit -m "feat(matplotlib): emit plt.subplots grid for figures"
 
 ## Final verification
 
-- [ ] **Full suite green:** `npx vitest run` — all tests pass.
+- [ ] **Full suite green:** `npx vitest run` — all tests pass (explicitly confirm `src/utils/projectFileV6.test.ts` is green, since Task 4.1's v6 bump would otherwise break it — Task 4.2 must have landed).
 - [ ] **Type-check clean:** `npm run check`.
 - [ ] **Lint clean:** `npm run lint`.
 - [ ] **Build:** `npm run build`.
