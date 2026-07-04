@@ -227,6 +227,19 @@ export interface ChartConfig {
   fontSize: number;
 }
 
+export interface FigureConfig {
+  /** Grid rows (>= 1). */
+  rows: number;
+  /** Grid columns (>= 1). */
+  cols: number;
+  /** Subplots in row-major order. Invariant: length === rows * cols. */
+  subplots: ChartConfig[];
+  /** Index of the subplot the config panels edit. In [0, subplots.length). */
+  activeIndex: number;
+  /** Gap between grid cells in px. */
+  gap: number;
+}
+
 export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma' | 'cividis' | 'inferno' | 'magma' | 'turbo' | 'batlow';
 
 /**
