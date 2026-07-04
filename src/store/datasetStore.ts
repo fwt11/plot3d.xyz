@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import type { Dataset, DataColumn, ChartType } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
-import { sharedDefaultDataset, useChartStore } from './chartStore';
+import { sharedDefaultDataset } from './sharedDefaults';
+import { useChartStore } from './chartStore';
 import { useHistoryStore } from './historyStore';
 import {
   savitzkyGolay,

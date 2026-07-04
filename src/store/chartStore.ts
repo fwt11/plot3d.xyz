@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import i18n from '@/i18n';
 import type { ChartConfig, AxisConfig, LayerConfig, ChartType, Annotation, ExportConfig, ColorMapName, Scene3DConfig } from '@/types';
-import { uid, createSampleSineDataset } from '@/utils/sampleData';
+import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
+import { sharedDefaultDataset } from './sharedDefaults';
 import { useDatasetStore } from './datasetStore';
 import { useHistoryStore } from './historyStore';
 
@@ -16,41 +17,46 @@ const defaultAxis: AxisConfig = {
 
 // Create a shared default dataset that will be used by both stores
 // The datasetStore will use this same instance
-export const sharedDefaultDataset = createSampleSineDataset();
 
-const defaultChartConfig: ChartConfig = {
-  id: uid(),
-  type: 'line',
-  title: '',
-  xAxis: { ...defaultAxis, label: i18n.t('store.xAxis') },
-  yAxis: { ...defaultAxis, label: i18n.t('store.yAxis') },
-  legend: { visible: true, position: 'inside-top-right', bordered: false },
-  colorMap: 'viridis',
-  annotations: [],
-  marginTop: 60,
-  marginRight: 48,
-  marginBottom: 70,
-  marginLeft: 72,
-  exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
-  fontSize: 16,
-  scene3D: { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' },
-  layers: [
-    {
-      id: uid(),
-      datasetId: sharedDefaultDataset.id,
-      xColumn: sharedDefaultDataset.columns[0].id,
-      yColumn: sharedDefaultDataset.columns[1].id,
-      color: '#1f77b4',
-      visible: true,
-      lineStyle: 'solid',
-      lineWidth: 3,
-      pointStyle: 'none',
-      pointSize: 5,
-      fill: false,
-      fillOpacity: 0.35,
-    },
-  ],
-};
+/**
+ * Build a fresh default ChartConfig. Each call produces unique ids so
+ * grid cells can have independent charts. (Chunk 1 Task 1.2)
+ */
+export function createDefaultChartConfig(): ChartConfig {
+  return {
+    id: uid(),
+    type: 'line',
+    title: '',
+    xAxis: { ...defaultAxis, label: i18n.t('store.xAxis') },
+    yAxis: { ...defaultAxis, label: i18n.t('store.yAxis') },
+    legend: { visible: true, position: 'inside-top-right', bordered: false },
+    colorMap: 'viridis',
+    annotations: [],
+    marginTop: 60,
+    marginRight: 48,
+    marginBottom: 70,
+    marginLeft: 72,
+    exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
+    fontSize: 16,
+    scene3D: { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' },
+    layers: [
+      {
+        id: uid(),
+        datasetId: sharedDefaultDataset.id,
+        xColumn: sharedDefaultDataset.columns[0].id,
+        yColumn: sharedDefaultDataset.columns[1].id,
+        color: '#1f77b4',
+        visible: true,
+        lineStyle: 'solid',
+        lineWidth: 3,
+        pointStyle: 'none',
+        pointSize: 5,
+        fill: false,
+        fillOpacity: 0.35,
+      },
+    ],
+  };
+}
 
 interface ChartStore {
   chartConfig: ChartConfig;
@@ -100,7 +106,7 @@ export const useChartStore = create<ChartStore>()((set) => {
   };
 
   return {
-    chartConfig: defaultChartConfig,
+    chartConfig: createDefaultChartConfig(),
 
     setChartType: (type) =>
       setWithHistory((s) => {
