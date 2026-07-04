@@ -141,7 +141,12 @@
     "reset": "重置",
     "resetView": "重置视角",
     "axes": "坐标轴",
-    "toggleAxes": "显示/隐藏坐标轴"
+    "toggleAxes": "显示/隐藏坐标轴",
+    "layout": "布局",
+    "rows": "行",
+    "cols": "列",
+    "gap": "间距",
+    "confirmShrinkGrid": "缩小网格将丢弃被移除子图的内容，是否继续？"
   },
   "chartTypes": {
     "line": "折线图",

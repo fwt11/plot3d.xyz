@@ -12,6 +12,11 @@ export function ChartTab() {
   const chartConfig = useChartStore(selectActiveChart);
   const setChartType = useChartStore((s) => s.setChartType);
   const setColorMap = useChartStore((s) => s.setColorMap);
+  const rows = useChartStore((s) => s.figure.rows);
+  const cols = useChartStore((s) => s.figure.cols);
+  const gap = useChartStore((s) => s.figure.gap);
+  const setGrid = useChartStore((s) => s.setGrid);
+  const setGap = useChartStore((s) => s.setGap);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
   const addToast = useToastStore((s) => s.addToast);
@@ -88,6 +93,28 @@ export function ChartTab() {
           </div>
         </RibbonGroup>
       )}
+
+      <RibbonGroup label={t('chart.layout')}>
+        <div className="flex flex-col gap-1 px-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <label className="flex items-center gap-1">
+            {t('chart.rows')}
+            <input type="number" min={1} max={4} value={rows}
+              onChange={(e) => setGrid(Math.max(1, Math.min(4, +e.target.value || 1)), cols)}
+              className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
+          </label>
+          <label className="flex items-center gap-1">
+            {t('chart.cols')}
+            <input type="number" min={1} max={4} value={cols}
+              onChange={(e) => setGrid(rows, Math.max(1, Math.min(4, +e.target.value || 1)))}
+              className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
+          </label>
+          <label className="flex items-center gap-1">
+            {t('chart.gap')}
+            <input type="range" min={0} max={40} value={gap}
+              onChange={(e) => setGap(+e.target.value)} />
+          </label>
+        </div>
+      </RibbonGroup>
     </div>
   );
 }

@@ -141,7 +141,12 @@
     "reset": "Reset",
     "resetView": "Reset View",
     "axes": "Axes",
-    "toggleAxes": "Show/Hide Axes"
+    "toggleAxes": "Show/Hide Axes",
+    "layout": "Layout",
+    "rows": "Rows",
+    "cols": "Columns",
+    "gap": "Gap",
+    "confirmShrinkGrid": "Removing subplots will discard their content. Continue?"
   },
   "chartTypes": {
     "line": "Line",
