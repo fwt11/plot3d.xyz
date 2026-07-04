@@ -129,14 +129,22 @@ clicking the cell in the canvas. This is the only genuinely new panel UI.
 
 ## Persistence & export
 
-### `.plot3d` project file (`projectFileV6.ts`) → v7
+### `.plot3d` project file → v6 (figure format)
 
-- v7 stores `figure: FigureConfig` in place of a single `chartConfig`.
-- **Backward compat:** files at v6 and earlier have `chartConfig` and no
+> **Codebase note:** the *live* save/load path is `src/utils/projectFile.ts`
+> (`serializeProject` / `loadProjectFile` / `sanitizeProjectFile`), currently at
+> `PROJECT_VERSION = 5`. `src/utils/projectFileV6.ts` exists but is only used by
+> its own test — it is **not** wired into save/load. Therefore the figure format
+> and migration work targets `projectFile.ts`, bumping it to v6. `projectFileV6.ts`
+> is updated for consistency but is not on the critical path.
+
+- The new format stores `figure: FigureConfig` in place of a single
+  `chartConfig`.
+- **Backward compat:** files at v5 and earlier have `chartConfig` and no
   `figure`. The loader wraps them:
   `figure = { rows:1, cols:1, subplots:[migratedChartConfig], activeIndex:0, gap:8 }`,
-  reusing the existing per-`ChartConfig` sanitizer once. Every old project opens
-  as a 1×1 figure — identical to today.
+  reusing the existing per-`ChartConfig` sanitizer (`sanitizeChartConfig`) once.
+  Every old project opens as a 1×1 figure — identical to today.
 - Save serializes `figure` with every subplot sanitized.
 
 ### Share URL (`shareLink.ts`)
@@ -175,7 +183,7 @@ Each cell is a separate Plotly instance, so combined export composites cells:
 
 ## Testing (Vitest)
 
-- **Migration (critical regression guard):** load v6 and older fixtures → assert
+- **Migration (critical regression guard):** load v5 and older fixtures → assert
   each becomes a 1×1 `figure` with the chart intact.
 - **Round-trip:** serialize a 2×2 figure → deserialize → deep-equal; include a
   subplot with annotations, a fit layer, and a 3D cell.
@@ -202,7 +210,7 @@ Each cell is a separate Plotly instance, so combined export composites cells:
 | `src/components/ribbon/ChartTab.tsx` | Add Layout control (rows×cols steppers + gap slider). |
 | `src/components/ribbon/FileTab.tsx`, `Ribbon.tsx`, `ribbon/TransformTab.tsx` | Selector swap; save/export wired to `figure`. |
 | `src/pages/Workspace.tsx` | Save handler serializes `figure`; annotation shortcuts + status bar use active subplot. |
-| `src/utils/projectFileV6.ts` (+`projectFile.ts`) | v7 format; wrap-old-file migration; per-subplot sanitize. |
+| `src/utils/projectFileV6.ts` (+`projectFile.ts`) | Figure format (live path is `projectFile.ts`, v5→v6); wrap-old-file migration; per-subplot sanitize. |
 | `src/utils/shareLink.ts` | Encode `figure` + size guard. |
 | `src/utils/exportLayout.ts` | Composite multi-cell PNG/SVG export. |
 | `src/utils/matplotlibExporter.ts` | Emit `plt.subplots` grid. |
