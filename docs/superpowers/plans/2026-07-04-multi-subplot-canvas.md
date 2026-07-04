@@ -250,7 +250,33 @@ addLayer: (layer) =>
     i18n.t('history.addLayer', { defaultValue: 'Add layer' })),
 ```
 
-Convert ALL of: `setChartType`, `setChartTitle`, `setXAxis`, `setYAxis`, `setYAxisRight`, `setZAxis`, `setLegend`, `setColorMap`, `addLayer`, `removeLayer`, `updateLayer`, `moveLayer`, `reorderLayers`, `setMargins`, `setExportConfig`, `setFontSize`, `setScene3D`, `applyConfigPatch`, and all annotation actions (`addAnnotation`, `removeAnnotation`, `updateAnnotation`, `updateAnnotationSilent`, `duplicateAnnotation`, `bringAnnotationToFront`, `sendAnnotationToBack`, `reorderAnnotations`). For `setChartType`'s dataset-lookup logic, operate on the active subplot's layers inside `patchActive`. `updateAnnotationSilent` uses `set` (no history) — wrap with `patchActive` inside `set` instead of `setWithHistory`.
+Convert ALL of: `setChartType`, `setChartTitle`, `setXAxis`, `setYAxis`, `setYAxisRight`, `setZAxis`, `setLegend`, `setColorMap`, `addLayer`, `removeLayer`, `updateLayer`, `moveLayer`, `reorderLayers`, `setMargins`, `setExportConfig`, `setFontSize`, `setScene3D`, `applyConfigPatch`, and all annotation actions (`addAnnotation`, `removeAnnotation`, `updateAnnotation`, `updateAnnotationSilent`, `duplicateAnnotation`, `bringAnnotationToFront`, `sendAnnotationToBack`, `reorderAnnotations`). `updateAnnotationSilent` uses `set` (no history) — wrap with `patchActive` inside `set` instead of `setWithHistory`.
+
+**`setChartType` needs special handling** — its existing body looks up datasets for Z-column injection. Put that lookup INSIDE the `patchActive` callback (it can call `useDatasetStore.getState()` freely):
+
+```ts
+setChartType: (type) =>
+  setWithHistory((s) => patchActive(s, (c) => {
+    const is3D = is3DChart(type);
+    const needsZ = is3D || type === 'heatmap';
+    let layers = c.layers;
+    let zAxis = c.zAxis;
+    if (needsZ && !zAxis) {
+      zAxis = { ...defaultAxis, label: i18n.t('store.zAxis') };
+    }
+    if (needsZ) {
+      const datasets = useDatasetStore.getState().datasets;
+      layers = layers.map((layer) => {
+        if (layer.zColumn) return layer;
+        const ds = datasets.find((d) => d.id === layer.datasetId);
+        if (!ds) return layer;
+        const zCol = ds.columns.find((col) => col.type === 'Z');
+        return zCol ? { ...layer, zColumn: zCol.id } : layer;
+      });
+    }
+    return { ...c, type, layers, zAxis };
+  }), i18n.t('history.setChartType', { defaultValue: 'Change chart type' })),
+```
 
 6. Add the new actions:
 
@@ -377,10 +403,10 @@ Mechanical, per-file. Each site that reads `useChartStore((s) => s.chartConfig)`
 - `src/components/FitResultsBar.tsx`
 - `src/components/MultiPeakFitModal.tsx`
 - `src/components/TemplatePanel.tsx`
-- `src/components/ribbon/ChartTab.tsx:11`
+- `src/components/ribbon/ChartTab.tsx:12`
 - `src/components/ribbon/FileTab.tsx:84`
 - `src/components/ribbon/TransformTab.tsx`
-- `src/components/Ribbon.tsx`
+- `src/components/Ribbon.tsx:44`
 - `src/pages/Workspace.tsx` (`s.chartConfig.annotations` → `selectActiveChart(s).annotations`; StatusBar `s.chartConfig.type`/`.layers` → via `selectActiveChart`)
 
 Also fix direct `getState().chartConfig` reads:
@@ -399,12 +425,12 @@ import { selectActiveChart } from '@/store/plotStore';
 const chartConfig = useChartStore(selectActiveChart);
 ```
 
-For `ChartView.tsx` — skip here; it's fully rewritten in Chunk 2.
+For `ChartView.tsx` — apply the same one-line swap now (`const chartConfig = useChartStore(selectActiveChart);` at line 35). Rationale: this keeps the build green and the app runnable at the end of Chunk 1 (so the Step 4 smoke check is valid). Chunk 2 Task 2.1 rewrites ChartView entirely, so this single line is superseded, not "reverted" — the whole component body is replaced.
 
 - [ ] **Step 2: Type-check**
 
 Run: `npm run check`
-Expected: PASS (ChartView.tsx still reads `s.chartConfig` — temporarily update its line 35 to `useChartStore(selectActiveChart)` too so the build is green; Chunk 2 rewrites it).
+Expected: PASS. Every swapped file (including ChartView's one line) type-checks clean; the app still renders one chart (1×1 figure).
 
 - [ ] **Step 3: Run the full test suite**
 
@@ -456,7 +482,23 @@ const handleAddAnnotation = useCallback((ann: Annotation) => {
 }, [setActiveSubplot, subplotIndex, addAnnotation]);
 ```
 
-Apply the same "select-active-first" wrapping to `handleUpdateAnnotationSilent`, `handleFinishAnnotation`, and the context-menu annotation actions (duplicate/lock/front/back/remove).
+Apply the same "select-active-first" wrapping to **every** mutating callback so edits in a non-active cell still hit the right subplot. That means ALL of the callbacks handed to `<AnnotationCanvas>` and the context menu:
+`handleAddAnnotation`, `handleUpdateAnnotationSilent`, `handleFinishAnnotation`, and the props `onRemove` (removeAnnotation), `onDuplicate` (duplicateAnnotation), `onBringToFront` (bringAnnotationToFront), `onSendToBack` (sendAnnotationToBack), plus every annotation action inside the right-click context menu (`duplicateAnnotation`, `updateAnnotation` for lock, `bringAnnotationToFront`, `sendAnnotationToBack`, `removeAnnotation`).
+
+Practical implementation: define one local helper and route all mutators through it, rather than wrapping each inline:
+
+```ts
+const withActive = useCallback(<A extends unknown[]>(fn: (...a: A) => void) =>
+  (...a: A) => { setActiveSubplot(subplotIndex); fn(...a); },
+  [setActiveSubplot, subplotIndex]);
+
+// then, e.g.:
+const handleAddAnnotation = useMemo(() => withActive(addAnnotation), [withActive, addAnnotation]);
+const onRemove = useMemo(() => withActive(removeAnnotation), [withActive, removeAnnotation]);
+// ...same for duplicate / bringToFront / sendToBack / updateAnnotation / finish / silent
+```
+
+Pass these wrapped versions to `<AnnotationCanvas>` and use them in the context menu. This guarantees no annotation mutation can target the wrong subplot.
 
 - [ ] **Step 2: Scope interaction store to the active cell**
 
@@ -473,10 +515,10 @@ Same guard for `handleRelayout`.
 
 - [ ] **Step 3: Add click-to-select + active outline**
 
-On the root container `div` of `SubplotView`, add:
+On the root container `div` of `SubplotView`, add cell selection. Use `onPointerDownCapture` (capture phase) so the selection fires even if Plotly's canvas handlers stop propagation of the bubbling event:
 
 ```tsx
-onMouseDown={() => setActiveSubplot(subplotIndex)}
+onPointerDownCapture={() => setActiveSubplot(subplotIndex)}
 style={{
   background: cssVars.bgSurface,
   outline: isActive && total > 1 ? `2px solid var(--accent)` : 'none',
@@ -547,12 +589,9 @@ Note: each cell wrapper needs `min-w-0 min-h-0` so the Plotly ResizeObserver in 
 Run: `npm run check && npx vitest run`
 Expected: PASS.
 
-- [ ] **Step 3: Manual multi-cell check**
+- [ ] **Step 3: Defer the multi-cell manual check to Chunk 3**
 
-`npm run dev`. In the browser devtools console:
-`window.__z = undefined` — instead, temporarily call the store: open React, or add a throwaway `useChartStore.getState().setGrid(3,1)` in console via the exposed store. Verify 3 stacked charts render; clicking a cell shows the accent outline; edits in ConfigPanel affect the clicked cell.
-
-> If the store isn't exposed on window, add a temporary line in `main.tsx`: `(window as any).useChartStore = useChartStore;` — REMOVE before committing. Or defer this manual check until Task 3.1 adds the UI.
+There is no grid UI yet (it arrives in Chunk 3 Task 3.1). Do NOT add a temporary `window` global to drive `setGrid` from the console — that risks committing debug code. Instead, verify here only that the **1×1 fast path** still renders exactly as before (`npm run dev` → single chart works). The real multi-cell manual verification happens in Chunk 3 Task 3.1 Step 4, once the layout control exists.
 
 - [ ] **Step 4: Commit**
 
@@ -654,13 +693,13 @@ git commit -m "feat(ribbon): add grid layout control to Chart tab"
 
 - [ ] **Step 1: Guard shrink with confirm dialog**
 
-The store's `setGrid` drops trailing subplots. When shrinking, if any dropped subplot has annotations or >1 layer (i.e. user-modified), ask first using the existing confirm store. Read it:
+The store's `setGrid` drops trailing subplots. When shrinking, if any dropped subplot has annotations or >1 layer (i.e. user-modified), ask first using the existing confirm store. Its real API (verified in `src/store/confirmStore.ts`) is `confirm({ title, message, confirmLabel?, cancelLabel?, danger?, onConfirm })` — **`title` and `message` are both required**. There's also a convenience `confirm(options)` export.
 
 ```ts
-import { useConfirmStore } from '@/store/confirmStore'; // verify export name
+import { useConfirmStore } from '@/store/confirmStore';
 ```
 
-Wrap the handlers:
+Wrap the handlers. "Edited" means `annotations.length > 0 || layers.length > 1` — a title/color/axis tweak alone does NOT trip the confirm (a fresh cell always has exactly 1 default layer and 0 annotations):
 
 ```ts
 const requestGrid = (r: number, c: number) => {
@@ -670,7 +709,9 @@ const requestGrid = (r: number, c: number) => {
   const hasContent = dropped.some((s) => s.annotations.length > 0 || s.layers.length > 1);
   if (hasContent) {
     useConfirmStore.getState().confirm({
-      message: t('chart.confirmShrinkGrid', { defaultValue: 'Removing subplots will discard their content. Continue?' }),
+      title: t('chart.layout'),
+      message: t('chart.confirmShrinkGrid'),
+      danger: true,
       onConfirm: () => setGrid(r, c),
     });
   } else {
@@ -679,7 +720,9 @@ const requestGrid = (r: number, c: number) => {
 };
 ```
 
-Point the inputs' `onChange` at `requestGrid`. Add the i18n key `chart.confirmShrinkGrid` to both locale files. Verify the actual confirm-store API shape first (`grep -n "confirm" src/store/confirmStore.ts`).
+Point the inputs' `onChange` at `requestGrid`. Add the i18n key `chart.confirmShrinkGrid` to BOTH locale files:
+- `en.json` → `"confirmShrinkGrid": "Removing subplots will discard their content. Continue?"`
+- `zh.json` → `"confirmShrinkGrid": "缩小网格将丢弃被移除子图的内容，是否继续？"`
 
 - [ ] **Step 2: Type-check + manual**
 
@@ -767,6 +810,8 @@ In `src/utils/projectFile.ts`:
 5. Update `isValidProjectFile`: valid if it has `version`, `datasets` array, AND (`figure` object OR `chartConfig` object).
 6. In `loadProjectFile`, keep the existing version-bump ladder; the sanitizer now handles the figure wrap.
 
+> **Cross-file collision — land 4.1 and 4.2 together.** `projectFileV6.ts` already defines `PROJECT_VERSION = 6` and its `isValidProjectFile` (a) caps `version <= 6` and (b) requires `d.chartConfig` to be an object (rejects a file that has `figure` instead). Once the live path writes `version: 6` with a `figure`, `projectFileV6.test.ts` will break. Therefore **do not commit Task 4.1 alone** — either combine 4.1+4.2 into one commit, or run `npx vitest run src/utils/projectFileV6.test.ts` after 4.1 expecting RED and fix it in 4.2 immediately after. The final suite must be green before moving on.
+
 - [ ] **Step 4: Run to verify pass**
 
 Run: `npx vitest run src/utils/projectFile.test.ts`
@@ -788,9 +833,9 @@ git add src/utils/projectFile.ts src/utils/projectFile.test.ts src/components/ri
 git commit -m "feat(project): v6 figure format with v5 migration"
 ```
 
-### Task 4.2: Update `projectFileV6.ts` for consistency
+### Task 4.2: Update `projectFileV6.ts` for consistency (must land with 4.1)
 
-`projectFileV6.ts` is test-only but should not contradict the new format. Update its `ProjectFile` import usage and its migration test.
+`projectFileV6.ts` is test-only (not wired into live save/load), but its validator will actively REJECT the new figure files (see the collision note in Task 4.1), breaking `projectFileV6.test.ts`. So this task is not optional polish — it must land in the same commit as 4.1 (or immediately after, with the suite green before any other work).
 
 **Files:**
 - Modify: `src/utils/projectFileV6.ts` (`isValidProjectFile` version range, field check)
@@ -850,7 +895,9 @@ Expected: FAIL — new functions absent.
 
 - [ ] **Step 3: Implement figure share functions**
 
-In `shareLink.ts`, add (keep the existing `encodeShareUrl`/`decodeShareUrl` for backward compat, or refactor them to delegate):
+In `shareLink.ts`, add the figure functions. Keep the existing `encodeShareUrl`/`decodeShareUrl` (single-config) as-is for any current callers.
+
+> **Intentional behavior change (document it):** today `encodeShareUrl` NEVER returns null — on an oversized payload it produces an overlong (and effectively broken) URL. The new `encodeShareFigure` returns `null` past the limit so the caller can warn instead of emitting a broken link. This is a deliberate improvement, not byte-identical to the old behavior. The size check compares the ENCODED payload (`base64.length`) against `SHARE_URL_LIMIT`, independent of origin length.
 
 ```ts
 import type { FigureConfig } from '@/types';
@@ -859,9 +906,9 @@ import type { FigureConfig } from '@/types';
 export function encodeShareFigure(figure: FigureConfig): string | null {
   const json = JSON.stringify(figure);
   const base64 = base64UrlEncode(json);
-  const url = `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}#d=${base64}`;
   if (base64.length > SHARE_URL_LIMIT) return null;
-  return url;
+  const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
+  return `${base}#d=${base64}`;
 }
 
 export function decodeShareFigure(url: string): FigureConfig | null {
@@ -918,11 +965,11 @@ export async function exportFigureToPng(
 }
 ```
 
-Implementation detail: measure each cell div's pixel size for aspect; use the largest cell width/height × scale as the per-cell target so the grid is uniform. Fill background first if `backgroundColor` set.
+Implementation detail: render cells concurrently with `Promise.all` — for each cell div, pick `export3DToPng` if it carries `data-chart-area-3d`, else `export2DChartPNGFromSVG` (both return dataURLs). Load each dataURL into an `Image` (await `img.onload`), measure each cell div's pixel size for aspect, use the largest cell width/height × scale as the uniform per-cell target, then draw each image at `(col * (cellW + gap), row * (cellH + gap))` in row-major order. Fill background first if `backgroundColor` is set.
 
 - [ ] **Step 2: Add composite SVG export**
 
-Add `exportFigureToSvg` that wraps each cell's `serialize2DChartSVG` output in a `<g transform="translate(x,y)">` inside one parent `<svg>` sized to the grid. 3D cells: embed their PNG as an `<image>` element (same limitation as today). Skip per-cell SVG for 3D.
+Add `exportFigureToSvg` that, for each cell, awaits `serialize2DChartSVG` (2D) or `export3DToPng` (3D, embedded as `<image href=...>`), then wraps each result in a `<g transform="translate(x,y)">` inside one parent `<svg>` sized to the grid. Because both are async, collect with `Promise.all` and assemble in order. 3D cells use raster embed (same limitation as today).
 
 - [ ] **Step 3: Wire the grid export entry**
 
@@ -930,7 +977,11 @@ In `ChartView.tsx` (grid path), add a container-level right-click handler that, 
 
 - [ ] **Step 4: Manual verification (no unit test — canvas/DOM heavy)**
 
-`npm run dev`: make a 3×1 (like the reference figure). Right-click the grid → Export PNG → verify one image with all three stacked panels, correct background/DPI. Export SVG → open in a browser, verify all panels present. This is a UI-correctness check; state so explicitly since it can't be unit-tested.
+This path is canvas/DOM-heavy and cannot be unit-tested; verify manually. `npm run dev`, then check THREE grid compositions:
+(a) **all-2D** 3×1 (the reference figure) → Export PNG shows all three stacked panels with correct background/DPI; Export SVG opens in a browser with all panels present and vector 2D.
+(b) **all-3D** 2×1 → Export PNG shows both 3D panels (raster); SVG embeds both as `<image>`.
+(c) **mixed 2D+3D** 2×1 → PNG composites both; SVG has vector 2D + raster 3D.
+State explicitly in the commit/PR that this was verified by eye, since it has no automated coverage.
 
 - [ ] **Step 5: Commit**
 
@@ -941,13 +992,25 @@ git commit -m "feat(export): composite multi-cell PNG/SVG export"
 
 ### Task 4.5: Matplotlib export — `plt.subplots` grid
 
+> **Scope reality:** `generateMatplotlibScript` is ~314 lines. Its body emits `ax.`/`ax2` calls across 7+ chart-type branches, a `buildAnnotationCode` helper (~line 173–221, uses `ax.`/`fig.text`), a title/labels/limits/grid/legend tail, and a per-chart `figsize` computed from margins. Threading an axes-variable through all of this is a real refactor (~30–50 string sites), NOT a one-liner. We therefore do it in two safe sub-steps: (1) lock current 1×1 output with a snapshot test, (2) extract a body function that takes `axVar`, and delegate. **We do NOT claim byte-identical 1×1 output as a goal** — the snapshot test simply tells us exactly what changed so we can decide if a diff is acceptable (e.g. `ax` → `axs[0]`) or must be preserved (header/imports/data section).
+
 **Files:**
 - Modify: `src/utils/matplotlibExporter.ts`
 - Test: `src/utils/matplotlibExporter.test.ts` (extend if present, else create)
 
-- [ ] **Step 1: Write failing tests**
+- [ ] **Step 1: Lock the current single-chart output with a snapshot**
 
-Add:
+First check the existing test file (`ls src/utils/matplotlibExporter.test.ts`; read its fixtures). Add a snapshot test of the CURRENT `generateMatplotlibScript` for a representative line chart:
+
+```ts
+it('single-chart matplotlib output is stable', () => {
+  expect(generateMatplotlibScript(cfg, datasets, { dpi: 300 })).toMatchSnapshot();
+});
+```
+
+Run `npx vitest run src/utils/matplotlibExporter.test.ts` to record the snapshot. This is the guard: after refactor, this test shows the exact diff.
+
+- [ ] **Step 2: Write failing tests for the figure function**
 
 ```ts
 import { generateFigureMatplotlibScript } from './matplotlibExporter';
@@ -967,31 +1030,59 @@ it('2x1 emits both axes populated', () => {
 });
 ```
 
-(Define `cfg`/`cfg2`/`datasets` minimally, mirroring existing matplotlib test fixtures — check the file first.)
+(Reuse `cfg`/`datasets` from the existing fixtures; define a second `cfg2` with a different title.)
 
-- [ ] **Step 2: Run to verify failure**
+Run: `npx vitest run src/utils/matplotlibExporter.test.ts` → FAIL (`generateFigureMatplotlibScript` absent).
+
+- [ ] **Step 3: Extract the per-axes body into a helper**
+
+Refactor `generateMatplotlibScript` in place:
+1. Extract everything from the **Traces** section through the axis labels/limits/grid/legend tail into a new internal function:
+   ```ts
+   function emitSubplotBody(
+     lines: string[], chartConfig: ChartConfig, datasets: Dataset[],
+     axVar: string, idxPrefix: string,
+   ): void { /* moved body; replace 'ax' → axVar, and per-trace var suffixes use idxPrefix to avoid collisions across subplots */ }
+   ```
+   - Replace literal `ax` with `axVar`; replace `ax2` with `` `${axVar}2` ``.
+   - Update `buildAnnotationCode` similarly to accept `axVar` (its `ax.`/`fig.text` calls).
+   - Prefix all generated python variable names (`x_${i}`, `labels_${i}`, `pie_labels_${i}`, twin `ax2`) with a per-subplot `idxPrefix` (e.g. `s0_`, `s1_`) so multiple subplots don't reuse `x_0`.
+2. `generateMatplotlibScript` keeps emitting header + data + `fig, ax = plt.subplots(...)`, then calls `emitSubplotBody(lines, chartConfig, datasets, 'ax', '')`. The empty prefix preserves existing variable names — check the snapshot from Step 1; the only acceptable diffs are none (goal: single-chart snapshot unchanged). If the snapshot changes, adjust `emitSubplotBody` until the single-chart path reproduces the original exactly.
+
+- [ ] **Step 4: Implement `generateFigureMatplotlibScript`**
+
+```ts
+export function generateFigureMatplotlibScript(
+  figure: FigureConfig, datasets: Dataset[], options: { dpi?: number; filename?: string } = {},
+): string {
+  if (figure.subplots.length === 1) {
+    return generateMatplotlibScript(figure.subplots[0], datasets, options);
+  }
+  const lines: string[] = [];
+  // header/imports once (include Axes3D import if ANY subplot is 3D)
+  // fig, axs = plt.subplots(rows, cols, figsize=(...))
+  // axs = np.atleast_1d(axs).ravel()
+  figure.subplots.forEach((cfg, i) => {
+    // emit this subplot's data + body with axVar=`axs[${i}]`, idxPrefix=`s${i}_`
+    emitSubplotBody(lines, cfg, datasets, `axs[${i}]`, `s${i}_`);
+  });
+  // fig.tight_layout(); plt.savefig(...) / plt.show()
+  return lines.join('\n');
+}
+```
+
+Note: for a 1×1 figure it delegates to the single-chart function, so 1×1 output is exactly the existing path (snapshot guaranteed unchanged). 3D subplots inside a grid need `subplot_kw` per-axes; if mixing 2D and 3D, create axes individually via `fig.add_subplot(rows, cols, i+1, projection=...)` instead of `plt.subplots` — document this branch and cover an all-2D grid in tests (mixed-3D grid is best-effort, flagged below).
+
+- [ ] **Step 5: Run tests**
 
 Run: `npx vitest run src/utils/matplotlibExporter.test.ts`
-Expected: FAIL — `generateFigureMatplotlibScript` absent.
+Expected: PASS, and the Step-1 single-chart snapshot is UNCHANGED (if it changed, fix `emitSubplotBody` before proceeding).
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 6: Wire the caller**
 
-Add `generateFigureMatplotlibScript(figure, datasets, options)` that:
-- Emits the header (imports) once.
-- Emits `fig, axs = plt.subplots(rows, cols, figsize=(...))`; normalize `axs` to a flat list (`axs = np.atleast_1d(axs).ravel()`).
-- For each subplot, reuse the existing per-chart body generation, but target `axs[i]` instead of the module-level `ax`/`plt`. Refactor the existing `generateMatplotlibScript` internals so the per-chart trace/axis emission takes an axes-variable name parameter (e.g. `axVar`), then call it per subplot. Keep `generateMatplotlibScript` (single) working by delegating with `axVar='ax'` and a 1×1 setup, so existing tests/snapshots pass.
-- `downloadMatplotlibScript` gains a figure-aware path: when the figure has >1 subplot call the new function; else the existing single-chart one (byte-identical output for 1×1).
+`grep -rn "downloadMatplotlibScript" src` to find call sites (FileTab ~line 500; ChartView/SubplotView context menu). Update `downloadMatplotlibScript` to accept a `FigureConfig` and call `generateFigureMatplotlibScript`. The per-cell context menu (single subplot) keeps calling `generateMatplotlibScript` for that one cell.
 
-- [ ] **Step 4: Run tests**
-
-Run: `npx vitest run src/utils/matplotlibExporter.test.ts`
-Expected: PASS (including any existing single-chart snapshot).
-
-- [ ] **Step 5: Wire the caller**
-
-In `FileTab.tsx` (~line 500) and `ChartView`/`SubplotView` context menu: the grid-level matplotlib export calls `downloadMatplotlibScript` with the figure. Verify `downloadMatplotlibScript`'s signature update is reflected at all call sites (`grep -rn "downloadMatplotlibScript" src`).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/utils/matplotlibExporter.ts src/utils/matplotlibExporter.test.ts src/components/ribbon/FileTab.tsx
