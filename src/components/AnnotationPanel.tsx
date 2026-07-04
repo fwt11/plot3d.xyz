@@ -344,6 +344,30 @@ export default function AnnotationPanel() {
             className="w-6 h-6 rounded cursor-pointer bg-transparent border-0"
           />
         </Row>
+        {/* One-click border / fill toggles. Limited to shapes that have both a
+            stroke and a fill; arrow/line/callout have no fill, image has no stroke. */}
+        {(ann.type === 'rect' || ann.type === 'ellipse' || ann.type === 'polygon') && (
+          <Row>
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={ann.borderVisible !== false}
+                onChange={(e) => update({ borderVisible: e.target.checked })}
+                className="cursor-pointer"
+              />
+              {t('annotation.border')}
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={ann.fillVisible !== false}
+                onChange={(e) => update({ fillVisible: e.target.checked })}
+                className="cursor-pointer"
+              />
+              {t('annotation.fill')}
+            </label>
+          </Row>
+        )}
         <Row>
           <Label>{t('annotation.strokeWidth')}</Label>
           <NumberInput value={ann.strokeWidth ?? 2} onChange={(v) => update({ strokeWidth: v })} min={0} max={20} step={0.5} />

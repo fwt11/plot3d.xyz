@@ -141,8 +141,11 @@ export interface Annotation {
   // Generic shape styling
   fillColor?: string;
   fillOpacity?: number;
+  fillVisible?: boolean; // when false, render shapes without a fill
   strokeWidth?: number;
   strokeDash?: 'solid' | 'dashed' | 'dotted';
+  /** When false, render shape strokes (borders) invisible. Defaults true. */
+  borderVisible?: boolean;
   opacity?: number;
   rotation?: number;
 

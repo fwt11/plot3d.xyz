@@ -14,6 +14,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Square,
+  SquareDashed,
+  PaintBucket,
 } from 'lucide-react';
 
 interface AnnotationToolbarProps {
@@ -274,6 +277,26 @@ export function AnnotationToolbar({
                 </ToolbarButton>
               ))}
             </div>
+          )}
+
+          {/* One-click border/fill toggles for shapes with both. */}
+          {showFill && showStroke && (
+            <>
+              <ToolbarButton
+                active={annotation.borderVisible !== false}
+                onClick={() => onUpdate({ borderVisible: annotation.borderVisible === false })}
+                title={t('annotation.border')}
+              >
+                {annotation.borderVisible === false ? <SquareDashed size={14} /> : <Square size={14} />}
+              </ToolbarButton>
+              <ToolbarButton
+                active={annotation.fillVisible !== false}
+                onClick={() => onUpdate({ fillVisible: annotation.fillVisible === false })}
+                title={t('annotation.fill')}
+              >
+                <PaintBucket size={14} />
+              </ToolbarButton>
+            </>
           )}
 
           <ToolbarDivider />

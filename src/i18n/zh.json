@@ -203,6 +203,8 @@
     "color": "标注颜色",
     "fillColor": "填充色",
     "strokeWidth": "线宽",
+    "border": "边框",
+    "fill": "填充",
     "opacity": "不透明度",
     "rotation": "旋转",
     "locked": "锁定位置",

@@ -203,6 +203,8 @@
     "color": "Annotation color",
     "fillColor": "Fill color",
     "strokeWidth": "Stroke width",
+    "border": "Border",
+    "fill": "Fill",
     "opacity": "Opacity",
     "rotation": "Rotation",
     "locked": "Lock position",

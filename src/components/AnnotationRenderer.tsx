@@ -1,6 +1,7 @@
 import type { Annotation } from '@/types';
 import { renderLatexToHTML, extractLatex, isLatexContent, renderMixedContent } from '@/utils/latex';
 import { toDisplayPercent, readAxisRanges, rotatePointIsometric, type AxisRanges } from '@/utils/annotationCoords';
+import { hexToRgba } from '@/utils/tracesBuilder';
 
 function percent(v: number): string {
   return `${v}%`;
@@ -257,6 +258,9 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
 
   // Rectangle
   if (ann.type === 'rect' && ann.rectSize) {
+    const fillAlpha = (ann.fillOpacity ?? 0.15) * (ann.opacity ?? 1);
+    const borderOn = ann.borderVisible !== false;
+    const fillOn = ann.fillVisible !== false;
     return (
       <div
         className="absolute cursor-grab active:cursor-grabbing"
@@ -264,9 +268,12 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
           ...commonStyle,
           width: percent(ann.rectSize.w),
           height: percent(ann.rectSize.h),
-          border: `${strokeWidth}px ${ann.strokeDash === 'dashed' ? 'dashed' : ann.strokeDash === 'dotted' ? 'dotted' : 'solid'} ${color}`,
-          backgroundColor: fillColor,
-          opacity: (ann.fillOpacity ?? 0.15) * (ann.opacity ?? 1),
+          // One-click toggle: borderVisible=false skips the border entirely.
+          border: borderOn
+            ? `${strokeWidth}px ${ann.strokeDash === 'dashed' ? 'dashed' : ann.strokeDash === 'dotted' ? 'dotted' : 'solid'} ${color}`
+            : 'none',
+          // fillVisible=false → no fill (border-only rect); otherwise semi-transparent fill.
+          background: fillOn ? hexToRgba(fillColor, fillAlpha) : 'transparent',
           borderRadius: ann.borderRadius ?? 2,
           transform: `translate(-50%, -50%) rotate(${ann.rotation ?? 0}deg)`,
         }}
@@ -279,6 +286,8 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
 
   // Ellipse
   if (ann.type === 'ellipse' && ann.ellipseRadii) {
+    const borderOn = ann.borderVisible !== false;
+    const fillOn = ann.fillVisible !== false;
     return (
       <svg
         className="absolute overflow-visible cursor-grab"
@@ -297,11 +306,11 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
           cy="50%"
           rx="50%"
           ry="50%"
-          fill={fillColor}
-          fillOpacity={ann.fillOpacity ?? 0.15}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={strokeDash}
+          fill={fillOn ? fillColor : 'none'}
+          fillOpacity={fillOn ? ann.fillOpacity ?? 0.15 : 0}
+          stroke={borderOn ? color : 'none'}
+          strokeWidth={borderOn ? strokeWidth : 0}
+          strokeDasharray={borderOn ? strokeDash : undefined}
           style={{ pointerEvents: 'auto' }}
           onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
           onDoubleClick={(e) => onDoubleClick?.(e as unknown as React.MouseEvent, ann)}
@@ -316,6 +325,8 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
     const displayPoints = ann.polygonPoints.map((p) => toDisplayPercent(p.x, p.y, ann.coordMode, ranges));
     const xs = displayPoints.map((p) => p.x);
     const ys = displayPoints.map((p) => p.y);
+    const borderOn = ann.borderVisible !== false;
+    const fillOn = ann.fillVisible !== false;
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     const maxX = Math.max(...xs);
@@ -343,11 +354,11 @@ export function AnnotationRenderer({ annotation: ann, axisRanges, containerAspec
       >
         <polygon
           points={points}
-          fill={fillColor}
-          fillOpacity={ann.fillOpacity ?? 0.15}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={strokeDash}
+          fill={fillOn ? fillColor : 'none'}
+          fillOpacity={fillOn ? ann.fillOpacity ?? 0.15 : 0}
+          stroke={borderOn ? color : 'none'}
+          strokeWidth={borderOn ? strokeWidth : 0}
+          strokeDasharray={borderOn ? strokeDash : undefined}
           vectorEffect="non-scaling-stroke"
           style={{ pointerEvents: 'auto', cursor: 'grab' }}
           onMouseDown={(e) => onMouseDown?.(e as unknown as React.MouseEvent, ann)}
