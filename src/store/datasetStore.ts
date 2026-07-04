@@ -3,7 +3,7 @@ import type { Dataset, DataColumn, ChartType } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
 import { sharedDefaultDataset } from './sharedDefaults';
-import { useChartStore } from './chartStore';
+import { useChartStore, selectActiveChart } from './chartStore';
 import { useHistoryStore } from './historyStore';
 import {
   savitzkyGolay,
@@ -84,9 +84,10 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Auto-create layer for this dataset via chartStore
       const chartState = useChartStore.getState();
-      let newLayers = chartState.chartConfig.layers;
+      const activeChart = selectActiveChart(chartState);
+      let newLayers = activeChart.layers;
       if (xCol && yCol) {
-        newLayers = [...chartState.chartConfig.layers, {
+        newLayers = [...activeChart.layers, {
           id: uid(),
           datasetId: dataset.id,
           xColumn: xCol.id,
@@ -119,7 +120,12 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Update chartStore layers (no history push — already pushed above)
       useChartStore.setState((cs) => ({
-        chartConfig: { ...cs.chartConfig, layers: newLayers },
+        figure: {
+          ...cs.figure,
+          subplots: cs.figure.subplots.map((c, i) =>
+            i === cs.figure.activeIndex ? { ...c, layers: newLayers } : c
+          ),
+        },
       }));
 
       return {
@@ -137,9 +143,13 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
     }));
     // Remove layers that reference the deleted dataset
     useChartStore.setState((cs) => ({
-      chartConfig: {
-        ...cs.chartConfig,
-        layers: cs.chartConfig.layers.filter((l) => l.datasetId !== id),
+      figure: {
+        ...cs.figure,
+        subplots: cs.figure.subplots.map((c, i) =>
+          i === cs.figure.activeIndex
+            ? { ...c, layers: c.layers.filter((l) => l.datasetId !== id) }
+            : c
+        ),
       },
     }));
   },
@@ -222,21 +232,27 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
     }));
     // Clean up layers that depend on the removed column
     useChartStore.setState((cs) => ({
-      chartConfig: {
-        ...cs.chartConfig,
-        layers: cs.chartConfig.layers
-          .map((l) => {
-            if (l.datasetId !== datasetId) return l;
-            if (l.xColumn === columnId || l.yColumn === columnId) return null;
-            return {
-              ...l,
-              zColumn: l.zColumn === columnId ? undefined : l.zColumn,
-              errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
-              errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
-              errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
-            };
-          })
-          .filter((l): l is typeof l & NonNullable<typeof l> => l !== null),
+      figure: {
+        ...cs.figure,
+        subplots: cs.figure.subplots.map((c, i) => {
+          if (i !== cs.figure.activeIndex) return c;
+          return {
+            ...c,
+            layers: c.layers
+              .map((l) => {
+                if (l.datasetId !== datasetId) return l;
+                if (l.xColumn === columnId || l.yColumn === columnId) return null;
+                return {
+                  ...l,
+                  zColumn: l.zColumn === columnId ? undefined : l.zColumn,
+                  errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
+                  errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
+                  errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
+                };
+              })
+              .filter((l): l is typeof l & NonNullable<typeof l> => l !== null),
+          };
+        }),
       },
     }));
   },
@@ -308,16 +324,17 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Access chartStore lazily to avoid circular deps
       const chartState = useChartStore.getState();
-      const isCurrently3D = is3DChart(chartState.chartConfig.type);
+      const activeChart = selectActiveChart(chartState);
+      const isCurrently3D = is3DChart(activeChart.type);
 
-      let newChartType = chartState.chartConfig.type;
+      let newChartType = activeChart.type;
       if (newType === 'Z' && !isCurrently3D) {
         newChartType = 'surface3d';
       } else if (newType !== 'Z' && isCurrently3D && !hasZColumn) {
         newChartType = 'line';
       }
 
-      let layers = chartState.chartConfig.layers;
+      let layers = activeChart.layers;
       const hasLayerForDs = layers.some((l) => l.datasetId === datasetId);
       if (!hasLayerForDs) {
         const ds = newDatasets.find((d) => d.id === datasetId);
@@ -347,7 +364,12 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Update chartStore (no history push — already pushed above)
       useChartStore.setState((cs) => ({
-        chartConfig: { ...cs.chartConfig, type: newChartType, layers },
+        figure: {
+          ...cs.figure,
+          subplots: cs.figure.subplots.map((c, i) =>
+            i === cs.figure.activeIndex ? { ...c, type: newChartType, layers } : c
+          ),
+        },
       }));
 
       return {

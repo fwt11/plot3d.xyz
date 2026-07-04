@@ -1,4 +1,4 @@
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { is3DChart } from '@/utils/chart';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -171,7 +171,7 @@ function MarginInput({ label, value, onChange }: { label: string; value: number;
 
 export default function ConfigPanel() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const is3D = is3DChart(chartConfig.type);
   const setChartTitle = useChartStore((s) => s.setChartTitle);
   const setXAxis = useChartStore((s) => s.setXAxis);

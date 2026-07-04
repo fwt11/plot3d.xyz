@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
-import { useChartStore, useDatasetStore, useAnnotationToolStore } from '@/store/plotStore';
+import { useChartStore, useDatasetStore, useAnnotationToolStore, selectActiveChart } from '@/store/plotStore';
 import { useUiStore } from '@/store/uiStore';
 import { useToastStore } from '@/store/toastStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
@@ -32,7 +32,7 @@ const allYColors = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4
 
 export default function ChartView() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const datasets = useDatasetStore((s) => s.datasets);
   const addAnnotation = useChartStore((s) => s.addAnnotation);
   const updateAnnotation = useChartStore((s) => s.updateAnnotation);

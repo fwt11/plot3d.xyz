@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDatasetStore, useChartStore } from '@/store/plotStore';
+import { useDatasetStore, useChartStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { toNumber } from '@/types';
 import { multiPeakFit, fmtPeak } from '@/utils/multiPeakFit';
@@ -104,7 +104,7 @@ export function MultiPeakFitModal({ onClose }: MultiPeakFitModalProps) {
     };
     addDataset(fitDataset, { setActive: false });
 
-    const autoLayer = useChartStore.getState().chartConfig.layers.find((l) => l.datasetId === fitDatasetId);
+    const autoLayer = selectActiveChart(useChartStore.getState()).layers.find((l) => l.datasetId === fitDatasetId);
     if (autoLayer) {
       updateLayer(autoLayer.id, {
         color: '#ef4444',

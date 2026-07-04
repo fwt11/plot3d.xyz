@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useToastStore } from '@/store/toastStore';
 import {
   JOURNAL_TEMPLATES,
@@ -14,7 +14,7 @@ import { Bookmark, Plus, Trash2, Check } from 'lucide-react';
 
 export default function TemplatePanel() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const applyConfigPatch = useChartStore((s) => s.applyConfigPatch);
   const addToast = useToastStore((s) => s.addToast);
 

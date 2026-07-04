@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useDatasetStore } from '@/store/datasetStore';
 import { useToastStore } from '@/store/toastStore';
 import { confirm } from '@/store/confirmStore';
@@ -53,7 +53,7 @@ const STYLE_PRESETS: StylePreset[] = [
 
 export default function LayerPanel() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const datasets = useDatasetStore((s) => s.datasets);
   const addLayer = useChartStore((s) => s.addLayer);
   const removeLayer = useChartStore((s) => s.removeLayer);

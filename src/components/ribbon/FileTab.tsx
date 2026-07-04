@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
+import { useUiStore, useDatasetStore, useChartStore, useHistoryStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
 import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2 } from 'lucide-react';
@@ -81,7 +81,7 @@ export function FileTab() {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const addDataset = useDatasetStore((s) => s.addDataset);
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const exportConfig = chartConfig.exportConfig;
   const chartType = chartConfig.type;
   const theme = useUiStore((s) => s.theme);
@@ -514,11 +514,11 @@ export function FileTab() {
       const uiState = useUiStore.getState();
       const project = serializeProject({
         datasets: dsState.datasets,
-        chartConfig: chartState.chartConfig,
+        chartConfig: selectActiveChart(chartState),
         theme: uiState.theme,
         lang: uiState.lang,
       });
-      const title = chartState.chartConfig.title || 'untitled';
+      const title = selectActiveChart(chartState).title || 'untitled';
       saveProjectFile(project, title);
       addToast(t('toast.projectSaved'), 'success');
     } catch {
@@ -545,7 +545,7 @@ export function FileTab() {
       activeDatasetId: project.datasets[0]?.id ?? null,
     });
     useChartStore.setState({
-      chartConfig: project.chartConfig,
+      figure: { rows: 1, cols: 1, subplots: [project.chartConfig], activeIndex: 0, gap: 8 },
     });
     // Clear history after loading a project
     useHistoryStore.setState({ _past: [], _future: [] });

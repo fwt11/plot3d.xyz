@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useChartStore, useDatasetStore } from '@/store/plotStore';
+import { useChartStore, useDatasetStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { Palette } from 'lucide-react';
 import { getColorMapGradient } from '@/utils/colormaps';
@@ -9,7 +9,7 @@ import { RibbonGroup } from './RibbonGroup';
 
 export function ChartTab() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const setChartType = useChartStore((s) => s.setChartType);
   const setColorMap = useChartStore((s) => s.setColorMap);
   const datasets = useDatasetStore((s) => s.datasets);

@@ -10,7 +10,7 @@ import { AboutTab } from './ribbon/AboutTab';
 import { HistoryPanel } from './HistoryPanel';
 import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
@@ -41,7 +41,7 @@ function readStoredTab(): RibbonTab {
 // ─── Quick Toolbar ──────────────────────────────────────────────
 function QuickToolbar() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const chartType = chartConfig.type;
   const exportConfig = chartConfig.exportConfig;
   const addToast = useToastStore((s) => s.addToast);

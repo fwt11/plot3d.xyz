@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useAnnotationToolStore } from '@/store/plotStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
@@ -74,8 +74,8 @@ function ChartTypeSuggestionBar() {
 }
 
 function StatusBar() {
-  const chartType = useChartStore((s) => s.chartConfig.type);
-  const layers = useChartStore((s) => s.chartConfig.layers);
+  const chartType = useChartStore((s) => selectActiveChart(s).type);
+  const layers = useChartStore((s) => selectActiveChart(s).layers);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
   const hover = useChartInteractionStore((s) => s.hover);
@@ -152,7 +152,7 @@ export default function Workspace() {
   const pastLength = useHistoryStore((s) => s._past.length);
   const futureLength = useHistoryStore((s) => s._future.length);
 
-  const annotations = useChartStore((s) => s.chartConfig.annotations);
+  const annotations = useChartStore((s) => selectActiveChart(s).annotations);
   const addAnnotation = useChartStore((s) => s.addAnnotation);
   const duplicateAnnotation = useChartStore((s) => s.duplicateAnnotation);
   const selectedAnnotationId = useAnnotationToolStore((s) => s.selectedId);
@@ -208,11 +208,11 @@ export default function Workspace() {
         const uiState = useUiStore.getState();
         const project = serializeProject({
           datasets: dsState.datasets,
-          chartConfig: chartState.chartConfig,
+          chartConfig: selectActiveChart(chartState),
           theme: uiState.theme,
           lang: uiState.lang,
         });
-        const title = chartState.chartConfig.title || 'untitled';
+        const title = selectActiveChart(chartState).title || 'untitled';
         saveProjectFile(project, title);
         return;
       }

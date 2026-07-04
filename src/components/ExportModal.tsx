@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useUiStore } from '@/store/uiStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
@@ -33,7 +33,7 @@ interface ExportOptions {
 
 export function ExportModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const theme = useUiStore((s) => s.theme);
   const addToast = useToastStore((s) => s.addToast);
 
