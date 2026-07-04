@@ -68,7 +68,10 @@ exactly as today. Invariant: `subplots.length === rows * cols`; `activeIndex` in
 - New actions:
   - `setGrid(rows, cols)` — resize the grid. Growing appends fresh default
     `ChartConfig`s (blank line chart + default sample dataset layer, mirroring
-    the current `defaultChartConfig`). Shrinking removes trailing subplots; if a
+    the current `defaultChartConfig`). Each appended subplot gets a fresh
+    `id: uid()` (and fresh layer/annotation ids) — never reuse an existing
+    subplot's id, so subplots stay uniquely addressable. Shrinking removes
+    trailing subplots; if a
     removed subplot has layers or annotations, prompt via the existing confirm
     dialog first. `activeIndex` clamps into range. Maintains the
     `length === rows*cols` invariant.
@@ -106,9 +109,13 @@ change — only the mechanical `selectActiveChart` swap:
 - **ConfigPanel, LayerPanel, ChartTab, TransformTab, AnnotationPanel,
   MultiPeakFitModal, FitResultsBar, TemplatePanel** — read the active chart and
   call existing actions; they now edit whichever subplot is active.
-- **Curve fitting (`fitStore`)** — fits attach to a layer id within the active
-  subplot. Verify `fitStore` does not cache a chart reference across subplot
-  switches; results scope to the active subplot's layers.
+- **Curve fitting (`fitStore`)** — `fitStore` holds a **single global
+  `fitResult`** (not keyed by chart/layer, and it stores no chart reference, so
+  there is no stale-pointer bug). v1 behavior: the fit result is global and
+  reflects the most recent fit, which always runs against the active subplot's
+  data. Switching the active subplot does **not** re-scope or clear the displayed
+  fit result — the user re-runs a fit on the newly active subplot to update it.
+  Per-subplot fit-result storage is out of scope for v1 (see Out of scope).
 - **Journal templates** — `applyConfigPatch` patches the active chart, so
   templates apply to the active subplot. Whole-grid template application is out of
   scope.
@@ -134,8 +141,9 @@ clicking the cell in the canvas. This is the only genuinely new panel UI.
 
 ### Share URL (`shareLink.ts`)
 
-- Encodes `figure`. Because the URL hash limit is ~8 KB, multi-subplot figures
-  may exceed it. Add a guard: if the encoded figure exceeds the limit, show a
+- Encodes `figure`. Because the URL hash limit is ~8 KB (concrete guard
+  constant: `8192` bytes of encoded payload), multi-subplot figures may exceed
+  it. Add a guard: if the encoded figure exceeds the limit, show a
   toast ("figure too large to share via URL; save as .plot3d instead") rather
   than emit a broken link. Single-chart figures stay under the limit as before.
 
@@ -207,3 +215,7 @@ Each cell is a separate Plotly instance, so combined export composites cells:
 - Per-subplot variable row heights / drag-to-resize cells.
 - Applying a template or chart type to the whole grid at once.
 - Cross-subplot shared axes / linked zoom.
+- Per-subplot curve-fit result storage (`fitStore` stays a single global result
+  in v1; re-run a fit after switching the active subplot).
+- Whole-grid annotation operations (annotation shortcuts act on the active
+  subplot only).
