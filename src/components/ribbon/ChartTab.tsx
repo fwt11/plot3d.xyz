@@ -40,6 +40,11 @@ export function ChartTab() {
     setChartType(type);
   };
 
+  const parseDim = (v: string): number | null => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 1 && n <= 4 ? n : null;
+  };
+
   const requestGrid = (r: number, c: number) => {
     const fig = useChartStore.getState().figure;
     const nextCount = r * c;
@@ -117,13 +122,13 @@ export function ChartTab() {
           <label className="flex items-center gap-1">
             {t('chart.rows')}
             <input type="number" min={1} max={4} value={rows}
-              onChange={(e) => requestGrid(Math.max(1, Math.min(4, +e.target.value || 1)), cols)}
+              onChange={(e) => { const n = parseDim(e.target.value); if (n !== null) requestGrid(n, cols); }}
               className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
           </label>
           <label className="flex items-center gap-1">
             {t('chart.cols')}
             <input type="number" min={1} max={4} value={cols}
-              onChange={(e) => requestGrid(rows, Math.max(1, Math.min(4, +e.target.value || 1)))}
+              onChange={(e) => { const n = parseDim(e.target.value); if (n !== null) requestGrid(rows, n); }}
               className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
           </label>
           <label className="flex items-center gap-1">
