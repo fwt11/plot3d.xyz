@@ -110,6 +110,11 @@ interface ChartStore {
   setActiveSubplot: (index: number) => void;
   /** Adjust the grid gap in px (clamped to >= 0). */
   setGap: (gap: number) => void;
+
+  /** Mutate only the active subplot without pushing to history.
+   *  Used by cross-store actions (e.g. datasetStore) that already push
+   *  their own snapshot or want to avoid an extra chart-level entry. */
+  updateActiveChart: (fn: (c: ChartConfig) => ChartConfig) => void;
 }
 
 /** Select the currently active subplot's ChartConfig. (Chunk 1 Task 1.3) */
@@ -326,11 +331,13 @@ export const useChartStore = create<ChartStore>()((set) => {
 
     setGrid: (rows, cols) =>
       setWithHistory((s) => {
-        const count = Math.max(1, rows) * Math.max(1, cols);
+        const r = Math.max(1, rows);
+        const c = Math.max(1, cols);
+        const count = r * c;
         let subplots = s.figure.subplots.slice(0, count);
         while (subplots.length < count) subplots.push(createDefaultChartConfig());
         const activeIndex = Math.min(s.figure.activeIndex, count - 1);
-        return { figure: { ...s.figure, rows, cols, subplots, activeIndex } };
+        return { figure: { ...s.figure, rows: r, cols: c, subplots, activeIndex } };
       }, i18n.t('history.setGrid', { defaultValue: 'Change grid layout' })),
 
     setActiveSubplot: (index) =>
@@ -344,5 +351,8 @@ export const useChartStore = create<ChartStore>()((set) => {
     setGap: (gap) =>
       setWithHistory((s) => ({ figure: { ...s.figure, gap: Math.max(0, gap) } }),
         i18n.t('history.setGap', { defaultValue: 'Adjust grid gap' })),
+
+    updateActiveChart: (fn) =>
+      set((s) => patchActive(s, fn)),
   };
 });

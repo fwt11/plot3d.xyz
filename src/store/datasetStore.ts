@@ -119,14 +119,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       }
 
       // Update chartStore layers (no history push — already pushed above)
-      useChartStore.setState((cs) => ({
-        figure: {
-          ...cs.figure,
-          subplots: cs.figure.subplots.map((c, i) =>
-            i === cs.figure.activeIndex ? { ...c, layers: newLayers } : c
-          ),
-        },
-      }));
+      useChartStore.getState().updateActiveChart((c) => ({ ...c, layers: newLayers }));
 
       return {
         datasets: [...s.datasets, dataset],
@@ -142,15 +135,9 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       activeDatasetId: s.activeDatasetId === id ? (s.datasets[0]?.id ?? null) : s.activeDatasetId,
     }));
     // Remove layers that reference the deleted dataset
-    useChartStore.setState((cs) => ({
-      figure: {
-        ...cs.figure,
-        subplots: cs.figure.subplots.map((c, i) =>
-          i === cs.figure.activeIndex
-            ? { ...c, layers: c.layers.filter((l) => l.datasetId !== id) }
-            : c
-        ),
-      },
+    useChartStore.getState().updateActiveChart((c) => ({
+      ...c,
+      layers: c.layers.filter((l) => l.datasetId !== id),
     }));
   },
 
@@ -231,29 +218,21 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       ),
     }));
     // Clean up layers that depend on the removed column
-    useChartStore.setState((cs) => ({
-      figure: {
-        ...cs.figure,
-        subplots: cs.figure.subplots.map((c, i) => {
-          if (i !== cs.figure.activeIndex) return c;
+    useChartStore.getState().updateActiveChart((c) => ({
+      ...c,
+      layers: c.layers
+        .map((l) => {
+          if (l.datasetId !== datasetId) return l;
+          if (l.xColumn === columnId || l.yColumn === columnId) return null;
           return {
-            ...c,
-            layers: c.layers
-              .map((l) => {
-                if (l.datasetId !== datasetId) return l;
-                if (l.xColumn === columnId || l.yColumn === columnId) return null;
-                return {
-                  ...l,
-                  zColumn: l.zColumn === columnId ? undefined : l.zColumn,
-                  errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
-                  errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
-                  errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
-                };
-              })
-              .filter((l): l is typeof l & NonNullable<typeof l> => l !== null),
+            ...l,
+            zColumn: l.zColumn === columnId ? undefined : l.zColumn,
+            errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
+            errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
+            errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
           };
-        }),
-      },
+        })
+        .filter((l): l is NonNullable<typeof l> => l !== null),
     }));
   },
 
@@ -363,13 +342,10 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       }
 
       // Update chartStore (no history push — already pushed above)
-      useChartStore.setState((cs) => ({
-        figure: {
-          ...cs.figure,
-          subplots: cs.figure.subplots.map((c, i) =>
-            i === cs.figure.activeIndex ? { ...c, type: newChartType, layers } : c
-          ),
-        },
+      useChartStore.getState().updateActiveChart((c) => ({
+        ...c,
+        type: newChartType,
+        layers,
       }));
 
       return {
