@@ -144,23 +144,19 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
     [setActiveSubplot, subplotIndex],
   );
 
-  const handleAddAnnotation = useMemo(() => withActive(addAnnotation), [withActive, addAnnotation]);
-  const handleUpdateAnnotationSilent = useMemo(() => withActive(updateAnnotationSilent), [withActive, updateAnnotationSilent]);
-  const onRemoveAnnotation = useMemo(() => withActive(removeAnnotation), [withActive, removeAnnotation]);
-  const onDuplicateAnnotation = useMemo(() => withActive(duplicateAnnotation), [withActive, duplicateAnnotation]);
-  const onBringToFrontAnnotation = useMemo(() => withActive(bringAnnotationToFront), [withActive, bringAnnotationToFront]);
-  const onSendToBackAnnotation = useMemo(() => withActive(sendAnnotationToBack), [withActive, sendAnnotationToBack]);
-  const onUpdateAnnotationLocked = useMemo(
-    () => withActive((id: string, data: Partial<Annotation>) => updateAnnotation(id, data)),
+  const handleAddAnnotation = useCallback(withActive(addAnnotation), [withActive, addAnnotation]);
+  const handleUpdateAnnotationSilent = useCallback(withActive(updateAnnotationSilent), [withActive, updateAnnotationSilent]);
+  const onRemoveAnnotation = useCallback(withActive(removeAnnotation), [withActive, removeAnnotation]);
+  const onDuplicateAnnotation = useCallback(withActive(duplicateAnnotation), [withActive, duplicateAnnotation]);
+  const onBringToFrontAnnotation = useCallback(withActive(bringAnnotationToFront), [withActive, bringAnnotationToFront]);
+  const onSendToBackAnnotation = useCallback(withActive(sendAnnotationToBack), [withActive, sendAnnotationToBack]);
+  const onUpdateAnnotationLocked = useCallback(
+    withActive<[string, Partial<Annotation>]>(updateAnnotation),
     [withActive, updateAnnotation],
   );
-  // onFinish takes an optional `data` param, so it can't share the strict generic wrapper above.
-  const handleFinishAnnotation = useMemo(
-    () => (id: string, data?: Partial<Annotation>) => {
-      setActiveSubplot(subplotIndex);
-      updateAnnotation(id, data ?? {});
-    },
-    [setActiveSubplot, subplotIndex, updateAnnotation],
+  const handleFinishAnnotation = useCallback(
+    withActive((id: string, data?: Partial<Annotation>) => updateAnnotation(id, data ?? {})),
+    [withActive, updateAnnotation],
   );
 
   const handleChartContextMenu = useCallback((e: React.MouseEvent) => {
