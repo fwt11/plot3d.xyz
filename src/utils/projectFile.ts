@@ -310,6 +310,31 @@ export function isValidProjectFile(data: unknown): data is ProjectFile {
   );
 }
 
+/** Drop layers whose dataset/column references no longer exist. */
+function filterValidLayers(
+  cfg: ChartConfig,
+  datasetIds: Set<string>,
+  columnIdsByDataset: Map<string, Set<string>>,
+): ChartConfig {
+  return {
+    ...cfg,
+    layers: cfg.layers.filter((layer) => {
+      if (!datasetIds.has(layer.datasetId)) return false;
+      const colIds = columnIdsByDataset.get(layer.datasetId);
+      if (!colIds) return false;
+      if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
+      if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
+      if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
+      if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
+      if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
+      if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
+      if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
+      if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
+      return true;
+    }),
+  };
+}
+
 /** Validate, sanitize, and fix dangling references in a ProjectFile */
 export function sanitizeProjectFile(data: unknown): ProjectFile | null {
   if (!isValidProjectFile(data)) return null;
@@ -334,23 +359,7 @@ export function sanitizeProjectFile(data: unknown): ProjectFile | null {
       .map((c) => sanitizeChartConfig(c))
       .filter((c): c is ChartConfig => c !== null)
       // Drop layers with missing dataset/column references, per subplot.
-      .map((cfg) => ({
-        ...cfg,
-        layers: cfg.layers.filter((layer) => {
-          if (!datasetIds.has(layer.datasetId)) return false;
-          const colIds = columnIdsByDataset.get(layer.datasetId);
-          if (!colIds) return false;
-          if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
-          if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
-          if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
-          if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
-          if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
-          if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
-          if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
-          if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
-          return true;
-        }),
-      }));
+      .map((cfg) => filterValidLayers(cfg, datasetIds, columnIdsByDataset));
     // Pad with a default subplot if sanitization dropped entries, so we always
     // satisfy the invariant subplots.length === rows * cols.
     while (sanitizedSubplots.length < rows * cols) {
@@ -371,20 +380,7 @@ export function sanitizeProjectFile(data: unknown): ProjectFile | null {
       cfg = sanitizeChartConfig({ id: 'default', type: 'line' });
       if (!cfg) return null;
     }
-    cfg.layers = cfg.layers.filter((layer) => {
-      if (!datasetIds.has(layer.datasetId)) return false;
-      const colIds = columnIdsByDataset.get(layer.datasetId);
-      if (!colIds) return false;
-      if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
-      if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
-      if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
-      if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
-      if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
-      if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
-      if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
-      if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
-      return true;
-    });
+    cfg = filterValidLayers(cfg, datasetIds, columnIdsByDataset);
     figure = { rows: 1, cols: 1, subplots: [cfg], activeIndex: 0, gap: 8 };
   }
 
