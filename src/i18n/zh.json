@@ -585,6 +585,7 @@
     "copyFailed": "复制失败",
     "svgNotSupported3d": "3D 图表不支持导出 SVG",
     "noZColumnFor3D": "当前数据集缺少 Z 列，无法创建 3D 图表",
+    "shareTooLarge": "分享链接过长，无法编码（超过 8KB）",
     "batchImportSuccess": "已导入 {{count}} 个文件",
     "batchImportFailed": "{{count}} 个文件导入失败",
     "batchStatsDone": "已计算 {{count}} 个数据集的统计",

@@ -585,6 +585,7 @@
     "copyFailed": "Failed to copy",
     "svgNotSupported3d": "SVG export is not supported for 3D charts",
     "noZColumnFor3D": "Current dataset has no Z column for 3D charts",
+    "shareTooLarge": "Share link is too large to encode (exceeds 8KB)",
     "batchImportSuccess": "Imported {{count}} file(s)",
     "batchImportFailed": "{{count}} file(s) failed to import",
     "batchStatsDone": "Stats computed for {{count}} dataset(s)",
