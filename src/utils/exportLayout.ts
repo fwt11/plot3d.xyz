@@ -610,20 +610,13 @@ export async function exportFigureToSvg(
     return { w: Math.max(1, Math.round(rect.width)), h: Math.max(1, Math.round(rect.height)) };
   });
   const scale = opts.scale * opts.figureMultiplier;
-  // Per-cell slot size (matches the inner SVG size — no extra empty space).
-  const slotSizes = cellSizes.map((s) => ({ w: s.w * scale, h: s.h * scale }));
-  const colWidths: number[] = [];
-  const rowHeights: number[] = [];
-  for (let c = 0; c < cols; c++) colWidths.push(Math.max(...slotSizes.filter((_, i) => i % cols === c).map((s) => s.w)));
-  for (let r = 0; r < rows; r++) rowHeights.push(Math.max(...slotSizes.filter((_, i) => Math.floor(i / cols) === r).map((s) => s.h)));
-  const colOffsets: number[] = [];
-  const rowOffsets: number[] = [];
-  let acc = 0;
-  for (const w of colWidths) { colOffsets.push(acc); acc += w + gap; }
-  acc = 0;
-  for (const h of rowHeights) { rowOffsets.push(acc); acc += h + gap; }
-  const gridW = acc - gap;
-  const gridH = rowOffsets[rowOffsets.length - 1] + rowHeights[rowHeights.length - 1];
+  // Uniform slot size across all cells (matches the PNG path's behavior and
+  // avoids the inner-SVG viewBox/preserveAspectRatio letterboxing that produced
+  // huge empty gaps when slot sizes differed from cell sizes).
+  const cellW = Math.max(...cellSizes.map((s) => s.w)) * scale;
+  const cellH = Math.max(...cellSizes.map((s) => s.h)) * scale;
+  const gridW = cols * cellW + Math.max(0, cols - 1) * gap;
+  const gridH = rows * cellH + Math.max(0, rows - 1) * gap;
 
   const cells = await Promise.all(
     cellDivs.map((cell, i) => renderCellToSvgOrImage(cell, cellConfigs[i], opts)),
@@ -651,11 +644,11 @@ export async function exportFigureToSvg(
   for (let i = 0; i < cellDivs.length; i++) {
     const row = Math.floor(i / cols);
     const col = i % cols;
-    const x = colOffsets[col];
-    const y = rowOffsets[row];
+    const x = col * (cellW + gap);
+    const y = row * (cellH + gap);
     const cellInfo = cells[i];
-    const targetW = slotSizes[i].w;
-    const targetH = slotSizes[i].h;
+    const targetW = cellW;
+    const targetH = cellH;
 
     const group = document.createElementNS(ns, 'g');
     group.setAttribute('transform', `translate(${x}, ${y})`);
