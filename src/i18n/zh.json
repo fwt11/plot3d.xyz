@@ -60,7 +60,9 @@
     "dark": "深色",
     "switchLight": "切换浅色主题",
     "switchDark": "切换深色主题",
-    "exportAdvanced": "高级导出"
+    "exportAdvanced": "高级导出",
+    "share": "分享",
+    "shareLink": "复制分享链接"
   },
   "generate": {
     "sampleData": "示例数据",
@@ -588,6 +590,8 @@
     "svgNotSupported3d": "3D 图表不支持导出 SVG",
     "noZColumnFor3D": "当前数据集缺少 Z 列，无法创建 3D 图表",
     "shareTooLarge": "分享链接过长，无法编码（超过 8KB）",
+    "shareCopied": "分享链接已复制到剪贴板",
+    "shareLoaded": "已加载分享的图表",
     "batchImportSuccess": "已导入 {{count}} 个文件",
     "batchImportFailed": "{{count}} 个文件导入失败",
     "batchStatsDone": "已计算 {{count}} 个数据集的统计",

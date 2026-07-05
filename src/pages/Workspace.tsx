@@ -19,6 +19,8 @@ import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
+import { parseShareHash, decodeShareFigure } from '@/utils/shareLink';
+import { useToastStore } from '@/store/toastStore';
 import type { Annotation } from '@/types';
 import { uid } from '@/utils/sampleData';
 
@@ -163,6 +165,18 @@ export default function Workspace() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Hash-on-load: if the URL carries a #d= share fragment, decode it once and
+  // replace the current figure. Runs only on mount.
+  useEffect(() => {
+    const fragment = parseShareHash(window.location.href);
+    if (!fragment) return;
+    const figure = decodeShareFigure(window.location.href);
+    if (!figure) return;
+    useChartStore.setState({ figure });
+    const { addToast } = useToastStore.getState();
+    addToast(t('toast.shareLoaded', { defaultValue: 'Loaded shared figure' }), 'success');
+  }, []);
 
   // Resizable panel tracking
   useEffect(() => {

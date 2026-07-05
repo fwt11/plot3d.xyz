@@ -60,7 +60,9 @@
     "dark": "Dark",
     "switchLight": "Switch to Light Theme",
     "switchDark": "Switch to Dark Theme",
-    "exportAdvanced": "Advanced Export"
+    "exportAdvanced": "Advanced Export",
+    "share": "Share",
+    "shareLink": "Copy Share Link"
   },
   "generate": {
     "sampleData": "Sample Data",
@@ -588,6 +590,8 @@
     "svgNotSupported3d": "SVG export is not supported for 3D charts",
     "noZColumnFor3D": "Current dataset has no Z column for 3D charts",
     "shareTooLarge": "Share link is too large to encode (exceeds 8KB)",
+    "shareCopied": "Share link copied to clipboard",
+    "shareLoaded": "Loaded shared figure",
     "batchImportSuccess": "Imported {{count}} file(s)",
     "batchImportFailed": "{{count}} file(s) failed to import",
     "batchStatsDone": "Stats computed for {{count}} dataset(s)",

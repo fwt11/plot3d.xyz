@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useUiStore, useDatasetStore, useChartStore, useHistoryStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2 } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2, Share2 } from 'lucide-react';
 import type { Dataset } from '@/types';
 import { uid, createSampleSineDataset, createSampleSurfaceDataset, createSampleScatter3DDataset, createSampleBarDataset } from '@/utils/sampleData';
 import Papa from 'papaparse';
@@ -16,6 +16,7 @@ import { encodeTiff } from '@/utils/tiffEncoder';
 import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
 import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
 import { ExportModal } from '@/components/ExportModal';
+import { encodeShareFigure } from '@/utils/shareLink';
 
 /** Parse a single CSV/XLSX file into a Dataset. */
 function parseFileToDataset(file: File): Promise<Dataset> {
@@ -530,6 +531,20 @@ export function FileTab() {
     projectInputRef.current?.click();
   };
 
+  const handleShare = async () => {
+    const url = encodeShareFigure(useChartStore.getState().figure);
+    if (!url) {
+      addToast(t('toast.shareTooLarge'), 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      addToast(t('toast.shareCopied', { defaultValue: 'Share link copied to clipboard' }), 'success');
+    } catch {
+      addToast(t('toast.copyFailed'), 'error');
+    }
+  };
+
   const handleProjectFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -572,6 +587,10 @@ export function FileTab() {
         <button onClick={handleLoadProject} className="ribbon-btn" title={t('file.loadProject')} aria-label={t('file.loadProject')}>
           <FolderOpen size={16} />
           <span className="text-xs">{t('file.loadProject')}</span>
+        </button>
+        <button onClick={handleShare} className="ribbon-btn" title={t('file.shareLink', { defaultValue: 'Copy Share Link' })} aria-label={t('file.share', { defaultValue: 'Share' })}>
+          <Share2 size={16} />
+          <span className="text-xs">{t('file.share', { defaultValue: 'Share' })}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('file.import')}>
