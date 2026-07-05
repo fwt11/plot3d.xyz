@@ -36,6 +36,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
   const chartConfig = useChartStore((s) => s.figure.subplots[subplotIndex]);
   const activeIndex = useChartStore((s) => s.figure.activeIndex);
   const total = useChartStore((s) => s.figure.subplots.length);
+  const isMultiCell = useChartStore((s) => s.figure.subplots.length > 1);
   const setActiveSubplot = useChartStore((s) => s.setActiveSubplot);
   const isActive = activeIndex === subplotIndex;
   const datasets = useDatasetStore((s) => s.datasets);
@@ -169,6 +170,11 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
     const target = e.target as HTMLElement;
     const annotationId = target.closest<HTMLElement>('[data-annotation-id]')?.dataset.annotationId;
     const selectedAnn = annotationId ? chartConfig.annotations.find((a) => a.id === annotationId) : undefined;
+
+    // In a multi-cell figure, let the right-click bubble up to ChartView's
+    // figure-level context menu — but keep the annotation edit menu when
+    // right-clicking on an annotation shape.
+    if (isMultiCell && !selectedAnn) return;
 
     const baseExportItems: MenuItemOrSeparator[] = [
       {
@@ -377,7 +383,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
     }
 
     showContextMenu(e, items);
-  }, [chartConfig, datasets, is3DType, theme, t, addToast, onDuplicateAnnotation, onBringToFrontAnnotation, onSendToBackAnnotation, onUpdateAnnotationLocked, onRemoveAnnotation, setSelectedAnnotationId, setEditingAnnotationId]);
+  }, [chartConfig, datasets, is3DType, theme, t, addToast, isMultiCell, onDuplicateAnnotation, onBringToFrontAnnotation, onSendToBackAnnotation, onUpdateAnnotationLocked, onRemoveAnnotation, setSelectedAnnotationId, setEditingAnnotationId]);
 
   const chartType = chartConfig.type as ChartType;
   const isScatter = chartType === 'scatter';
