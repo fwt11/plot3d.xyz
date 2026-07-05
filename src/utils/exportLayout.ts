@@ -699,6 +699,16 @@ export async function exportFigureToSvg(
       const innerSvg = doc.documentElement as unknown as SVGSVGElement;
       innerSvg.setAttribute('width', String(Math.round(targetW)));
       innerSvg.setAttribute('height', String(Math.round(targetH)));
+      // Set viewBox to the original (intrinsic) coordinate space so the
+      // content — drawn at the on-screen size by Plotly — scales to fill
+      // the new (scaled) slot. Without this, the SVG spec defaults the
+      // viewBox to the new width/height, leaving content confined to the
+      // top-left quadrant and creating large empty whitespace below/right
+      // of each chart (perceived as oversized gaps between subplots).
+      innerSvg.setAttribute(
+        'viewBox',
+        `0 0 ${cellInfo.intrinsicW} ${cellInfo.intrinsicH}`,
+      );
       innerSvg.setAttribute('x', '0');
       innerSvg.setAttribute('y', '0');
       group.appendChild(innerSvg);
