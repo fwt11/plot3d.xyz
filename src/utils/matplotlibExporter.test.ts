@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateMatplotlibScript, latexForMatplotlib } from './matplotlibExporter';
-import type { ChartConfig, Dataset } from '@/types';
+import { generateMatplotlibScript, generateFigureMatplotlibScript, latexForMatplotlib } from './matplotlibExporter';
+import type { ChartConfig, Dataset, FigureConfig } from '@/types';
 
 const sampleDatasets: Dataset[] = [
   {
@@ -266,6 +266,38 @@ describe('generateMatplotlibScript (Phase 5 Task 5.1)', () => {
     const script = generateMatplotlibScript(cfg, sampleDatasets);
     // mathtext uses $...$ inline; should pass through
     expect(script).toContain('y = 2x + 1');
+  });
+});
+
+describe('single-chart matplotlib snapshot (Task 4.5 guard)', () => {
+  it('single-chart matplotlib output is stable', () => {
+    expect(generateMatplotlibScript(baseConfig, sampleDatasets, { dpi: 300 })).toMatchSnapshot();
+  });
+});
+
+describe('generateFigureMatplotlibScript (Task 4.5)', () => {
+  it('1x1 emits a plt.subplots script via delegation', () => {
+    const fig: FigureConfig = { rows: 1, cols: 1, activeIndex: 0, gap: 8, subplots: [baseConfig] };
+    const script = generateFigureMatplotlibScript(fig, sampleDatasets, {});
+    expect(script).toContain('plt.subplots');
+  });
+
+  it('2x1 emits both axes populated with axs[0] and axs[1]', () => {
+    const cfg2: ChartConfig = { ...baseConfig, id: 'c2', title: 'Second' };
+    const fig: FigureConfig = { rows: 2, cols: 1, activeIndex: 0, gap: 8, subplots: [baseConfig, cfg2] };
+    const script = generateFigureMatplotlibScript(fig, sampleDatasets, {});
+    expect(script).toContain('plt.subplots(2, 1');
+    expect(script).toMatch(/axs\[0\]/);
+    expect(script).toMatch(/axs\[1\]/);
+  });
+
+  it('variable names do not collide across subplots (unique prefix per subplot)', () => {
+    const cfg2: ChartConfig = { ...baseConfig, id: 'c2', title: 'Second' };
+    const fig: FigureConfig = { rows: 2, cols: 1, activeIndex: 0, gap: 8, subplots: [baseConfig, cfg2] };
+    const script = generateFigureMatplotlibScript(fig, sampleDatasets, {});
+    // Each subplot's data arrays must be namespaced: 's0_x0' and 's1_x0' rather than colliding 'x0'.
+    expect(script).toContain('s0_x0');
+    expect(script).toContain('s1_x0');
   });
 });
 

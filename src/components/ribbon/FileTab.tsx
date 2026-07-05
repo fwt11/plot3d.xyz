@@ -14,7 +14,7 @@ import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
 import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
-import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
+import { downloadFigureMatplotlibScript } from '@/utils/matplotlibExporter';
 import { ExportModal } from '@/components/ExportModal';
 import { encodeShareFigure } from '@/utils/shareLink';
 
@@ -497,8 +497,10 @@ export function FileTab() {
 
   const handleExportMatplotlib = () => {
     const allDatasets = useDatasetStore.getState().datasets;
+    const figure = useChartStore.getState().figure;
     try {
-      downloadMatplotlibScript(chartConfig, allDatasets, {
+      // Figure-level: emits a plt.subplots grid for multi-cell figures, single chart for 1×1.
+      downloadFigureMatplotlibScript(figure, allDatasets, {
         dpi: exportConfig.resolutionMultiplier * 96,
         filename: chartConfig.title || 'chart',
       });
