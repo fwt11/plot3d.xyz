@@ -208,7 +208,7 @@ export default function Workspace() {
         const uiState = useUiStore.getState();
         const project = serializeProject({
           datasets: dsState.datasets,
-          chartConfig: selectActiveChart(chartState),
+          figure: chartState.figure,
           theme: uiState.theme,
           lang: uiState.lang,
         });

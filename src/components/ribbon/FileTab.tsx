@@ -514,7 +514,7 @@ export function FileTab() {
       const uiState = useUiStore.getState();
       const project = serializeProject({
         datasets: dsState.datasets,
-        chartConfig: selectActiveChart(chartState),
+        figure: chartState.figure,
         theme: uiState.theme,
         lang: uiState.lang,
       });
@@ -545,7 +545,7 @@ export function FileTab() {
       activeDatasetId: project.datasets[0]?.id ?? null,
     });
     useChartStore.setState({
-      figure: { rows: 1, cols: 1, subplots: [project.chartConfig], activeIndex: 0, gap: 8 },
+      figure: project.figure,
     });
     // Clear history after loading a project
     useHistoryStore.setState({ _past: [], _future: [] });

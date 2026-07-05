@@ -1,7 +1,7 @@
-import type { Dataset, ChartConfig, DataColumn, LayerConfig, Annotation, AnnotationType } from '@/types';
+import type { Dataset, ChartConfig, DataColumn, FigureConfig, LayerConfig, Annotation, AnnotationType } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 5;
+const PROJECT_VERSION = 6;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
 const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
@@ -16,7 +16,7 @@ export interface ProjectFile {
   createdAt: string;
   updatedAt: string;
   datasets: Dataset[];
-  chartConfig: ChartConfig;
+  figure: FigureConfig;
   theme: 'light' | 'dark';
   lang: 'zh' | 'en';
 }
@@ -24,7 +24,7 @@ export interface ProjectFile {
 /** Serialize current application state into a ProjectFile */
 export function serializeProject(state: {
   datasets: Dataset[];
-  chartConfig: ChartConfig;
+  figure: FigureConfig;
   theme: 'light' | 'dark';
   lang: 'zh' | 'en';
 }): ProjectFile {
@@ -33,7 +33,7 @@ export function serializeProject(state: {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     datasets: JSON.parse(JSON.stringify(state.datasets)),
-    chartConfig: JSON.parse(JSON.stringify(state.chartConfig)),
+    figure: JSON.parse(JSON.stringify(state.figure)),
     theme: state.theme,
     lang: state.lang,
   };
@@ -303,49 +303,100 @@ export function isValidProjectFile(data: unknown): data is ProjectFile {
   return (
     typeof obj.version === 'number' &&
     Array.isArray(obj.datasets) &&
-    typeof obj.chartConfig === 'object' && obj.chartConfig !== null
+    (
+      (typeof obj.figure === 'object' && obj.figure !== null) ||
+      (typeof obj.chartConfig === 'object' && obj.chartConfig !== null)
+    )
   );
 }
 
 /** Validate, sanitize, and fix dangling references in a ProjectFile */
 export function sanitizeProjectFile(data: unknown): ProjectFile | null {
   if (!isValidProjectFile(data)) return null;
+  // Re-widen to a loose record so we can read both v6 `figure` and legacy
+  // v1..v5 `chartConfig` (the ProjectFile type only carries `figure` now).
+  const rawData = data as unknown as Record<string, unknown>;
 
-  const datasets = data.datasets.map((d) => sanitizeDataset(d)).filter((d): d is Dataset => d !== null);
+  const datasets = (rawData.datasets as unknown[]).map((d) => sanitizeDataset(d)).filter((d): d is Dataset => d !== null);
   const datasetIds = new Set(datasets.map((d) => d.id));
-  const columnIdsByDataset = new Map(datasets.map((d) => [d.id, new Set(d.columns.map((c) => c.id))]));
+  const columnIdsByDataset: Map<string, Set<string>> = new Map(
+    datasets.map((d) => [d.id, new Set(d.columns.map((c) => c.id))]),
+  );
 
-  let chartConfig = sanitizeChartConfig(data.chartConfig);
-  if (!chartConfig) {
-    chartConfig = sanitizeChartConfig({ id: 'default', type: 'line' });
-    if (!chartConfig) return null;
+  // Resolve figure: prefer v6 `figure`, fall back to legacy v5 `chartConfig`.
+  let figure: FigureConfig;
+  if (typeof rawData.figure === 'object' && rawData.figure !== null) {
+    const raw = rawData.figure as Record<string, unknown>;
+    const rows = Math.max(1, Math.floor(Number(raw.rows) || 1));
+    const cols = Math.max(1, Math.floor(Number(raw.cols) || 1));
+    const rawSubplots = Array.isArray(raw.subplots) ? raw.subplots : [];
+    const sanitizedSubplots = rawSubplots
+      .map((c) => sanitizeChartConfig(c))
+      .filter((c): c is ChartConfig => c !== null)
+      // Drop layers with missing dataset/column references, per subplot.
+      .map((cfg) => ({
+        ...cfg,
+        layers: cfg.layers.filter((layer) => {
+          if (!datasetIds.has(layer.datasetId)) return false;
+          const colIds = columnIdsByDataset.get(layer.datasetId);
+          if (!colIds) return false;
+          if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
+          if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
+          if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
+          if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
+          if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
+          if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
+          if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
+          if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
+          return true;
+        }),
+      }));
+    // Pad with a default subplot if sanitization dropped entries, so we always
+    // satisfy the invariant subplots.length === rows * cols.
+    while (sanitizedSubplots.length < rows * cols) {
+      const fallback = sanitizeChartConfig({ id: 'default', type: 'line' });
+      if (!fallback) break;
+      sanitizedSubplots.push(fallback);
+    }
+    const clampedActiveIndex = Math.max(0, Math.min(
+      Math.floor(Number(raw.activeIndex) || 0),
+      Math.max(0, sanitizedSubplots.length - 1),
+    ));
+    const gap = Math.max(0, Number(raw.gap) || 0);
+    figure = { rows, cols, subplots: sanitizedSubplots, activeIndex: clampedActiveIndex, gap };
+  } else {
+    // Legacy v5 file: wrap single chartConfig as 1x1 figure.
+    let cfg = sanitizeChartConfig(rawData.chartConfig);
+    if (!cfg) {
+      cfg = sanitizeChartConfig({ id: 'default', type: 'line' });
+      if (!cfg) return null;
+    }
+    cfg.layers = cfg.layers.filter((layer) => {
+      if (!datasetIds.has(layer.datasetId)) return false;
+      const colIds = columnIdsByDataset.get(layer.datasetId);
+      if (!colIds) return false;
+      if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
+      if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
+      if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
+      if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
+      if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
+      if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
+      if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
+      if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
+      return true;
+    });
+    figure = { rows: 1, cols: 1, subplots: [cfg], activeIndex: 0, gap: 8 };
   }
 
-  // Remove layers that reference missing datasets or columns
-  chartConfig.layers = chartConfig.layers.filter((layer) => {
-    if (!datasetIds.has(layer.datasetId)) return false;
-    const colIds = columnIdsByDataset.get(layer.datasetId);
-    if (!colIds) return false;
-    if (!colIds.has(layer.xColumn) || !colIds.has(layer.yColumn)) return false;
-    if (layer.zColumn && !colIds.has(layer.zColumn)) return false;
-    if (layer.errorColumn && !colIds.has(layer.errorColumn)) return false;
-    if (layer.errorPlusColumn && !colIds.has(layer.errorPlusColumn)) return false;
-    if (layer.errorMinusColumn && !colIds.has(layer.errorMinusColumn)) return false;
-    if (layer.errorXColumn && !colIds.has(layer.errorXColumn)) return false;
-    if (layer.errorXPlusColumn && !colIds.has(layer.errorXPlusColumn)) return false;
-    if (layer.errorXMinusColumn && !colIds.has(layer.errorXMinusColumn)) return false;
-    return true;
-  });
-
-  const theme = data.theme === 'light' ? 'light' : 'dark';
-  const lang = data.lang === 'en' ? 'en' : 'zh';
+  const theme = rawData.theme === 'light' ? 'light' : 'dark';
+  const lang = rawData.lang === 'en' ? 'en' : 'zh';
 
   return {
     version: PROJECT_VERSION,
-    createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
+    createdAt: typeof rawData.createdAt === 'string' ? rawData.createdAt : new Date().toISOString(),
+    updatedAt: typeof rawData.updatedAt === 'string' ? rawData.updatedAt : new Date().toISOString(),
     datasets,
-    chartConfig,
+    figure,
     theme,
     lang,
   };
@@ -390,6 +441,12 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     }
     // v4 -> v5: annotation model expanded with more types and style fields.
     if (typeof data === 'object' && data !== null && data.version === 4) {
+      data.version = PROJECT_VERSION;
+    }
+    // v5 -> v6: file format migrated from `chartConfig` to `figure`. The sanitizer
+    // wraps legacy `chartConfig` into a 1x1 figure automatically; we just bump the
+    // version so the saved file is recognized as v6.
+    if (typeof data === 'object' && data !== null && data.version === 5) {
       data.version = PROJECT_VERSION;
     }
     return sanitizeProjectFile(data);
