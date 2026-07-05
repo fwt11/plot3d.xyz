@@ -482,26 +482,46 @@ async function renderCellToPng(
 }
 
 /**
- * Render a single cell to an SVG string. 3D cells fall back to a PNG-embedded
- * `<image>` since 3D Plotly charts cannot be represented as native SVG.
+ * Render a single cell to an SVG string (2D) or PNG data URL (3D). Returns the
+ * inner content's intrinsic dimensions (matching the on-screen size from
+ * Plotly's cloned SVG / the plotlyDiv bounding rect) so the composite can
+ * size each slot to the cell's natural aspect ratio. This avoids the inner
+ * SVG's `viewBox` + `preserveAspectRatio="xMidYMid meet"` letterboxing when
+ * a uniform slot aspect differs from each cell's intrinsic aspect.
  */
 async function renderCellToSvgOrImage(
   cell: HTMLElement,
   chartConfig: ChartConfig,
   opts: { scale: number; backgroundColor?: string; figureMultiplier: number },
-): Promise<{ kind: 'svg' | 'image'; content: string; width: number; height: number }> {
+): Promise<{
+  kind: 'svg' | 'image';
+  content: string;
+  width: number;
+  height: number;
+  intrinsicW: number;
+  intrinsicH: number;
+}> {
   const is3D = cell.hasAttribute('data-chart-area-3d');
   const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
   if (!plotlyDiv) throw new Error('Cell missing .js-plotly-plot element');
   const rect = plotlyDiv.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width));
-  const height = Math.max(1, Math.round(rect.height));
+  const bboxW = Math.max(1, Math.round(rect.width));
+  const bboxH = Math.max(1, Math.round(rect.height));
   if (is3D) {
     const pngDataUrl = await export3DToPng(plotlyDiv, chartConfig, opts);
-    return { kind: 'image', content: pngDataUrl, width, height };
+    return { kind: 'image', content: pngDataUrl, width: bboxW, height: bboxH, intrinsicW: bboxW, intrinsicH: bboxH };
   }
   const svgString = await serialize2DChartSVG(plotlyDiv, { backgroundColor: opts.backgroundColor });
-  return { kind: 'svg', content: svgString, width, height };
+  // The cloned Plotly SVG carries its own width/height attributes matching the
+  // on-screen size (the same numbers Plotly used to render). Treat those as
+  // the inner content's intrinsic dimensions so the composite can place each
+  // cell at its natural aspect ratio.
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const innerSvg = doc.documentElement as unknown as SVGSVGElement;
+  const intrinsicW = Math.max(1, parseFloat(innerSvg.getAttribute('width') || `${bboxW}`));
+  const intrinsicH = Math.max(1, parseFloat(innerSvg.getAttribute('height') || `${bboxH}`));
+  return { kind: 'svg', content: svgString, width: bboxW, height: bboxH, intrinsicW, intrinsicH };
 }
 
 interface FigureExportOpts {
@@ -604,23 +624,39 @@ export async function exportFigureToSvg(
   if (cellDivs.length !== rows * cols || cellConfigs.length !== rows * cols) {
     throw new Error(`exportFigureToSvg: expected ${rows * cols} cells and configs, got ${cellDivs.length} / ${cellConfigs.length}`);
   }
-  const cellSizes = cellDivs.map((cell) => {
-    const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
-    const rect = plotlyDiv?.getBoundingClientRect() ?? cell.getBoundingClientRect();
-    return { w: Math.max(1, Math.round(rect.width)), h: Math.max(1, Math.round(rect.height)) };
-  });
-  const scale = opts.scale * opts.figureMultiplier;
-  // Uniform slot size across all cells (matches the PNG path's behavior and
-  // avoids the inner-SVG viewBox/preserveAspectRatio letterboxing that produced
-  // huge empty gaps when slot sizes differed from cell sizes).
-  const cellW = Math.max(...cellSizes.map((s) => s.w)) * scale;
-  const cellH = Math.max(...cellSizes.map((s) => s.h)) * scale;
-  const gridW = cols * cellW + Math.max(0, cols - 1) * gap;
-  const gridH = rows * cellH + Math.max(0, rows - 1) * gap;
-
+  // Capture the inner content of each cell first so we know the intrinsic
+  // dimensions to use for slot sizing.
   const cells = await Promise.all(
     cellDivs.map((cell, i) => renderCellToSvgOrImage(cell, cellConfigs[i], opts)),
   );
+  const scale = opts.scale * opts.figureMultiplier;
+
+  // Compute per-row / per-column slot sizes from each cell's intrinsic
+  // dimensions. Each row's height is the max intrinsic height of cells in
+  // that row; each column's width is the max intrinsic width of cells in
+  // that column. This preserves each cell's natural aspect ratio (so its
+  // own viewBox matches its slot, avoiding letterboxing) while still
+  // supporting non-uniform grids.
+  const colIntrinsicW: number[] = new Array(cols).fill(0);
+  const rowIntrinsicH: number[] = new Array(rows).fill(0);
+  for (let i = 0; i < cells.length; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    colIntrinsicW[col] = Math.max(colIntrinsicW[col], cells[i].intrinsicW);
+    rowIntrinsicH[row] = Math.max(rowIntrinsicH[row], cells[i].intrinsicH);
+  }
+  const colWidths = colIntrinsicW.map((w) => w * scale);
+  const rowHeights = rowIntrinsicH.map((h) => h * scale);
+  const colOffsets: number[] = new Array(cols + 1).fill(0);
+  const rowOffsets: number[] = new Array(rows + 1).fill(0);
+  for (let c = 0; c < cols; c++) {
+    colOffsets[c + 1] = colOffsets[c] + colWidths[c] + (c < cols - 1 ? gap : 0);
+  }
+  for (let r = 0; r < rows; r++) {
+    rowOffsets[r + 1] = rowOffsets[r] + rowHeights[r] + (r < rows - 1 ? gap : 0);
+  }
+  const gridW = colOffsets[cols];
+  const gridH = rowOffsets[rows];
 
   const ns = 'http://www.w3.org/2000/svg';
   const xlinkNs = 'http://www.w3.org/1999/xlink';
@@ -644,16 +680,21 @@ export async function exportFigureToSvg(
   for (let i = 0; i < cellDivs.length; i++) {
     const row = Math.floor(i / cols);
     const col = i % cols;
-    const x = col * (cellW + gap);
-    const y = row * (cellH + gap);
+    const x = colOffsets[col];
+    const y = rowOffsets[row];
     const cellInfo = cells[i];
-    const targetW = cellW;
-    const targetH = cellH;
+    // Each cell's slot is sized to its own intrinsic aspect at this scale;
+    // the inner SVG's `width`/`height` matches its own `viewBox` aspect, so
+    // `preserveAspectRatio="xMidYMid meet"` produces a 1:1 fit (no
+    // letterboxing, no stretching).
+    const targetW = cellInfo.intrinsicW * scale;
+    const targetH = cellInfo.intrinsicH * scale;
 
     const group = document.createElementNS(ns, 'g');
     group.setAttribute('transform', `translate(${x}, ${y})`);
     if (cellInfo.kind === 'svg') {
-      // Parse and inline the cell SVG, scaling it to the target size.
+      // Parse and inline the cell SVG, sizing it to the per-cell intrinsic
+      // dimensions so its viewBox aspect matches the slot aspect.
       const doc = parser.parseFromString(cellInfo.content, 'image/svg+xml');
       const innerSvg = doc.documentElement as unknown as SVGSVGElement;
       innerSvg.setAttribute('width', String(Math.round(targetW)));
