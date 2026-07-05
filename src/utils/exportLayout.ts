@@ -462,3 +462,220 @@ export async function export2DChartPNGFromSVG(
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/png');
 }
+
+/**
+ * Render a single cell to a PNG data URL, dispatching to the 3D or 2D path
+ * based on the cell's `data-chart-area-3d` attribute. Used by the figure
+ * composite exports below.
+ */
+async function renderCellToPng(
+  cell: HTMLElement,
+  chartConfig: ChartConfig,
+  opts: { scale: number; backgroundColor?: string; figureMultiplier: number },
+): Promise<string> {
+  const is3D = cell.hasAttribute('data-chart-area-3d');
+  const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
+  if (!plotlyDiv) throw new Error('Cell missing .js-plotly-plot element');
+  return is3D
+    ? export3DToPng(plotlyDiv, chartConfig, opts)
+    : export2DChartPNGFromSVG(plotlyDiv, opts);
+}
+
+/**
+ * Render a single cell to an SVG string. 3D cells fall back to a PNG-embedded
+ * `<image>` since 3D Plotly charts cannot be represented as native SVG.
+ */
+async function renderCellToSvgOrImage(
+  cell: HTMLElement,
+  chartConfig: ChartConfig,
+  opts: { scale: number; backgroundColor?: string; figureMultiplier: number },
+): Promise<{ kind: 'svg' | 'image'; content: string; width: number; height: number }> {
+  const is3D = cell.hasAttribute('data-chart-area-3d');
+  const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
+  if (!plotlyDiv) throw new Error('Cell missing .js-plotly-plot element');
+  const rect = plotlyDiv.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  if (is3D) {
+    const pngDataUrl = await export3DToPng(plotlyDiv, chartConfig, opts);
+    return { kind: 'image', content: pngDataUrl, width, height };
+  }
+  const svgString = await serialize2DChartSVG(plotlyDiv, { backgroundColor: opts.backgroundColor });
+  return { kind: 'svg', content: svgString, width, height };
+}
+
+interface FigureExportOpts {
+  /** Resolution multiplier for per-cell export (passed to the cell renderers). */
+  scale: number;
+  /** Optional background color filled behind all cells before drawing. */
+  backgroundColor?: string;
+  /** Figure-size multiplier passed to per-cell renderers. */
+  figureMultiplier: number;
+}
+
+/**
+ * Composite all cells of a figure into a single PNG. Cells are placed in
+ * row-major order at `(col * (cellW + gap), row * (cellH + gap))`. The
+ * per-cell target size is the largest cell width/height across the grid,
+ * scaled by `opts.scale * opts.figureMultiplier`.
+ *
+ * `cellConfigs` must be in row-major order matching `cellDivs` — typically
+ * `figure.subplots`.
+ */
+export async function exportFigureToPng(
+  cellDivs: HTMLElement[],
+  cellConfigs: ChartConfig[],
+  rows: number,
+  cols: number,
+  gap: number,
+  opts: FigureExportOpts,
+): Promise<string> {
+  if (cellDivs.length !== rows * cols || cellConfigs.length !== rows * cols) {
+    throw new Error(`exportFigureToPng: expected ${rows * cols} cells and configs, got ${cellDivs.length} / ${cellConfigs.length}`);
+  }
+  // Measure each cell. Use the bounding box of the inner plotly div so the
+  // aspect ratio matches the on-screen chart (not the wrapper padding).
+  const cellSizes = cellDivs.map((cell) => {
+    const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
+    const rect = plotlyDiv?.getBoundingClientRect() ?? cell.getBoundingClientRect();
+    return { w: Math.max(1, Math.round(rect.width)), h: Math.max(1, Math.round(rect.height)) };
+  });
+  // Uniform per-cell target = max dimension × scale × figureMultiplier
+  const scale = opts.scale * opts.figureMultiplier;
+  const cellW = Math.max(...cellSizes.map((s) => s.w)) * scale;
+  const cellH = Math.max(...cellSizes.map((s) => s.h)) * scale;
+  const gridW = cols * cellW + Math.max(0, cols - 1) * gap;
+  const gridH = rows * cellH + Math.max(0, rows - 1) * gap;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(gridW));
+  canvas.height = Math.max(1, Math.round(gridH));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Cannot get canvas 2d context');
+
+  if (opts.backgroundColor) {
+    ctx.fillStyle = opts.backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Render all cells concurrently, then draw.
+  const dataUrls = await Promise.all(
+    cellDivs.map((cell, i) => renderCellToPng(cell, cellConfigs[i], opts)),
+  );
+  const images = await Promise.all(
+    dataUrls.map(
+      (url) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to load cell image'));
+          img.src = url;
+        }),
+    ),
+  );
+
+  cellDivs.forEach((_, i) => {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x = col * (cellW + gap);
+    const y = row * (cellH + gap);
+    ctx.drawImage(images[i], x, y, cellW, cellH);
+  });
+
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Composite all cells of a figure into a single SVG. 2D cells are inlined as
+ * nested `<svg>` (vector); 3D cells are embedded as `<image href="data:...">`
+ * (raster — same limitation as today).
+ *
+ * `cellConfigs` must be in row-major order matching `cellDivs` — typically
+ * `figure.subplots`.
+ */
+export async function exportFigureToSvg(
+  cellDivs: HTMLElement[],
+  cellConfigs: ChartConfig[],
+  rows: number,
+  cols: number,
+  gap: number,
+  opts: FigureExportOpts,
+): Promise<string> {
+  if (cellDivs.length !== rows * cols || cellConfigs.length !== rows * cols) {
+    throw new Error(`exportFigureToSvg: expected ${rows * cols} cells and configs, got ${cellDivs.length} / ${cellConfigs.length}`);
+  }
+  const cellSizes = cellDivs.map((cell) => {
+    const plotlyDiv = cell.querySelector('.js-plotly-plot') as HTMLElement | null;
+    const rect = plotlyDiv?.getBoundingClientRect() ?? cell.getBoundingClientRect();
+    return { w: Math.max(1, Math.round(rect.width)), h: Math.max(1, Math.round(rect.height)) };
+  });
+  const scale = opts.scale * opts.figureMultiplier;
+  const cellW = Math.max(...cellSizes.map((s) => s.w)) * scale;
+  const cellH = Math.max(...cellSizes.map((s) => s.h)) * scale;
+  const gridW = cols * cellW + Math.max(0, cols - 1) * gap;
+  const gridH = rows * cellH + Math.max(0, rows - 1) * gap;
+
+  const cells = await Promise.all(
+    cellDivs.map((cell, i) => renderCellToSvgOrImage(cell, cellConfigs[i], opts)),
+  );
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const xlinkNs = 'http://www.w3.org/1999/xlink';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('xmlns', ns);
+  svg.setAttribute('xmlns:xlink', xlinkNs);
+  svg.setAttribute('width', String(Math.round(gridW)));
+  svg.setAttribute('height', String(Math.round(gridH)));
+  svg.setAttribute('viewBox', `0 0 ${gridW} ${gridH}`);
+
+  // Optional background rect behind everything
+  if (opts.backgroundColor) {
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('width', '100%');
+    bg.setAttribute('height', '100%');
+    bg.setAttribute('fill', opts.backgroundColor);
+    svg.appendChild(bg);
+  }
+
+  const parser = new DOMParser();
+  for (let i = 0; i < cellDivs.length; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    const x = col * (cellW + gap);
+    const y = row * (cellH + gap);
+    const cellInfo = cells[i];
+    const targetW = cellInfo.width * scale;
+    const targetH = cellInfo.height * scale;
+
+    const group = document.createElementNS(ns, 'g');
+    group.setAttribute('transform', `translate(${x}, ${y})`);
+    if (cellInfo.kind === 'svg') {
+      // Parse and inline the cell SVG, scaling it to the target size.
+      const doc = parser.parseFromString(cellInfo.content, 'image/svg+xml');
+      const innerSvg = doc.documentElement as unknown as SVGSVGElement;
+      innerSvg.setAttribute('width', String(Math.round(targetW)));
+      innerSvg.setAttribute('height', String(Math.round(targetH)));
+      innerSvg.setAttribute('x', '0');
+      innerSvg.setAttribute('y', '0');
+      group.appendChild(innerSvg);
+    } else {
+      // 3D cell: embed the raster PNG as an <image>
+      const image = document.createElementNS(ns, 'image');
+      image.setAttributeNS(xlinkNs, 'xlink:href', cellInfo.content);
+      image.setAttribute('href', cellInfo.content);
+      image.setAttribute('width', String(Math.round(targetW)));
+      image.setAttribute('height', String(Math.round(targetH)));
+      image.setAttribute('x', '0');
+      image.setAttribute('y', '0');
+      group.appendChild(image);
+    }
+    svg.appendChild(group);
+  }
+
+  const serializer = new XMLSerializer();
+  let svgString = serializer.serializeToString(svg);
+  if (!svgString.startsWith('<?xml')) {
+    svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
+  }
+  return svgString;
+}
