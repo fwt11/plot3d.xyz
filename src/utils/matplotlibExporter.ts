@@ -277,7 +277,7 @@ function emitSubplotData(
  * Emit a subplot's TRACES + ANNOTATIONS + AXES-TAIL + LEGEND section.
  *
  * `axVar` is the Python axes variable name to use in trace/annotation calls (e.g. 'ax' or
- * 'axs[0]'). Twin axes (for `yAxisSide === 'right'` layers) become `${axVar}2`. `idxPrefix`
+ * 'axs[0]'). Twin axes (for `yAxisSide === 'right'` layers) become `${axVar}_twin`. `idxPrefix`
  * namespaces Python variable names; pass '' for a single chart to preserve legacy names.
  */
 function emitSubplotTracesAndTail(
@@ -290,7 +290,7 @@ function emitSubplotTracesAndTail(
   const chartType = chartConfig.type;
   const is3D = is3DChart(chartType);
   const expanded = expandLayers(chartConfig, datasets);
-  const twinVar = `${axVar}2`;
+  const twinVar = `${axVar}_twin`;
 
   // ─── Traces ────────────────────────────────────────────
   lines.push('# ─── Traces ────────────────────────────────────────────────────');
