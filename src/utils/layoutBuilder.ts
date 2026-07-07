@@ -1,5 +1,6 @@
 import type { ChartConfig } from '@/types';
 import { axisLabelText, type ExpandedEntry } from '@/utils/tracesBuilder';
+import { detectColumnType } from '@/types';
 
 export interface ChartCssVars {
   textColor: string;
@@ -150,15 +151,28 @@ export function buildLayout(
   } else if (!isNoAxes) {
     const hasRightYAxis = expandedDatasets.some((e) => e.layer.yAxisSide === 'right');
 
+    // Auto-detect date X axis: if any expanded x column has been marked or looks
+    // like a date column, and the user hasn't pinned a timezone, fall back to UTC.
+    // Only fires under numeric-X modes; we don't want to silently change axis
+    // type for bar charts whose X is categorical by design.
+    const autoDate = useNumericX
+      && expandedDatasets.some((e) => {
+          const col = e.xCol;
+          if (!col) return false;
+          if (col.valueType === 'date') return true;
+          return detectColumnType(col.values) === 'date';
+        });
+    const effectiveTimezone = chartConfig.xAxis.timezone ?? (autoDate ? 'UTC' : undefined);
+
     const xAxisConfig: Record<string, unknown> = {
       title: {
-        text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.timezone && chartConfig.xAxis.timezone !== 'UTC'
-          ? `${chartConfig.xAxis.timezone}`
+        text: axisLabelText(chartConfig.xAxis.label, effectiveTimezone && effectiveTimezone !== 'UTC'
+          ? `${effectiveTimezone}`
           : chartConfig.xAxis.unit),
         font: { size: chartConfig.fontSize, color: cssVars.textSecondary },
         standoff: 10,
       },
-      type: chartConfig.xAxis.timezone
+      type: effectiveTimezone
         ? 'date'
         : (chartConfig.xAxis.logScale ? 'log' : (useNumericX ? 'linear' : 'category')),
       gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
@@ -178,10 +192,10 @@ export function buildLayout(
       automargin: true,
     };
     // Phase 4 Task 4.1: set Plotly timezone (UTC default)
-    if (chartConfig.xAxis.timezone) {
-      xAxisConfig.timezone = chartConfig.xAxis.timezone;
+    if (effectiveTimezone) {
+      xAxisConfig.timezone = effectiveTimezone;
     }
-    if (chartConfig.xAxis.timezone) {
+    if (effectiveTimezone) {
       xAxisConfig.tickformatstops = [
         // Auto tick format ladders for date axes
         { dtickrange: [60 * 1000, 3600 * 1000], value: '%H:%M' },

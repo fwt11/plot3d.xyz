@@ -1,5 +1,5 @@
 import type { DataColumn, LayerConfig, ColorMapName, ErrorBarConfig } from '@/types';
-import { toNumber, isValidNumber } from '@/types';
+import { toNumber, isValidNumber, hasTimeString, detectColumnType } from '@/types';
 import { colorMaps } from '@/utils/colormaps';
 import { sampleStdDev, standardError, meanCI95HalfWidth } from '@/utils/statistics';
 
@@ -64,6 +64,66 @@ export function hexToHue(hex: string): number {
 /** Convert column values to number array */
 export function colToNumbers(col: DataColumn): number[] {
   return col.values.map((v) => toNumber(v));
+}
+
+/**
+ * Convert a column to epoch milliseconds for Plotly date axes.
+ * - Date-shaped strings (ISO / `YYYY-MM-DD HH:mm:ss` / `YYYY-MM-DD`) → ms
+ * - Plain numeric values are passed through unchanged (useful for ms epoch columns)
+ * - Anything else → `NaN` (caller should drop via `isValidNumber`)
+ */
+export function colToDateMs(col: DataColumn): number[] {
+  return col.values.map((v) => {
+    if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    if (typeof v !== 'string') return NaN;
+    const s = v.trim();
+    if (s === '') return NaN;
+    if (hasTimeString(s)) {
+      const ms = Date.parse(s);
+      return Number.isFinite(ms) ? ms : NaN;
+    }
+    // Numeric passthrough — a column of raw epoch ms is the simplest date source.
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  });
+}
+
+/**
+ * Backfill `valueType` on a column when the caller hasn't explicitly set it.
+ * Cheap (samples ≤ 32 non-empty values); safe to call on every value mutation.
+ * Idempotent — if `valueType` is already defined the column is returned as-is.
+ */
+export function enrichColumn(col: DataColumn): DataColumn {
+  if (col.valueType !== undefined) return col;
+  return { ...col, valueType: detectColumnType(col.values) };
+}
+
+/** Same as `enrichColumn` but mapped across an array. */
+export function enrichColumns(cols: DataColumn[]): DataColumn[] {
+  let mutated = false;
+  const out = cols.map((c) => {
+    if (c.valueType !== undefined) return c;
+    mutated = true;
+    return { ...c, valueType: detectColumnType(c.values) };
+  });
+  return mutated ? out : cols;
+}
+
+/**
+ * Choose the right numeric view of an X column for chart consumption.
+ * - valueType='date' → epoch milliseconds (so Plotly `date` axis renders correctly)
+ * - anything else → numeric coercion (existing behavior)
+ *
+ * Falls back to numeric if date conversion produces no finite values at all
+ * (avoids handing back an all-NaN array when the user expects numeric X).
+ */
+export function colToXValues(col: DataColumn): number[] {
+  if (col.valueType === 'date') {
+    const ms = colToDateMs(col);
+    const finite = ms.filter((v) => Number.isFinite(v)).length;
+    if (finite > 0) return ms;
+  }
+  return colToNumbers(col);
 }
 
 /** Build error bar config for a trace.

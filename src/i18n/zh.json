@@ -271,6 +271,7 @@
     "figureSizeDouble": "两倍",
     "figureSizeTriple": "三倍",
     "tickAngle": "刻度角度",
+    "timezone": "时区(日期轴)",
     "fontSize": "字体大小",
     "scene3D": "3D 场景",
     "aspectMode": "比例模式",

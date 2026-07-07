@@ -271,6 +271,7 @@
     "figureSizeDouble": "Double",
     "figureSizeTriple": "Triple",
     "tickAngle": "Tick Angle",
+    "timezone": "Timezone (date axis)",
     "fontSize": "Font Size",
     "scene3D": "3D Scene",
     "aspectMode": "Aspect Mode",

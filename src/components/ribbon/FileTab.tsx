@@ -8,6 +8,7 @@ import type { Dataset } from '@/types';
 import { uid, createSampleSineDataset, createSampleSurfaceDataset, createSampleScatter3DDataset, createSampleBarDataset } from '@/utils/sampleData';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { enrichColumns } from '@/utils/tracesBuilder';
 import Plotly from 'plotly.js-dist-min';
 
 import { RibbonGroup } from './RibbonGroup';
@@ -33,12 +34,12 @@ function parseFileToDataset(file: File): Promise<Dataset> {
             return;
           }
           const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
+          const columns: Dataset['columns'] = enrichColumns(headers.map((h, i) => ({
             id: uid(),
             name: h || `Col${i + 1}`,
             type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
             values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
+          })));
           resolve({ id: uid(), name: baseName, columns });
         },
         error: (err) => reject(err),
@@ -56,12 +57,12 @@ function parseFileToDataset(file: File): Promise<Dataset> {
             return;
           }
           const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
+          const columns: Dataset['columns'] = enrichColumns(headers.map((h, i) => ({
             id: uid(),
             name: String(h || `Col${i + 1}`),
             type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
             values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
+          })));
           resolve({ id: uid(), name: baseName, columns });
         } catch (err) {
           reject(err);

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Dataset, DataColumn, ChartType } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
+import { enrichColumns } from '@/utils/tracesBuilder';
 import { sharedDefaultDataset } from './sharedDefaults';
 import { useChartStore, selectActiveChart } from './chartStore';
 import { useHistoryStore } from './historyStore';
@@ -74,10 +75,18 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
   addDataset: (dataset, options) =>
     set((s) => {
-      const hasZ = dataset.columns.some((c) => c.type === 'Z');
-      const xCol = dataset.columns.find((c) => c.type === 'X') ?? dataset.columns[0];
-      const yCol = dataset.columns.find((c) => c.type === 'Y') ?? dataset.columns[1];
-      const zCol = dataset.columns.find((c) => c.type === 'Z');
+      // Backfill `valueType` for columns that don't have it yet (e.g. JSON
+      // project files, fit results, copy/paste). The CSV/Excel import path
+      // already does this in FileTab, but doing it here keeps `addDataset`
+      // honest as the single chokepoint.
+      const enrichedColumns = enrichColumns(dataset.columns);
+      const input = enrichedColumns === dataset.columns
+        ? dataset
+        : { ...dataset, columns: enrichedColumns };
+      const hasZ = input.columns.some((c) => c.type === 'Z');
+      const xCol = input.columns.find((c) => c.type === 'X') ?? input.columns[0];
+      const yCol = input.columns.find((c) => c.type === 'Y') ?? input.columns[1];
+      const zCol = input.columns.find((c) => c.type === 'Z');
 
       // Push history before cross-store mutation
       useHistoryStore.getState().pushSnapshot(i18n.t('history.addDataset', { defaultValue: 'Add dataset' }));
@@ -89,7 +98,7 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       if (xCol && yCol) {
         newLayers = [...activeChart.layers, {
           id: uid(),
-          datasetId: dataset.id,
+          datasetId: input.id,
           xColumn: xCol.id,
           yColumn: yCol.id,
           zColumn: zCol?.id,
@@ -122,8 +131,8 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       useChartStore.getState().updateActiveChart((c) => ({ ...c, layers: newLayers }));
 
       return {
-        datasets: [...s.datasets, dataset],
-        activeDatasetId: options?.setActive === false ? s.activeDatasetId : dataset.id,
+        datasets: [...s.datasets, input],
+        activeDatasetId: options?.setActive === false ? s.activeDatasetId : input.id,
         pendingChartTypeSuggestion: suggestion,
       };
     }),

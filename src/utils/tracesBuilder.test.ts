@@ -5,6 +5,10 @@ import {
   pointStyleToSymbol,
   hexToHue,
   colToNumbers,
+  colToDateMs,
+  colToXValues,
+  enrichColumn,
+  enrichColumns,
   axisLabelText,
   buildErrorBar,
 } from './tracesBuilder';
@@ -91,6 +95,186 @@ describe('colToNumbers', () => {
       values: [1, 2, 3],
     };
     expect(colToNumbers(col)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('colToDateMs', () => {
+  it('parses YYYY-MM-DD HH:mm:ss strings to epoch ms', () => {
+    const col: DataColumn = {
+      id: 'c3',
+      name: 'x',
+      type: 'X',
+      values: ['2026-07-07 17:12:00', '2026-07-08 00:00:00'],
+    };
+    const out = colToDateMs(col);
+    expect(out[0]).toBe(Date.parse('2026-07-07 17:12:00'));
+    expect(out[1]).toBe(Date.parse('2026-07-08 00:00:00'));
+  });
+
+  it('parses ISO 8601 with Z and offsets', () => {
+    const col: DataColumn = {
+      id: 'c4',
+      name: 'x',
+      type: 'X',
+      values: ['2026-07-07T17:12:00Z', '2026-07-07T10:12:00-07:00'],
+    };
+    const out = colToDateMs(col);
+    expect(Number.isFinite(out[0])).toBe(true);
+    expect(Number.isFinite(out[1])).toBe(true);
+  });
+
+  it('parses YYYY-MM-DD only (treats as UTC midnight)', () => {
+    const col: DataColumn = {
+      id: 'c5',
+      name: 'x',
+      type: 'X',
+      values: ['2026-07-07'],
+    };
+    expect(colToDateMs(col)[0]).toBe(Date.parse('2026-07-07T00:00:00Z'));
+  });
+
+  it('passes through numeric epoch ms', () => {
+    const col: DataColumn = {
+      id: 'c6',
+      name: 'x',
+      type: 'X',
+      values: [1700000000000, 1700003600000],
+    };
+    expect(colToDateMs(col)).toEqual([1700000000000, 1700003600000]);
+  });
+
+  it('returns NaN for non-date strings', () => {
+    const col: DataColumn = {
+      id: 'c7',
+      name: 'x',
+      type: 'X',
+      values: ['hello', 'world'],
+    };
+    expect(colToDateMs(col)).toEqual([NaN, NaN]);
+  });
+
+  it('returns NaN for empty / whitespace strings', () => {
+    const col: DataColumn = {
+      id: 'c8',
+      name: 'x',
+      type: 'X',
+      values: ['', '   '],
+    };
+    expect(colToDateMs(col)).toEqual([NaN, NaN]);
+  });
+});
+
+describe('enrichColumn', () => {
+  it('sets valueType to "date" for date-string columns', () => {
+    const col: DataColumn = {
+      id: 'c9',
+      name: 't',
+      type: 'X',
+      values: ['2026-07-07 17:12:00', '2026-07-08 18:12:00', '2026-07-09 19:12:00'],
+    };
+    expect(enrichColumn(col).valueType).toBe('date');
+  });
+
+  it('sets valueType to "number" for pure numeric columns', () => {
+    const col: DataColumn = {
+      id: 'c10',
+      name: 'x',
+      type: 'X',
+      values: [1, 2.5, 3],
+    };
+    expect(enrichColumn(col).valueType).toBe('number');
+  });
+
+  it('sets valueType to "category" for free-form labels', () => {
+    const col: DataColumn = {
+      id: 'c11',
+      name: 'label',
+      type: 'label',
+      values: ['apple', 'banana', 'cherry'],
+    };
+    expect(enrichColumn(col).valueType).toBe('category');
+  });
+
+  it('is idempotent — does not overwrite an explicit valueType', () => {
+    const col: DataColumn = {
+      id: 'c12',
+      name: 't',
+      type: 'X',
+      valueType: 'number',
+      values: ['2026-07-07 17:12:00', '2026-07-08 17:12:00'],
+    };
+    expect(enrichColumn(col).valueType).toBe('number');
+  });
+});
+
+describe('enrichColumns', () => {
+  it('returns the same array reference when nothing needed enrichment', () => {
+    const col: DataColumn = {
+      id: 'c13',
+      name: 'x',
+      type: 'X',
+      valueType: 'number',
+      values: [1, 2, 3],
+    };
+    const cols = [col];
+    expect(enrichColumns(cols)).toBe(cols);
+  });
+
+  it('enriches only columns that are missing valueType', () => {
+    const explicit: DataColumn = {
+      id: 'a',
+      name: 'a',
+      type: 'X',
+      valueType: 'number',
+      values: [1, 2, 3],
+    };
+    const dateCol: DataColumn = {
+      id: 'b',
+      name: 'b',
+      type: 'Y',
+      values: ['2026-07-07', '2026-07-08'],
+    };
+    const result = enrichColumns([explicit, dateCol]);
+    expect(result[0]).toBe(explicit); // same reference preserved
+    expect(result[1]).not.toBe(dateCol);
+    expect(result[1].valueType).toBe('date');
+  });
+});
+
+describe('colToXValues', () => {
+  it('returns epoch ms when valueType is "date"', () => {
+    const col: DataColumn = {
+      id: 'c14',
+      name: 't',
+      type: 'X',
+      valueType: 'date',
+      values: ['2026-07-07 17:12:00', '2026-07-08 00:00:00'],
+    };
+    const out = colToXValues(col);
+    expect(out[0]).toBe(Date.parse('2026-07-07 17:12:00'));
+    expect(out[1]).toBe(Date.parse('2026-07-08 00:00:00'));
+  });
+
+  it('falls back to numeric coercion when valueType is "number"', () => {
+    const col: DataColumn = {
+      id: 'c15',
+      name: 'x',
+      type: 'X',
+      valueType: 'number',
+      values: ['1', '2.5', '3'],
+    };
+    expect(colToXValues(col)).toEqual([1, 2.5, 3]);
+  });
+
+  it('falls back to numeric coercion when valueType is "date" but conversion yields nothing finite', () => {
+    const col: DataColumn = {
+      id: 'c16',
+      name: 't',
+      type: 'X',
+      valueType: 'date',
+      values: ['hello', 'world'],
+    };
+    expect(colToXValues(col)).toEqual([NaN, NaN]);
   });
 });
 

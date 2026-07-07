@@ -216,6 +216,83 @@ describe('buildLayout — date axis (Phase 4 Task 4.1)', () => {
     expect(xaxis.timezone).toBeUndefined();
     expect(xaxis.type).not.toBe('date');
   });
+
+  it('auto-detects date axis when x column contains date strings (useNumericX=true)', () => {
+    const cfg: ChartConfig = {
+      ...baseConfig,
+      xAxis: { ...baseConfig.xAxis }, // no timezone set
+    };
+    const expanded = [
+      {
+        layer: {
+          id: 'l1',
+          datasetId: 'd1',
+          xColumn: 'time',
+          yColumn: 'value',
+          color: '#000',
+          visible: true,
+          lineStyle: 'solid' as const,
+          lineWidth: 1,
+          pointStyle: 'circle' as const,
+          pointSize: 4,
+          fill: false,
+        },
+        xCol: {
+          id: 'time',
+          name: 'time',
+          type: 'X' as const,
+          values: ['2026-07-07 17:12:00', '2026-07-07 18:12:00', '2026-07-07 19:12:00'],
+        },
+        yCol: {
+          id: 'value',
+          name: 'value',
+          type: 'Y' as const,
+          values: [1, 2, 3],
+        },
+      },
+    ];
+    const result = buildLayout(cfg, LIGHT_CHART_CSS_VARS, false, false, false, expanded as never, true);
+    const xaxis = result.xaxis as { type: string; timezone?: string; tickformatstops?: unknown[] };
+    expect(xaxis.type).toBe('date');
+    expect(xaxis.timezone).toBe('UTC');
+    expect(Array.isArray(xaxis.tickformatstops)).toBe(true);
+  });
+
+  it('does not auto-detect date axis under non-numeric modes (useNumericX=false)', () => {
+    const expanded = [
+      {
+        layer: {
+          id: 'l1',
+          datasetId: 'd1',
+          xColumn: 'time',
+          yColumn: 'value',
+          color: '#000',
+          visible: true,
+          lineStyle: 'solid' as const,
+          lineWidth: 1,
+          pointStyle: 'circle' as const,
+          pointSize: 4,
+          fill: false,
+        },
+        xCol: {
+          id: 'time',
+          name: 'time',
+          type: 'X' as const,
+          values: ['2026-07-07 17:12:00', '2026-07-08 17:12:00'],
+        },
+        yCol: {
+          id: 'value',
+          name: 'value',
+          type: 'Y' as const,
+          values: [1, 2],
+        },
+      },
+    ];
+    // useNumericX=false → keep categorical behavior so we don't surprise bar charts
+    const result = buildLayout(baseConfig, LIGHT_CHART_CSS_VARS, false, false, false, expanded as never, false);
+    const xaxis = result.xaxis as { type: string; timezone?: string };
+    expect(xaxis.type).not.toBe('date');
+  });
 });
 
 describe('buildInsets (Phase 4 Task 4.5)', () => {
