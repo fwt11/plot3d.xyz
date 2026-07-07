@@ -12,6 +12,7 @@ import { Image, FileCode, RotateCcw, Camera, Copy, Trash2, Lock, Unlock, ArrowUp
 import { AnnotationCanvas } from '@/components/AnnotationCanvas';
 import {
   colToNumbers,
+  colToXValues,
   buildErrorBar,
   lineStyleToDash,
   pointStyleToSymbol,
@@ -476,7 +477,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
     if (is3DType) {
       return expandedDatasets.map((entry) => {
         const { label, xCol, yCol, zCol, color, layer } = entry;
-        const xValues = colToNumbers(xCol);
+        const xValues = colToXValues(xCol);
         const yValues = colToNumbers(yCol);
 
         if (chartType === 'surface3d' && zCol) {
@@ -640,7 +641,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
           type: 'scatter3d',
           mode: 'markers',
           name: label,
-          x: colToNumbers(xCol),
+          x: colToXValues(xCol),
           y: colToNumbers(yCol),
           z: zCol ? colToNumbers(zCol) : colToNumbers(yCol),
           marker: { size: layer.pointSize, color },
@@ -649,7 +650,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
     } else {
       return expandedDatasets.map((entry) => {
         const { label, xCol, yCol, zCol, color, layer } = entry;
-        const xValues = colToNumbers(xCol);
+        const xValues = colToXValues(xCol);
         const yValues = colToNumbers(yCol);
 
         const xLogScale = chartConfig.xAxis.logScale;
