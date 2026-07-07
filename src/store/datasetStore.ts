@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import type { Dataset, DataColumn, ChartType } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
-import { sharedDefaultDataset, useChartStore } from './chartStore';
+import { enrichColumns } from '@/utils/tracesBuilder';
+import { sharedDefaultDataset } from './sharedDefaults';
+import { useChartStore, selectActiveChart } from './chartStore';
 import { useHistoryStore } from './historyStore';
 import {
   savitzkyGolay,
@@ -73,21 +75,30 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
   addDataset: (dataset, options) =>
     set((s) => {
-      const hasZ = dataset.columns.some((c) => c.type === 'Z');
-      const xCol = dataset.columns.find((c) => c.type === 'X') ?? dataset.columns[0];
-      const yCol = dataset.columns.find((c) => c.type === 'Y') ?? dataset.columns[1];
-      const zCol = dataset.columns.find((c) => c.type === 'Z');
+      // Backfill `valueType` for columns that don't have it yet (e.g. JSON
+      // project files, fit results, copy/paste). The CSV/Excel import path
+      // already does this in FileTab, but doing it here keeps `addDataset`
+      // honest as the single chokepoint.
+      const enrichedColumns = enrichColumns(dataset.columns);
+      const input = enrichedColumns === dataset.columns
+        ? dataset
+        : { ...dataset, columns: enrichedColumns };
+      const hasZ = input.columns.some((c) => c.type === 'Z');
+      const xCol = input.columns.find((c) => c.type === 'X') ?? input.columns[0];
+      const yCol = input.columns.find((c) => c.type === 'Y') ?? input.columns[1];
+      const zCol = input.columns.find((c) => c.type === 'Z');
 
       // Push history before cross-store mutation
       useHistoryStore.getState().pushSnapshot(i18n.t('history.addDataset', { defaultValue: 'Add dataset' }));
 
       // Auto-create layer for this dataset via chartStore
       const chartState = useChartStore.getState();
-      let newLayers = chartState.chartConfig.layers;
+      const activeChart = selectActiveChart(chartState);
+      let newLayers = activeChart.layers;
       if (xCol && yCol) {
-        newLayers = [...chartState.chartConfig.layers, {
+        newLayers = [...activeChart.layers, {
           id: uid(),
-          datasetId: dataset.id,
+          datasetId: input.id,
           xColumn: xCol.id,
           yColumn: yCol.id,
           zColumn: zCol?.id,
@@ -117,13 +128,11 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       }
 
       // Update chartStore layers (no history push — already pushed above)
-      useChartStore.setState((cs) => ({
-        chartConfig: { ...cs.chartConfig, layers: newLayers },
-      }));
+      useChartStore.getState().updateActiveChart((c) => ({ ...c, layers: newLayers }));
 
       return {
-        datasets: [...s.datasets, dataset],
-        activeDatasetId: options?.setActive === false ? s.activeDatasetId : dataset.id,
+        datasets: [...s.datasets, input],
+        activeDatasetId: options?.setActive === false ? s.activeDatasetId : input.id,
         pendingChartTypeSuggestion: suggestion,
       };
     }),
@@ -135,11 +144,9 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       activeDatasetId: s.activeDatasetId === id ? (s.datasets[0]?.id ?? null) : s.activeDatasetId,
     }));
     // Remove layers that reference the deleted dataset
-    useChartStore.setState((cs) => ({
-      chartConfig: {
-        ...cs.chartConfig,
-        layers: cs.chartConfig.layers.filter((l) => l.datasetId !== id),
-      },
+    useChartStore.getState().updateActiveChart((c) => ({
+      ...c,
+      layers: c.layers.filter((l) => l.datasetId !== id),
     }));
   },
 
@@ -220,23 +227,21 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       ),
     }));
     // Clean up layers that depend on the removed column
-    useChartStore.setState((cs) => ({
-      chartConfig: {
-        ...cs.chartConfig,
-        layers: cs.chartConfig.layers
-          .map((l) => {
-            if (l.datasetId !== datasetId) return l;
-            if (l.xColumn === columnId || l.yColumn === columnId) return null;
-            return {
-              ...l,
-              zColumn: l.zColumn === columnId ? undefined : l.zColumn,
-              errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
-              errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
-              errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
-            };
-          })
-          .filter((l): l is typeof l & NonNullable<typeof l> => l !== null),
-      },
+    useChartStore.getState().updateActiveChart((c) => ({
+      ...c,
+      layers: c.layers
+        .map((l) => {
+          if (l.datasetId !== datasetId) return l;
+          if (l.xColumn === columnId || l.yColumn === columnId) return null;
+          return {
+            ...l,
+            zColumn: l.zColumn === columnId ? undefined : l.zColumn,
+            errorColumn: l.errorColumn === columnId ? undefined : l.errorColumn,
+            errorPlusColumn: l.errorPlusColumn === columnId ? undefined : l.errorPlusColumn,
+            errorMinusColumn: l.errorMinusColumn === columnId ? undefined : l.errorMinusColumn,
+          };
+        })
+        .filter((l): l is NonNullable<typeof l> => l !== null),
     }));
   },
 
@@ -307,16 +312,17 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Access chartStore lazily to avoid circular deps
       const chartState = useChartStore.getState();
-      const isCurrently3D = is3DChart(chartState.chartConfig.type);
+      const activeChart = selectActiveChart(chartState);
+      const isCurrently3D = is3DChart(activeChart.type);
 
-      let newChartType = chartState.chartConfig.type;
+      let newChartType = activeChart.type;
       if (newType === 'Z' && !isCurrently3D) {
         newChartType = 'surface3d';
       } else if (newType !== 'Z' && isCurrently3D && !hasZColumn) {
         newChartType = 'line';
       }
 
-      let layers = chartState.chartConfig.layers;
+      let layers = activeChart.layers;
       const hasLayerForDs = layers.some((l) => l.datasetId === datasetId);
       if (!hasLayerForDs) {
         const ds = newDatasets.find((d) => d.id === datasetId);
@@ -345,8 +351,10 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       }
 
       // Update chartStore (no history push — already pushed above)
-      useChartStore.setState((cs) => ({
-        chartConfig: { ...cs.chartConfig, type: newChartType, layers },
+      useChartStore.getState().updateActiveChart((c) => ({
+        ...c,
+        type: newChartType,
+        layers,
       }));
 
       return {

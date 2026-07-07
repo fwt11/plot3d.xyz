@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/store/uiStore';
 import { useDatasetStore } from '@/store/datasetStore';
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useHistoryStore } from '@/store/historyStore';
 import { useAnnotationToolStore } from '@/store/plotStore';
 import { useChartInteractionStore } from '@/store/chartInteractionStore';
@@ -19,6 +19,8 @@ import { ContextMenuOverlay } from '@/components/ContextMenu';
 import ToastContainer from '@/components/Toast';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
+import { parseShareHash, decodeShareFigure } from '@/utils/shareLink';
+import { useToastStore } from '@/store/toastStore';
 import type { Annotation } from '@/types';
 import { uid } from '@/utils/sampleData';
 
@@ -74,8 +76,8 @@ function ChartTypeSuggestionBar() {
 }
 
 function StatusBar() {
-  const chartType = useChartStore((s) => s.chartConfig.type);
-  const layers = useChartStore((s) => s.chartConfig.layers);
+  const chartType = useChartStore((s) => selectActiveChart(s).type);
+  const layers = useChartStore((s) => selectActiveChart(s).layers);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
   const hover = useChartInteractionStore((s) => s.hover);
@@ -152,7 +154,7 @@ export default function Workspace() {
   const pastLength = useHistoryStore((s) => s._past.length);
   const futureLength = useHistoryStore((s) => s._future.length);
 
-  const annotations = useChartStore((s) => s.chartConfig.annotations);
+  const annotations = useChartStore((s) => selectActiveChart(s).annotations);
   const addAnnotation = useChartStore((s) => s.addAnnotation);
   const duplicateAnnotation = useChartStore((s) => s.duplicateAnnotation);
   const selectedAnnotationId = useAnnotationToolStore((s) => s.selectedId);
@@ -163,6 +165,18 @@ export default function Workspace() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Hash-on-load: if the URL carries a #d= share fragment, decode it once and
+  // replace the current figure. Runs only on mount.
+  useEffect(() => {
+    const fragment = parseShareHash(window.location.href);
+    if (!fragment) return;
+    const figure = decodeShareFigure(window.location.href);
+    if (!figure) return;
+    useChartStore.setState({ figure });
+    const { addToast } = useToastStore.getState();
+    addToast(t('toast.shareLoaded', { defaultValue: 'Loaded shared figure' }), 'success');
+  }, []);
 
   // Resizable panel tracking
   useEffect(() => {
@@ -208,11 +222,11 @@ export default function Workspace() {
         const uiState = useUiStore.getState();
         const project = serializeProject({
           datasets: dsState.datasets,
-          chartConfig: chartState.chartConfig,
+          figure: chartState.figure,
           theme: uiState.theme,
           lang: uiState.lang,
         });
-        const title = chartState.chartConfig.title || 'untitled';
+        const title = selectActiveChart(chartState).title || 'untitled';
         saveProjectFile(project, title);
         return;
       }

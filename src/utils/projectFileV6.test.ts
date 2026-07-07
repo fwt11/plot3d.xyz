@@ -8,6 +8,35 @@ import {
 } from './projectFileV6';
 import type { ProjectFile } from './projectFile';
 
+const sampleSubplot = {
+  id: 'cfg1',
+  type: 'line' as const,
+  title: 'Test',
+  xAxis: { label: 'X', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
+  yAxis: { label: 'Y', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
+  legend: { visible: true, position: 'top' as const },
+  colorMap: 'viridis' as const,
+  layers: [
+    {
+      id: 'L1',
+      datasetId: 'ds1',
+      xColumn: 'c1',
+      yColumn: 'c2',
+      color: '#000',
+      visible: true,
+      lineStyle: 'solid' as const,
+      lineWidth: 1,
+      pointStyle: 'circle' as const,
+      pointSize: 4,
+      fill: false,
+    },
+  ],
+  annotations: [],
+  marginTop: 50, marginRight: 50, marginBottom: 50, marginLeft: 50,
+  exportConfig: { resolutionMultiplier: 1 as const, background: 'theme' as const, figureMultiplier: 1 as const },
+  fontSize: 12,
+};
+
 const sampleProject: ProjectFile = {
   version: 6,
   createdAt: '2024-01-01T00:00:00.000Z',
@@ -22,34 +51,7 @@ const sampleProject: ProjectFile = {
       ],
     },
   ],
-  chartConfig: {
-    id: 'cfg1',
-    type: 'line',
-    title: 'Test',
-    xAxis: { label: 'X', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
-    yAxis: { label: 'Y', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
-    legend: { visible: true, position: 'top' },
-    colorMap: 'viridis',
-    layers: [
-      {
-        id: 'L1',
-        datasetId: 'ds1',
-        xColumn: 'c1',
-        yColumn: 'c2',
-        color: '#000',
-        visible: true,
-        lineStyle: 'solid',
-        lineWidth: 1,
-        pointStyle: 'circle',
-        pointSize: 4,
-        fill: false,
-      },
-    ],
-    annotations: [],
-    marginTop: 50, marginRight: 50, marginBottom: 50, marginLeft: 50,
-    exportConfig: { resolutionMultiplier: 1, background: 'theme', figureMultiplier: 1 },
-    fontSize: 12,
-  },
+  figure: { rows: 1, cols: 1, subplots: [sampleSubplot], activeIndex: 0, gap: 8 },
   theme: 'light',
   lang: 'en',
 };
@@ -98,7 +100,7 @@ describe('serializeProjectV6 / deserializeProjectV6', () => {
     expect(restored).not.toBeNull();
     expect(restored!.version).toBe(6);
     expect(restored!.datasets[0].name).toBe('Dataset 1');
-    expect(restored!.chartConfig.title).toBe('Test');
+    expect(restored!.figure.subplots[0].title).toBe('Test');
   });
 
   it('serialized form has line-based stable ordering', () => {

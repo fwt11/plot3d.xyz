@@ -1,4 +1,4 @@
-import { useChartStore } from '@/store/chartStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { is3DChart } from '@/utils/chart';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -27,7 +27,7 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
   );
 }
 
-function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean; allowCategory?: boolean }) {
+function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false, allowTimezone = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean; allowCategory?: boolean; allowTimezone?: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
@@ -149,6 +149,30 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
           />
         </label>
       )}
+      {allowTimezone && (
+        <label className="grid grid-cols-[60px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <span className="truncate">{t('config.timezone')}</span>
+          <select
+            value={axis.timezone ?? ''}
+            onChange={(e) => onChange({ timezone: e.target.value || undefined })}
+            className="w-full border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
+            style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            aria-label={`${label} ${t('config.timezone')}`}
+          >
+            <option value="">Auto (detect date column)</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="America/Chicago">America/Chicago</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="Europe/Berlin">Europe/Berlin</option>
+            <option value="Asia/Shanghai">Asia/Shanghai</option>
+            <option value="Asia/Tokyo">Asia/Tokyo</option>
+            <option value="Asia/Singapore">Asia/Singapore</option>
+            <option value="Australia/Sydney">Australia/Sydney</option>
+          </select>
+        </label>
+      )}
     </div>
   );
 }
@@ -171,7 +195,7 @@ function MarginInput({ label, value, onChange }: { label: string; value: number;
 
 export default function ConfigPanel() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const is3D = is3DChart(chartConfig.type);
   const setChartTitle = useChartStore((s) => s.setChartTitle);
   const setXAxis = useChartStore((s) => s.setXAxis);
@@ -201,7 +225,7 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.xAxis')}>
-        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} allowCategory={chartConfig.type === 'bar'} />
+        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} allowCategory={chartConfig.type === 'bar'} allowTimezone />
       </Section>
 
       <Section title={t('config.yAxis')}>

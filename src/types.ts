@@ -3,6 +3,12 @@ export interface DataColumn {
   name: string;
   type: 'X' | 'Y' | 'Z' | 'label' | 'error' | 'errorPlus' | 'errorMinus';
   values: (number | string)[];
+  /**
+   * Optional inferred semantic type of the column. Used by the layout builder to
+   * pick Plotly axis types (e.g. `'date'`) without forcing the user to flip a
+   * timezone switch. Defaults to `'number'` when omitted (legacy files).
+   */
+  valueType?: 'number' | 'date' | 'category';
 }
 
 /** Helper to safely convert column values to numbers */
@@ -16,6 +22,65 @@ export function toNumber(v: number | string): number {
 /** Helper to check if a value is a valid number */
 export function isValidNumber(v: number | string): boolean {
   return !isNaN(toNumber(v));
+}
+
+/**
+ * Date / time string patterns we treat as a Plotly `date` axis.
+ * Includes ISO 8601 (`2026-07-07T17:12:00Z`), `YYYY-MM-DD HH:mm:ss`,
+ * `YYYY-MM-DD`, and US-style `MM/DD/YYYY HH:mm[:ss]`.
+ *
+ * Deliberately strict — false positives (e.g. `"1.2.3"`) would silently
+ * misclassify numeric data, so the regex requires either an ISO-shaped
+ * (`YYYY-MM-DD`) or unambiguous slash-separated date with an optional
+ * time component.
+ */
+const DATE_REGEXES: RegExp[] = [
+  /^\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/,
+  /^\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s\d{1,2}:\d{2}(?::\d{2})?)?$/,
+];
+
+/** Returns true if a single value looks like a date/time string. */
+export function hasTimeString(v: number | string): boolean {
+  if (typeof v !== 'string') return false;
+  const s = v.trim();
+  if (s === '') return false;
+  if (!DATE_REGEXES.some((re) => re.test(s))) return false;
+  const ms = Date.parse(s);
+  return Number.isFinite(ms);
+}
+
+/**
+ * Infer the semantic type of a column from its values.
+ * - Empty or all-non-finite → `'number'` (caller's choice)
+ * - Any string samples that parse as numbers → `'number'`
+ * - All non-empty samples look like date strings → `'date'`
+ * - Otherwise (e.g. free-form labels) → `'category'`
+ *
+ * Scans up to `sampleSize` non-null samples; defaults to 32.
+ */
+export function detectColumnType(
+  values: (number | string)[],
+  sampleSize: number = 32,
+): 'number' | 'date' | 'category' {
+  let numericCount = 0;
+  let dateCount = 0;
+  let nonEmptyCount = 0;
+  const limit = Math.min(values.length, sampleSize);
+  for (let i = 0; i < limit; i++) {
+    const v = values[i];
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'string' && v.trim() === '') continue;
+    nonEmptyCount++;
+    if (hasTimeString(v)) {
+      dateCount++;
+    } else if (isValidNumber(v)) {
+      numericCount++;
+    }
+  }
+  if (nonEmptyCount === 0) return 'number';
+  if (dateCount === nonEmptyCount) return 'date';
+  if (numericCount === nonEmptyCount) return 'number';
+  return 'category';
 }
 
 export interface Dataset {
@@ -225,6 +290,19 @@ export interface ChartConfig {
   marginLeft: number;
   exportConfig: ExportConfig;
   fontSize: number;
+}
+
+export interface FigureConfig {
+  /** Grid rows (>= 1). */
+  rows: number;
+  /** Grid columns (>= 1). */
+  cols: number;
+  /** Subplots in row-major order. Invariant: length === rows * cols. */
+  subplots: ChartConfig[];
+  /** Index of the subplot the config panels edit. In [0, subplots.length). */
+  activeIndex: number;
+  /** Gap between grid cells in px. */
+  gap: number;
 }
 
 export type ColorMapName = 'jet' | 'viridis' | 'hot' | 'coolwarm' | 'parula' | 'plasma' | 'cividis' | 'inferno' | 'magma' | 'turbo' | 'batlow';

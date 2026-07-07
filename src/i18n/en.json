@@ -14,6 +14,8 @@
     "copyToClipboard": "Copy Image to Clipboard",
     "copySvg": "Copy SVG to Clipboard",
     "exportMatplotlib": "Export as Matplotlib Script",
+    "exportFigurePng": "Export figure as PNG",
+    "exportFigureSvg": "Export figure as SVG",
     "resetZoom": "Reset Zoom",
     "hideLayer": "Hide Layer",
     "showLayer": "Show Layer",
@@ -58,7 +60,9 @@
     "dark": "Dark",
     "switchLight": "Switch to Light Theme",
     "switchDark": "Switch to Dark Theme",
-    "exportAdvanced": "Advanced Export"
+    "exportAdvanced": "Advanced Export",
+    "share": "Share",
+    "shareLink": "Copy Share Link"
   },
   "generate": {
     "sampleData": "Sample Data",
@@ -141,7 +145,12 @@
     "reset": "Reset",
     "resetView": "Reset View",
     "axes": "Axes",
-    "toggleAxes": "Show/Hide Axes"
+    "toggleAxes": "Show/Hide Axes",
+    "layout": "Layout",
+    "rows": "Rows",
+    "cols": "Columns",
+    "gap": "Gap",
+    "confirmShrinkGrid": "Removing subplots will discard their content. Continue?"
   },
   "chartTypes": {
     "line": "Line",
@@ -262,6 +271,7 @@
     "figureSizeDouble": "Double",
     "figureSizeTriple": "Triple",
     "tickAngle": "Tick Angle",
+    "timezone": "Timezone (date axis)",
     "fontSize": "Font Size",
     "scene3D": "3D Scene",
     "aspectMode": "Aspect Mode",
@@ -580,6 +590,9 @@
     "copyFailed": "Failed to copy",
     "svgNotSupported3d": "SVG export is not supported for 3D charts",
     "noZColumnFor3D": "Current dataset has no Z column for 3D charts",
+    "shareTooLarge": "Share link is too large to encode (exceeds 8KB)",
+    "shareCopied": "Share link copied to clipboard",
+    "shareLoaded": "Loaded shared figure",
     "batchImportSuccess": "Imported {{count}} file(s)",
     "batchImportFailed": "{{count}} file(s) failed to import",
     "batchStatsDone": "Stats computed for {{count}} dataset(s)",

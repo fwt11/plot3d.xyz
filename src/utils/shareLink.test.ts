@@ -1,57 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { encodeShareUrl, decodeShareUrl, parseShareHash, SHARE_URL_LIMIT } from './shareLink';
-import type { ChartConfig } from '@/types';
+import { encodeShareFigure, decodeShareFigure, parseShareHash, SHARE_URL_LIMIT } from './shareLink';
 
-const baseConfig: ChartConfig = {
-  id: 'c1',
-  type: 'line',
-  title: 'Test Chart',
-  xAxis: { label: 'X', unit: 's', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
-  yAxis: { label: 'Y', autoRange: true, gridVisible: true, logScale: false, scientificNotation: false },
-  legend: { visible: true, position: 'top' },
-  colorMap: 'viridis',
-  layers: [],
-  annotations: [],
-  marginTop: 50, marginRight: 50, marginBottom: 50, marginLeft: 50,
-  exportConfig: { resolutionMultiplier: 1, background: 'theme', figureMultiplier: 1 },
-  fontSize: 12,
-};
-
-describe('encodeShareUrl', () => {
+describe('encodeShareFigure', () => {
   it('produces a URL with #d= fragment', () => {
-    const url = encodeShareUrl(baseConfig);
+    const fig = { rows: 1, cols: 1, activeIndex: 0, gap: 8, subplots: [{ id: 'c1', type: 'line' as const }] } as any;
+    const url = encodeShareFigure(fig);
     expect(url).toMatch(/#d=/);
   });
 
   it('output is base64url-safe (no +/= chars)', () => {
-    const url = encodeShareUrl(baseConfig);
-    const hash = parseShareHash(url)!;
-    // base64url uses - and _ instead of + and /, and omits padding
+    const fig = { rows: 1, cols: 1, activeIndex: 0, gap: 8, subplots: [{ id: 'c1', type: 'line' as const }] } as any;
+    const url = encodeShareFigure(fig);
+    const hash = parseShareHash(url!)!;
     expect(hash).not.toMatch(/[+/=]/);
   });
 
-  it('output length fits under 8KB for typical config', () => {
-    const url = encodeShareUrl(baseConfig);
-    expect(url.length).toBeLessThan(SHARE_URL_LIMIT);
+  it('returns null when the encoded figure exceeds the limit', () => {
+    const big = { rows: 1, cols: 1, activeIndex: 0, gap: 8,
+      subplots: [{ id: 'c', type: 'line', title: 'x'.repeat(SHARE_URL_LIMIT * 2) }] } as any;
+    expect(encodeShareFigure(big)).toBeNull();
   });
 });
 
-describe('decodeShareUrl', () => {
-  it('roundtrips: encode then decode recovers the same config (modulo id)', () => {
-    const url = encodeShareUrl(baseConfig);
-    const decoded = decodeShareUrl(url);
+describe('decodeShareFigure', () => {
+  it('round-trips: encode then decode recovers the same figure', () => {
+    const fig = { rows: 1, cols: 1, activeIndex: 0, gap: 8, subplots: [{ id: 'c1', type: 'line' as const, title: 'T' }] } as any;
+    const url = encodeShareFigure(fig)!;
+    const decoded = decodeShareFigure(url);
     expect(decoded).not.toBeNull();
-    expect(decoded!.type).toBe(baseConfig.type);
-    expect(decoded!.title).toBe(baseConfig.title);
-    expect(decoded!.xAxis.label).toBe(baseConfig.xAxis.label);
+    expect(decoded!.subplots[0].type).toBe('line');
+    expect(decoded!.subplots[0].title).toBe('T');
   });
 
   it('returns null for URL without #d= fragment', () => {
-    expect(decodeShareUrl('https://example.com/page')).toBeNull();
+    expect(decodeShareFigure('https://example.com/page')).toBeNull();
   });
 
   it('returns null for malformed base64 data', () => {
-    expect(decodeShareUrl('https://example.com/#d=NOT_VALID_BASE64!!!')).toBeNull();
+    expect(decodeShareFigure('https://example.com/#d=NOT_VALID_BASE64!!!')).toBeNull();
   });
 });
 

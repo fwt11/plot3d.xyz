@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { useChartStore, useDatasetStore } from '@/store/plotStore';
+import { useChartStore, useDatasetStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
+import { useConfirmStore } from '@/store/confirmStore';
 import { Palette } from 'lucide-react';
 import { getColorMapGradient } from '@/utils/colormaps';
 import { colorMapNames, is3DChart, usesColorMap } from '@/utils/chart';
@@ -9,9 +10,14 @@ import { RibbonGroup } from './RibbonGroup';
 
 export function ChartTab() {
   const { t } = useTranslation();
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const setChartType = useChartStore((s) => s.setChartType);
   const setColorMap = useChartStore((s) => s.setColorMap);
+  const rows = useChartStore((s) => s.figure.rows);
+  const cols = useChartStore((s) => s.figure.cols);
+  const gap = useChartStore((s) => s.figure.gap);
+  const setGrid = useChartStore((s) => s.setGrid);
+  const setGap = useChartStore((s) => s.setGap);
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
   const addToast = useToastStore((s) => s.addToast);
@@ -32,6 +38,28 @@ export function ChartTab() {
       }
     }
     setChartType(type);
+  };
+
+  const parseDim = (v: string): number | null => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 1 && n <= 4 ? n : null;
+  };
+
+  const requestGrid = (r: number, c: number) => {
+    const fig = useChartStore.getState().figure;
+    const nextCount = r * c;
+    const dropped = fig.subplots.slice(nextCount);
+    const hasContent = dropped.some((s) => s.annotations.length > 0 || s.layers.length > 1);
+    if (hasContent) {
+      useConfirmStore.getState().confirm({
+        title: t('chart.layout'),
+        message: t('chart.confirmShrinkGrid'),
+        danger: true,
+        onConfirm: () => setGrid(r, c),
+      });
+    } else {
+      setGrid(r, c);
+    }
   };
 
   const renderChartButton = ({ type, label, icon }: { type: typeof chartConfig.type; label: string; icon: React.ReactNode }) => (
@@ -88,6 +116,28 @@ export function ChartTab() {
           </div>
         </RibbonGroup>
       )}
+
+      <RibbonGroup label={t('chart.layout')}>
+        <div className="flex flex-col gap-1 px-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          <label className="flex items-center gap-1">
+            {t('chart.rows')}
+            <input type="number" min={1} max={4} value={rows}
+              onChange={(e) => { const n = parseDim(e.target.value); if (n !== null) requestGrid(n, cols); }}
+              className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
+          </label>
+          <label className="flex items-center gap-1">
+            {t('chart.cols')}
+            <input type="number" min={1} max={4} value={cols}
+              onChange={(e) => { const n = parseDim(e.target.value); if (n !== null) requestGrid(rows, n); }}
+              className="w-12 px-1 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }} />
+          </label>
+          <label className="flex items-center gap-1">
+            {t('chart.gap')}
+            <input type="range" min={0} max={40} value={gap}
+              onChange={(e) => setGap(+e.target.value)} />
+          </label>
+        </div>
+      </RibbonGroup>
     </div>
   );
 }

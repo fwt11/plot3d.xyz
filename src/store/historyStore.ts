@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Dataset, ChartConfig } from '@/types';
+import type { Dataset, FigureConfig } from '@/types';
 import { useDatasetStore } from './datasetStore';
 import { useChartStore } from './chartStore';
 import i18n from '@/i18n';
@@ -8,7 +8,7 @@ import i18n from '@/i18n';
 interface StateSnapshot {
   datasets: Dataset[];
   activeDatasetId: string | null;
-  chartConfig: ChartConfig;
+  figure: FigureConfig;
 }
 
 /** A history entry: a snapshot plus metadata describing the operation. */
@@ -74,7 +74,7 @@ function captureSnapshot(): StateSnapshot {
   return {
     datasets: ds.datasets,
     activeDatasetId: ds.activeDatasetId,
-    chartConfig: chart.chartConfig,
+    figure: chart.figure,
   };
 }
 
@@ -84,7 +84,7 @@ function restoreSnapshot(snapshot: StateSnapshot): void {
     activeDatasetId: snapshot.activeDatasetId,
   });
   useChartStore.setState({
-    chartConfig: snapshot.chartConfig,
+    figure: snapshot.figure,
   });
 }
 

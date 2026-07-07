@@ -1,34 +1,35 @@
-// Share link: encode ChartConfig to URL fragment, decode back.
+// Share link: encode FigureConfig to URL fragment, decode back.
 // Pure client-side — no server round-trip. Per spec §3.5 Task 5.4.
 
-import type { ChartConfig } from '@/types';
+import type { FigureConfig } from '@/types';
 
 /** Maximum total URL length in bytes (spec: 8KB). */
 export const SHARE_URL_LIMIT = 8192;
 
 /**
- * Encode a ChartConfig to a URL with the data in the #d= fragment.
- * Format: `<base>#d=<base64url(JSON.stringify(config))>`
+ * Encode a figure to a share URL, or null if the encoded payload exceeds
+ * SHARE_URL_LIMIT. This is a deliberate guard: oversized payloads return
+ * null so the caller can warn the user, instead of emitting a broken link.
  */
-export function encodeShareUrl(config: ChartConfig): string {
-  const json = JSON.stringify(config);
-  // Use base64url (RFC 4648 §5) for URL-safe encoding
+export function encodeShareFigure(figure: FigureConfig): string | null {
+  const json = JSON.stringify(figure);
   const base64 = base64UrlEncode(json);
-  return `${typeof window !== 'undefined' ? window.location.origin : ''}${typeof window !== 'undefined' ? window.location.pathname : ''}#d=${base64}`;
+  if (base64.length > SHARE_URL_LIMIT) return null;
+  const base = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
+  return `${base}#d=${base64}`;
 }
 
 /**
- * Decode a share URL back to a ChartConfig.
- * Returns null if the URL has no #d= fragment or the data is malformed.
+ * Decode a share URL back to a FigureConfig. Returns null if the URL has
+ * no #d= fragment, the payload is malformed, or the decoded shape lacks a
+ * `subplots` array.
  */
-export function decodeShareUrl(url: string): ChartConfig | null {
+export function decodeShareFigure(url: string): FigureConfig | null {
   const fragment = parseShareHash(url);
   if (!fragment) return null;
   try {
-    const json = base64UrlDecode(fragment);
-    const parsed = JSON.parse(json) as ChartConfig;
-    // Basic shape check
-    if (typeof parsed !== 'object' || parsed === null || !('type' in parsed)) return null;
+    const parsed = JSON.parse(base64UrlDecode(fragment)) as FigureConfig;
+    if (typeof parsed !== 'object' || parsed === null || !Array.isArray(parsed.subplots)) return null;
     return parsed;
   } catch {
     return null;

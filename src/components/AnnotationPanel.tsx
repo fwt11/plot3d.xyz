@@ -1,4 +1,4 @@
-import { useChartStore, useAnnotationToolStore } from '@/store/plotStore';
+import { useChartStore, useAnnotationToolStore, selectActiveChart } from '@/store/plotStore';
 import { useTranslation } from 'react-i18next';
 import { getAnnotationTools, createDefaultAnnotation } from '@/utils/annotations';
 import type { AnnotationTool } from '@/utils/annotations';
@@ -52,7 +52,7 @@ function NumberInput({
 
 export default function AnnotationPanel() {
   const { t } = useTranslation();
-  const annotations = useChartStore((s) => s.chartConfig.annotations);
+  const annotations = useChartStore((s) => selectActiveChart(s).annotations);
   const addAnnotation = useChartStore((s) => s.addAnnotation);
   const removeAnnotation = useChartStore((s) => s.removeAnnotation);
   const updateAnnotation = useChartStore((s) => s.updateAnnotation);

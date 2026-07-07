@@ -89,21 +89,29 @@ export function isValidProjectFile(data: unknown): data is ProjectFile {
   if (typeof d.version !== 'number') return false;
   if (d.version < 1 || d.version > 6) return false;
   if (!Array.isArray(d.datasets)) return false;
-  if (typeof d.chartConfig !== 'object' || d.chartConfig === null) return false;
+  // v6 uses `figure`; legacy files (v1..v5) use `chartConfig`. Accept either.
+  const hasFigure = typeof d.figure === 'object' && d.figure !== null;
+  const hasChartConfig = typeof d.chartConfig === 'object' && d.chartConfig !== null;
+  if (!hasFigure && !hasChartConfig) return false;
   if (d.theme !== 'light' && d.theme !== 'dark') return false;
   if (d.lang !== 'zh' && d.lang !== 'en') return false;
   return true;
 }
 
-/** Reorder top-level fields in a canonical order (datasets → chartConfig → ...). */
+/** Reorder top-level fields in a canonical order (datasets → figure → ...). */
 function orderProjectForSerialization(project: ProjectFile): ProjectFile {
-  return {
+  // v6 files carry `figure`; v1..v5 files still carry `chartConfig`. Emit whichever
+  // is present so v6 files stay v6-shaped and older files round-trip unchanged.
+  const source = project as unknown as Record<string, unknown>;
+  const result: Record<string, unknown> = {
     version: project.version,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     datasets: project.datasets,
-    chartConfig: project.chartConfig,
-    theme: project.theme,
-    lang: project.lang,
   };
+  if ('figure' in source) result.figure = source.figure;
+  if ('chartConfig' in source) result.chartConfig = source.chartConfig;
+  result.theme = project.theme;
+  result.lang = project.lang;
+  return result as unknown as ProjectFile;
 }

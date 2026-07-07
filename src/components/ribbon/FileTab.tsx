@@ -1,21 +1,23 @@
 import { useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUiStore, useDatasetStore, useChartStore, useHistoryStore } from '@/store/plotStore';
+import { useUiStore, useDatasetStore, useChartStore, useHistoryStore, selectActiveChart } from '@/store/plotStore';
 import { useToastStore } from '@/store/toastStore';
 import { is3DChart } from '@/utils/chart';
-import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2 } from 'lucide-react';
+import { FileUp, Download, Save, FolderOpen, Settings, Files, TestTube, FileCode2, Share2 } from 'lucide-react';
 import type { Dataset } from '@/types';
 import { uid, createSampleSineDataset, createSampleSurfaceDataset, createSampleScatter3DDataset, createSampleBarDataset } from '@/utils/sampleData';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { enrichColumns } from '@/utils/tracesBuilder';
 import Plotly from 'plotly.js-dist-min';
 
 import { RibbonGroup } from './RibbonGroup';
 import { serializeProject, loadProjectFile, saveProjectFile } from '@/utils/projectFile';
 import { encodeTiff } from '@/utils/tiffEncoder';
 import { buildExportPayload, export3DToPng } from '@/utils/exportLayout';
-import { downloadMatplotlibScript } from '@/utils/matplotlibExporter';
+import { downloadFigureMatplotlibScript } from '@/utils/matplotlibExporter';
 import { ExportModal } from '@/components/ExportModal';
+import { encodeShareFigure } from '@/utils/shareLink';
 
 /** Parse a single CSV/XLSX file into a Dataset. */
 function parseFileToDataset(file: File): Promise<Dataset> {
@@ -32,12 +34,12 @@ function parseFileToDataset(file: File): Promise<Dataset> {
             return;
           }
           const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
+          const columns: Dataset['columns'] = enrichColumns(headers.map((h, i) => ({
             id: uid(),
             name: h || `Col${i + 1}`,
             type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
             values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
+          })));
           resolve({ id: uid(), name: baseName, columns });
         },
         error: (err) => reject(err),
@@ -55,12 +57,12 @@ function parseFileToDataset(file: File): Promise<Dataset> {
             return;
           }
           const headers = rows[0];
-          const columns: Dataset['columns'] = headers.map((h, i) => ({
+          const columns: Dataset['columns'] = enrichColumns(headers.map((h, i) => ({
             id: uid(),
             name: String(h || `Col${i + 1}`),
             type: i === 0 ? 'X' : i === 1 ? 'Y' : 'Z',
             values: rows.slice(1).map((row) => row[i] ?? ''),
-          }));
+          })));
           resolve({ id: uid(), name: baseName, columns });
         } catch (err) {
           reject(err);
@@ -81,7 +83,7 @@ export function FileTab() {
   const projectInputRef = useRef<HTMLInputElement>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const addDataset = useDatasetStore((s) => s.addDataset);
-  const chartConfig = useChartStore((s) => s.chartConfig);
+  const chartConfig = useChartStore(selectActiveChart);
   const exportConfig = chartConfig.exportConfig;
   const chartType = chartConfig.type;
   const theme = useUiStore((s) => s.theme);
@@ -496,8 +498,10 @@ export function FileTab() {
 
   const handleExportMatplotlib = () => {
     const allDatasets = useDatasetStore.getState().datasets;
+    const figure = useChartStore.getState().figure;
     try {
-      downloadMatplotlibScript(chartConfig, allDatasets, {
+      // Figure-level: emits a plt.subplots grid for multi-cell figures, single chart for 1×1.
+      downloadFigureMatplotlibScript(figure, allDatasets, {
         dpi: exportConfig.resolutionMultiplier * 96,
         filename: chartConfig.title || 'chart',
       });
@@ -514,11 +518,11 @@ export function FileTab() {
       const uiState = useUiStore.getState();
       const project = serializeProject({
         datasets: dsState.datasets,
-        chartConfig: chartState.chartConfig,
+        figure: chartState.figure,
         theme: uiState.theme,
         lang: uiState.lang,
       });
-      const title = chartState.chartConfig.title || 'untitled';
+      const title = selectActiveChart(chartState).title || 'untitled';
       saveProjectFile(project, title);
       addToast(t('toast.projectSaved'), 'success');
     } catch {
@@ -528,6 +532,20 @@ export function FileTab() {
 
   const handleLoadProject = () => {
     projectInputRef.current?.click();
+  };
+
+  const handleShare = async () => {
+    const url = encodeShareFigure(useChartStore.getState().figure);
+    if (!url) {
+      addToast(t('toast.shareTooLarge'), 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      addToast(t('toast.shareCopied', { defaultValue: 'Share link copied to clipboard' }), 'success');
+    } catch {
+      addToast(t('toast.copyFailed'), 'error');
+    }
   };
 
   const handleProjectFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -545,7 +563,7 @@ export function FileTab() {
       activeDatasetId: project.datasets[0]?.id ?? null,
     });
     useChartStore.setState({
-      chartConfig: project.chartConfig,
+      figure: project.figure,
     });
     // Clear history after loading a project
     useHistoryStore.setState({ _past: [], _future: [] });
@@ -572,6 +590,10 @@ export function FileTab() {
         <button onClick={handleLoadProject} className="ribbon-btn" title={t('file.loadProject')} aria-label={t('file.loadProject')}>
           <FolderOpen size={16} />
           <span className="text-xs">{t('file.loadProject')}</span>
+        </button>
+        <button onClick={handleShare} className="ribbon-btn" title={t('file.shareLink', { defaultValue: 'Copy Share Link' })} aria-label={t('file.share', { defaultValue: 'Share' })}>
+          <Share2 size={16} />
+          <span className="text-xs">{t('file.share', { defaultValue: 'Share' })}</span>
         </button>
       </RibbonGroup>
       <RibbonGroup label={t('file.import')}>
