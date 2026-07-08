@@ -118,7 +118,7 @@ export function ChartTab() {
       )}
 
       <RibbonGroup label={t('chart.layout')}>
-        <div className="flex flex-col gap-1 px-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex items-center gap-2 px-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           <label className="flex items-center gap-1">
             {t('chart.rows')}
             <input type="number" min={1} max={4} value={rows}
