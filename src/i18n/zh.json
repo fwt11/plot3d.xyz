@@ -236,6 +236,7 @@
     "zAxis": "Z 轴",
     "legend": "图例",
     "label": "标签",
+    "usedInActiveChart": "在活动图表中被引用（圆点颜色对应曲线）",
     "unit": "单位",
     "autoRange": "自动范围",
     "min": "最小",

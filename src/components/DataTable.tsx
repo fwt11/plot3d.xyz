@@ -1,4 +1,5 @@
 import { useDatasetStore } from '@/store/datasetStore';
+import { useChartStore, selectActiveChart } from '@/store/chartStore';
 import { useToastStore } from '@/store/toastStore';
 import { confirm } from '@/store/confirmStore';
 import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste, Filter, Sparkles, AlertTriangle, Search, X, FunctionSquare } from 'lucide-react';
@@ -56,6 +57,7 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
   const renameColumn = useDatasetStore((s) => s.renameColumn);
   const sortDataset = useDatasetStore((s) => s.sortDataset);
   const addToast = useToastStore((s) => s.addToast);
+  const activeChart = useChartStore((s) => selectActiveChart(s));
 
   const contextRef = useRef<{ colId: string; rowIdx: number } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -70,6 +72,30 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
   const [lastSelectedRow, setLastSelectedRow] = useState<number | null>(null);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
+
+  // Read-only indicator: which columns the active chart's layers reference.
+  // Pure visual cue — does NOT mutate column types.
+  // - `isX`: column is used as the (shared) X axis in some layer.
+  // - `traceColors`: distinct curve colors of layers using this column as Y/Z,
+  //   so the dot color matches the curve on the chart / legend.
+  const usedInfo = useMemo(() => {
+    const map = new Map<string, { isX: boolean; traceColors: Set<string> }>();
+    if (!dataset) return map;
+    for (const layer of activeChart.layers) {
+      if (layer.datasetId !== dataset.id) continue;
+      const mark = (colId: string | undefined, role: 'X' | 'Y' | 'Z') => {
+        if (!colId) return;
+        const entry = map.get(colId) ?? { isX: false, traceColors: new Set<string>() };
+        if (role === 'X') entry.isX = true;
+        else entry.traceColors.add(layer.color);
+        map.set(colId, entry);
+      };
+      mark(layer.xColumn, 'X');
+      mark(layer.yColumn, 'Y');
+      mark(layer.zColumn, 'Z');
+    }
+    return map;
+  }, [activeChart.layers, dataset]);
 
   // Listen for Ctrl+F find/replace open event
   useEffect(() => {
@@ -447,10 +473,23 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
             <tr style={{ background: 'var(--bg-surface)' }}>
               <th className="px-2 py-1 font-normal border-b border-r w-10" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>#</th>
               {dataset.columns.map((col) => (
-                <th key={col.id} className="border-b border-r min-w-[80px] relative" style={{ borderColor: 'var(--border)', width: getColWidth(col.id) }}
+                <th key={col.id} className="border-b border-r min-w-[80px] relative" style={{ borderColor: 'var(--border)', width: getColWidth(col.id), ...(usedInfo.has(col.id) ? { boxShadow: 'inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent)' } : {}) }}
                   onContextMenu={(e) => handleHeaderContextMenu(e, col.id)}
                 >
                   <div className="flex flex-col items-center gap-0.5 px-1 py-1">
+                    {usedInfo.get(col.id) && (
+                      <div
+                        className="flex items-center justify-center gap-0.5"
+                        title={t('data.usedInActiveChart')}
+                      >
+                        {usedInfo.get(col.id)!.isX && (
+                          <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-x)' }} />
+                        )}
+                        {[...usedInfo.get(col.id)!.traceColors].map((c, i) => (
+                          <span key={i} className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: c }} title={c} />
+                        ))}
+                      </div>
+                    )}
                     <select
                       value={col.type}
                       onChange={(e) => setColumnType(dataset.id, col.id, e.target.value as DataColumn['type'])}

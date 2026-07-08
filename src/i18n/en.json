@@ -236,6 +236,7 @@
     "zAxis": "Z Axis",
     "legend": "Legend",
     "label": "Label",
+    "usedInActiveChart": "Referenced by active chart (dot color matches the curve)",
     "unit": "Unit",
     "autoRange": "Auto Range",
     "min": "Min",
