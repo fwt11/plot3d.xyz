@@ -600,7 +600,9 @@
     "templateNameRequired": "请输入模板名称",
     "templateSaved": "模板已保存",
     "templateDeleted": "模板已删除",
-    "computedColumnAdded": "计算列已添加"
+    "computedColumnAdded": "计算列已添加",
+    "autoLayersAdded": "已为 {{count}} 个 Y 列创建曲线",
+    "autoLayersRemoved": "已移除 {{count}} 条曲线"
   },
   "export": {
     "title": "导出",

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { Dataset, DataColumn, ChartType } from '@/types';
+import type { Dataset, DataColumn, ChartType, LayerConfig } from '@/types';
 import { uid } from '@/utils/sampleData';
 import { is3DChart } from '@/utils/chart';
 import { enrichColumns } from '@/utils/tracesBuilder';
 import { sharedDefaultDataset } from './sharedDefaults';
 import { useChartStore, selectActiveChart } from './chartStore';
 import { useHistoryStore } from './historyStore';
+import { useToastStore } from './toastStore';
 import {
   savitzkyGolay,
   movingAverage,
@@ -68,6 +69,84 @@ interface DatasetStore {
 
 const defaultDataset = sharedDefaultDataset;
 
+/** Resolve the X column for a dataset: explicit X column, else the first column. */
+function resolveXColumn(ds: Dataset): DataColumn | undefined {
+  return ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
+}
+
+/** Build a single layer for one Y column, sharing the dataset's X column.
+ *  Hue is spread by golden angle so multiple series stay visually distinct. */
+function makeLayerForY(
+  ds: Dataset,
+  xCol: DataColumn | undefined,
+  yCol: DataColumn,
+  zCol?: DataColumn,
+  index = 0,
+): LayerConfig {
+  const hue = (137.508 * index) % 360;
+  return {
+    id: uid(),
+    datasetId: ds.id,
+    xColumn: (xCol ?? yCol).id,
+    yColumn: yCol.id,
+    zColumn: zCol?.id,
+    color: `hsl(${hue.toFixed(1)}, 70%, 55%)`,
+    visible: true,
+    lineStyle: 'solid',
+    lineWidth: 3,
+    pointStyle: 'circle',
+    pointSize: 6,
+    fill: false,
+    fillOpacity: 0.35,
+  };
+}
+
+/**
+ * Sync layers for a dataset against its column types.
+ * - 2D charts: one layer per Y column (auto multi-curve). Layers whose Y column
+ *   is no longer a Y column are dropped; missing Y columns get a layer.
+ * - 3D / heatmap: at most one layer (legacy behaviour).
+ * Returns the (possibly) new layers array plus counts of added/removed layers.
+ * Skipped entirely when the dataset is in `manualDatasets` (user took control).
+ */
+function syncLayersForDataset(
+  layers: LayerConfig[],
+  ds: Dataset,
+  chartType: ChartType,
+  manualDatasets: string[],
+): { layers: LayerConfig[]; added: number; removed: number } {
+  if (manualDatasets.includes(ds.id)) return { layers, added: 0, removed: 0 };
+
+  const isMultiSeries2D = !is3DChart(chartType) && chartType !== 'heatmap';
+  if (!isMultiSeries2D) {
+    if (layers.some((l) => l.datasetId === ds.id)) return { layers, added: 0, removed: 0 };
+    const xCol = resolveXColumn(ds);
+    const yCol = ds.columns.find((c) => c.type === 'Y') ?? ds.columns[1];
+    const zCol = ds.columns.find((c) => c.type === 'Z');
+    if (xCol && yCol) {
+      return { layers: [...layers, makeLayerForY(ds, xCol, yCol, zCol)], added: 1, removed: 0 };
+    }
+    return { layers, added: 0, removed: 0 };
+  }
+
+  const xCol = resolveXColumn(ds);
+  const yCols = ds.columns.filter((c) => c.type === 'Y');
+  const existingForDs = layers.filter((l) => l.datasetId === ds.id);
+  const kept = layers.filter(
+    (l) => l.datasetId !== ds.id || ds.columns.some((c) => c.id === l.yColumn && c.type === 'Y'),
+  );
+  const keptForDs = kept.filter((l) => l.datasetId === ds.id);
+  const existingYIds = new Set(existingForDs.map((l) => l.yColumn));
+  const addedLayers: LayerConfig[] = [];
+  yCols.forEach((yCol) => {
+    if (!existingYIds.has(yCol.id)) {
+      addedLayers.push(makeLayerForY(ds, xCol, yCol, undefined, keptForDs.length + addedLayers.length));
+    }
+  });
+  const removed = existingForDs.length - keptForDs.length;
+  return { layers: [...kept, ...addedLayers], added: addedLayers.length, removed };
+}
+
 export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   datasets: [defaultDataset],
   activeDatasetId: defaultDataset.id,
@@ -86,32 +165,17 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       const hasZ = input.columns.some((c) => c.type === 'Z');
       const xCol = input.columns.find((c) => c.type === 'X') ?? input.columns[0];
       const yCol = input.columns.find((c) => c.type === 'Y') ?? input.columns[1];
-      const zCol = input.columns.find((c) => c.type === 'Z');
 
       // Push history before cross-store mutation
       useHistoryStore.getState().pushSnapshot(i18n.t('history.addDataset', { defaultValue: 'Add dataset' }));
 
-      // Auto-create layer for this dataset via chartStore
+      // Auto-create layers for this dataset via chartStore (one per Y column)
       const chartState = useChartStore.getState();
       const activeChart = selectActiveChart(chartState);
-      let newLayers = activeChart.layers;
-      if (xCol && yCol) {
-        newLayers = [...activeChart.layers, {
-          id: uid(),
-          datasetId: input.id,
-          xColumn: xCol.id,
-          yColumn: yCol.id,
-          zColumn: zCol?.id,
-          color: `hsl(${Math.random() * 360}, 70%, 55%)`,
-          visible: true,
-          lineStyle: 'solid' as const,
-          lineWidth: 3,
-          pointStyle: 'circle' as const,
-          pointSize: 6,
-          fill: false,
-          fillOpacity: 0.35,
-        }];
-      }
+      const manualDatasets = activeChart.manuallyManagedDatasetIds ?? [];
+      const sync = syncLayersForDataset(activeChart.layers, input, activeChart.type, manualDatasets);
+      const newLayers = sync.layers;
+      const addedLayerCount = sync.added;
 
       // Suggest chart type instead of auto-switching
       let suggestion: ChartType | null = null;
@@ -129,6 +193,13 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
 
       // Update chartStore layers (no history push — already pushed above)
       useChartStore.getState().updateActiveChart((c) => ({ ...c, layers: newLayers }));
+
+      if (addedLayerCount > 0) {
+        useToastStore.getState().addToast(
+          i18n.t('toast.autoLayersAdded', { count: addedLayerCount, defaultValue: `Added curves for ${addedLayerCount} Y column(s)` }),
+          'info',
+        );
+      }
 
       return {
         datasets: [...s.datasets, input],
@@ -299,6 +370,8 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   setColumnType: (datasetId, columnId, type) => {
     useHistoryStore.getState().pushSnapshot(i18n.t('history.setColumnType', { defaultValue: 'Set column type' }));
 
+    let syncResult = { added: 0, removed: 0 };
+
     set((s) => {
       const newType = type as DataColumn['type'];
 
@@ -323,31 +396,15 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
       }
 
       let layers = activeChart.layers;
-      const hasLayerForDs = layers.some((l) => l.datasetId === datasetId);
-      if (!hasLayerForDs) {
-        const ds = newDatasets.find((d) => d.id === datasetId);
-        if (ds) {
-          const xCol = ds.columns.find((c) => c.type === 'X') ?? ds.columns[0];
-          const yCol = ds.columns.find((c) => c.type === 'Y') ?? ds.columns[1];
-          const zCol = ds.columns.find((c) => c.type === 'Z');
-          if (xCol && yCol) {
-            layers = [...layers, {
-              id: uid(),
-              datasetId,
-              xColumn: xCol.id,
-              yColumn: yCol.id,
-              zColumn: zCol?.id,
-              color: `hsl(${Math.random() * 360}, 70%, 55%)`,
-              visible: true,
-              lineStyle: 'solid' as const,
-              lineWidth: 3,
-              pointStyle: 'circle' as const,
-              pointSize: 3,
-              fill: false,
-              fillOpacity: 0.35,
-            }];
-          }
-        }
+      let added = 0;
+      let removed = 0;
+      const manualDatasets = activeChart.manuallyManagedDatasetIds ?? [];
+      const targetDs = newDatasets.find((d) => d.id === datasetId);
+      if (targetDs) {
+        const sync = syncLayersForDataset(activeChart.layers, targetDs, newChartType, manualDatasets);
+        layers = sync.layers;
+        added = sync.added;
+        removed = sync.removed;
       }
 
       // Update chartStore (no history push — already pushed above)
@@ -357,10 +414,24 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
         layers,
       }));
 
+      syncResult = { added, removed };
+
       return {
         datasets: newDatasets,
       };
     });
+
+    if (syncResult.added > 0) {
+      useToastStore.getState().addToast(
+        i18n.t('toast.autoLayersAdded', { count: syncResult.added, defaultValue: `Added curves for ${syncResult.added} Y column(s)` }),
+        'info',
+      );
+    } else if (syncResult.removed > 0) {
+      useToastStore.getState().addToast(
+        i18n.t('toast.autoLayersRemoved', { count: syncResult.removed, defaultValue: `Removed ${syncResult.removed} curve(s)` }),
+        'info',
+      );
+    }
   },
 
   renameColumn: (datasetId, columnId, name) => {

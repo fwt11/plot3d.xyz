@@ -29,6 +29,13 @@ const defaultAxis: AxisConfig = {
  * Build a fresh default ChartConfig. Each call produces unique ids so
  * grid cells can have independent charts. (Chunk 1 Task 1.2)
  */
+/** Add `id` to an array without duplicates (used to record manual layer edits). */
+function uniquePush(arr: string[] | undefined, id: string): string[] {
+  const set = new Set(arr ?? []);
+  set.add(id);
+  return [...set];
+}
+
 export function createDefaultChartConfig(): ChartConfig {
   return {
     id: uid(),
@@ -46,6 +53,7 @@ export function createDefaultChartConfig(): ChartConfig {
     exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
     fontSize: 16,
     scene3D: { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' },
+    manuallyManagedDatasetIds: [],
     layers: [
       {
         id: uid(),
@@ -212,14 +220,23 @@ export const useChartStore = create<ChartStore>()((set) => {
         i18n.t('history.setColorMap', { defaultValue: 'Change color map' })),
 
     addLayer: (layer) =>
-      setWithHistory((s) => patchActive(s, (c) => ({ ...c, layers: [...c.layers, layer] })),
-        i18n.t('history.addLayer', { defaultValue: 'Add layer' })),
-
-    removeLayer: (layerId) =>
       setWithHistory((s) => patchActive(s, (c) => ({
         ...c,
-        layers: c.layers.filter((l) => l.id !== layerId),
-      })), i18n.t('history.removeLayer', { defaultValue: 'Remove layer' })),
+        layers: [...c.layers, layer],
+        manuallyManagedDatasetIds: uniquePush(c.manuallyManagedDatasetIds, layer.datasetId),
+      })), i18n.t('history.addLayer', { defaultValue: 'Add layer' })),
+
+    removeLayer: (layerId) =>
+      setWithHistory((s) => patchActive(s, (c) => {
+        const layer = c.layers.find((l) => l.id === layerId);
+        return {
+          ...c,
+          layers: c.layers.filter((l) => l.id !== layerId),
+          manuallyManagedDatasetIds: layer
+            ? uniquePush(c.manuallyManagedDatasetIds, layer.datasetId)
+            : c.manuallyManagedDatasetIds,
+        };
+      }), i18n.t('history.removeLayer', { defaultValue: 'Remove layer' })),
 
     updateLayer: (layerId, data) =>
       setWithHistory((s) => patchActive(s, (c) => ({
@@ -232,9 +249,14 @@ export const useChartStore = create<ChartStore>()((set) => {
         const layers = [...c.layers];
         const fromIndex = layers.findIndex((l) => l.id === layerId);
         if (fromIndex === -1 || fromIndex === toIndex || toIndex < 0 || toIndex >= layers.length) return c;
-        const [moved] = layers.splice(fromIndex, 1);
+        const moved = layers[fromIndex];
+        layers.splice(fromIndex, 1);
         layers.splice(toIndex, 0, moved);
-        return { ...c, layers };
+        return {
+          ...c,
+          layers,
+          manuallyManagedDatasetIds: uniquePush(c.manuallyManagedDatasetIds, moved.datasetId),
+        };
       }), i18n.t('history.moveLayer', { defaultValue: 'Reorder layer' })),
 
     reorderLayers: (layerIds) =>
@@ -242,7 +264,14 @@ export const useChartStore = create<ChartStore>()((set) => {
         const map = new Map(c.layers.map((l) => [l.id, l]));
         const reordered = layerIds.map((id) => map.get(id)).filter((l): l is LayerConfig => Boolean(l));
         const extras = c.layers.filter((l) => !layerIds.includes(l.id));
-        return { ...c, layers: [...reordered, ...extras] };
+        const touched = new Set(reordered.map((l) => l.datasetId));
+        return {
+          ...c,
+          layers: [...reordered, ...extras],
+          manuallyManagedDatasetIds: c.manuallyManagedDatasetIds
+            ? [...new Set([...c.manuallyManagedDatasetIds, ...touched])]
+            : [...touched],
+        };
       }), i18n.t('history.reorderLayers', { defaultValue: 'Reorder layers' })),
 
     setMargins: (margins) =>

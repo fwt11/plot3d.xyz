@@ -600,7 +600,9 @@
     "templateNameRequired": "Template name is required",
     "templateSaved": "Template saved",
     "templateDeleted": "Template deleted",
-    "computedColumnAdded": "Computed column added"
+    "computedColumnAdded": "Computed column added",
+    "autoLayersAdded": "Added curves for {{count}} Y column(s)",
+    "autoLayersRemoved": "Removed {{count}} curve(s)"
   },
   "export": {
     "title": "Export",

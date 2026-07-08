@@ -284,6 +284,10 @@ export interface ChartConfig {
   annotations: Annotation[];
   /** Phase 4 Task 4.5: inset plots (small panels embedded in the main chart). */
   insets?: InsetConfig[];
+  /** Dataset ids whose layers the user has manually edited. Once present, the
+   *  auto layer-sync (one curve per Y column) is disabled for that dataset so it
+   *  won't resurrect layers the user deleted. */
+  manuallyManagedDatasetIds?: string[];
   marginTop: number;
   marginRight: number;
   marginBottom: number;

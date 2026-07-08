@@ -284,6 +284,9 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
       figureMultiplier: [1, 2, 3].includes(exportConfig.figureMultiplier as number) ? (exportConfig.figureMultiplier as 1 | 2 | 3) : 1,
     },
     fontSize: typeof c.fontSize === 'number' ? c.fontSize : 16,
+    manuallyManagedDatasetIds: Array.isArray(c.manuallyManagedDatasetIds)
+      ? (c.manuallyManagedDatasetIds as unknown[]).filter((id): id is string => typeof id === 'string')
+      : [],
     scene3D: {
       aspectMode,
       aspectRatio: {
