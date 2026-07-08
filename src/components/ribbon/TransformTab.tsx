@@ -86,7 +86,7 @@ export function TransformTab() {
     setPreview({ columnId: targetCol.id, op: { kind: 'transform', fn, label } });
   };
 
-  const compute = (name: string, fn: (row: Record<string, number>) => number) => {
+  const compute = (name: string, fn: (row: Record<string, number | string>) => number) => {
     if (!activeDs) return;
     addComputedColumn(activeDs.id, name, fn);
   };
@@ -312,19 +312,19 @@ export function TransformTab() {
 
       {/* Computed Column */}
       <RibbonGroup label={t('transform.computedCol')}>
-        <button onClick={() => compute('x+y', (r) => (r[activeDs!.columns[0].name] ?? 0) + (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X + Y" aria-label="X + Y">
+        <button onClick={() => compute('x+y', (r) => Number(r[activeDs!.columns[0].name] ?? 0) + Number(r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X + Y" aria-label="X + Y">
           <span className="text-xs font-mono">+</span>
           <span className="text-xs">{t('transform.add')}</span>
         </button>
-        <button onClick={() => compute('x-y', (r) => (r[activeDs!.columns[0].name] ?? 0) - (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X - Y" aria-label="X - Y">
+        <button onClick={() => compute('x-y', (r) => Number(r[activeDs!.columns[0].name] ?? 0) - Number(r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X - Y" aria-label="X - Y">
           <span className="text-xs font-mono">−</span>
           <span className="text-xs">{t('transform.sub')}</span>
         </button>
-        <button onClick={() => compute('x*y', (r) => (r[activeDs!.columns[0].name] ?? 0) * (r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X × Y" aria-label="X × Y">
+        <button onClick={() => compute('x*y', (r) => Number(r[activeDs!.columns[0].name] ?? 0) * Number(r[activeDs!.columns[1].name] ?? 0))} className="ribbon-btn" title="X × Y" aria-label="X × Y">
           <span className="text-xs font-mono">×</span>
           <span className="text-xs">{t('transform.mul')}</span>
         </button>
-        <button onClick={() => compute('x/y', (r) => { const d = r[activeDs!.columns[1].name]; return d ? r[activeDs!.columns[0].name] / d : NaN; })} className="ribbon-btn" title="X ÷ Y" aria-label="X ÷ Y">
+        <button onClick={() => compute('x/y', (r) => { const d = Number(r[activeDs!.columns[1].name]); return d ? Number(r[activeDs!.columns[0].name]) / d : NaN; })} className="ribbon-btn" title="X ÷ Y" aria-label="X ÷ Y">
           <span className="text-xs font-mono">÷</span>
           <span className="text-xs">{t('transform.div')}</span>
         </button>

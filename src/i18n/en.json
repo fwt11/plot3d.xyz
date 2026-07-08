@@ -330,6 +330,8 @@
     "formulaPlaceholder": "e.g., sin(col_0) + col_1 * 2",
     "availableColumns": "Available Columns",
     "quickFunctions": "Functions",
+    "dateFunctions": "Date functions",
+    "dateFunctionHint": "Converts a date/text column into a number",
     "applyFormula": "Apply",
     "dragToResize": "Drag to resize column",
     "totalRows": "Total rows",

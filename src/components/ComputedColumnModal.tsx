@@ -4,6 +4,7 @@ import { useDatasetStore } from '@/store/datasetStore';
 import { useToastStore } from '@/store/toastStore';
 import { X, FunctionSquare, Calculator } from 'lucide-react';
 import { parse } from 'mathjs';
+import { DATE_FUNCTIONS, DATE_FUNCTION_LIST } from '@/utils/dateFunctions';
 
 interface ComputedColumnModalProps {
   datasetId: string;
@@ -73,12 +74,15 @@ export function ComputedColumnModal({ datasetId, onClose }: ComputedColumnModalP
     try {
       const parsed = parse(formula);
       const compiled = parsed.compile();
-      const scope: Record<string, number> = {};
+      const scope: Record<string, number | string | ((v: unknown) => number)> = {};
       dataset.columns.forEach((c, i) => {
-        const n = Number(c.values[0]);
-        scope[`col_${i}`] = !isNaN(n) && isFinite(n) ? n : NaN;
+        const raw = c.values[0];
+        const n = Number(raw);
+        // Numeric columns stay numbers; non-numeric (e.g. date) columns are
+        // passed as their raw value so date functions can parse them.
+        scope[`col_${i}`] = !isNaN(n) && isFinite(n) ? n : raw;
       });
-      compiled.evaluate(scope);
+      compiled.evaluate({ ...scope, ...DATE_FUNCTIONS });
       setError(null);
       return true;
     } catch (err) {
@@ -101,8 +105,8 @@ export function ComputedColumnModal({ datasetId, onClose }: ComputedColumnModalP
     try {
       const parsed = parse(formula);
       const compiled = parsed.compile();
-      const fn = (row: Record<string, number>) => {
-        return compiled.evaluate(row);
+      const fn = (row: Record<string, number | string>) => {
+        return compiled.evaluate({ ...row, ...DATE_FUNCTIONS });
       };
       const name = columnName.trim() || t('data.computedColumnDefault', 'Computed');
       addComputedColumn(dataset.id, name, fn);
@@ -246,6 +250,38 @@ export function ComputedColumnModal({ datasetId, onClose }: ComputedColumnModalP
                     e.currentTarget.style.color = 'var(--text-muted)';
                     e.currentTarget.style.borderColor = 'var(--border)';
                   }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date functions */}
+          <div className="space-y-1.5">
+            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('data.dateFunctions', 'Date functions')}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {DATE_FUNCTION_LIST.map((f) => (
+                <button
+                  key={f.label}
+                  onClick={() => insertAtCursor(f.code)}
+                  className="px-2 py-0.5 text-xs rounded border transition-colors font-mono"
+                  style={{
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-muted)',
+                    background: 'var(--bg-surface)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--accent)';
+                    e.currentTarget.style.borderColor = 'var(--accent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  }}
+                  title={t('data.dateFunctionHint', 'Converts a date/text column into a number')}
                 >
                   {f.label}
                 </button>

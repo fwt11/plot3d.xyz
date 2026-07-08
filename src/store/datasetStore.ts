@@ -44,7 +44,7 @@ interface DatasetStore {
   setColumnType: (datasetId: string, columnId: string, type: DataColumn['type']) => void;
   renameColumn: (datasetId: string, columnId: string, name: string) => void;
   transformColumn: (datasetId: string, columnId: string, fn: (val: number) => number) => void;
-  addComputedColumn: (datasetId: string, name: string, fn: (row: Record<string, number>) => number) => void;
+  addComputedColumn: (datasetId: string, name: string, fn: (row: Record<string, number | string>) => number) => void;
   sortDataset: (datasetId: string, columnId: string, ascending: boolean) => void;
   normalizeColumn: (datasetId: string, columnId: string) => void;
   /** Normalize a column using the given method: 'minmax' | 'zscore' | 'log'. */
@@ -470,8 +470,14 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
         if (d.id !== datasetId) return d;
         const maxRows = Math.max(...d.columns.map((c) => c.values.length), 0);
         const values = Array.from({ length: maxRows }, (_, i) => {
-          const row: Record<string, number> = {};
-          d.columns.forEach((c, ci) => { const n = Number(c.values[i]); if (!isNaN(n)) row[`col_${ci}`] = n; });
+          const row: Record<string, number | string> = {};
+          d.columns.forEach((c, ci) => {
+            const raw = c.values[i];
+            const n = Number(raw);
+            // Keep numeric columns as numbers; fall back to the raw value so
+            // non-numeric (e.g. date) columns remain accessible to formula functions.
+            row[`col_${ci}`] = !isNaN(n) && isFinite(n) ? n : raw;
+          });
           const result = fn(row);
           return isNaN(result) ? '' : String(result);
         });

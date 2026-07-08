@@ -330,6 +330,8 @@
     "formulaPlaceholder": "例如 sin(col_0) + col_1 * 2",
     "availableColumns": "可用列",
     "quickFunctions": "函数",
+    "dateFunctions": "日期函数",
+    "dateFunctionHint": "将日期/文本列转换为数值",
     "applyFormula": "应用",
     "dragToResize": "拖拽调整列宽",
     "totalRows": "总行数",
