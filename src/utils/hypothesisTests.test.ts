@@ -216,11 +216,6 @@ describe('kruskalWallis', () => {
 });
 
 describe('shapiroWilk', () => {
-  // BUG NOTE: Royston's approximation in the current implementation produces
-  // eps < 0 (denominator 1 - 2*aN² - 2*aN1² is negative for n ≥ 4) leading
-  // to NaN W statistic. The n === 3 closed-form branch is independent of eps
-  // and works. Phase 1 follow-up: fix Royston coefficients or switch to a
-  // reference implementation.
   it('returns invalid for n < 3', () => {
     const r = shapiroWilk([1, 2]);
     expect(r.pValue).toBeNaN();
@@ -238,17 +233,81 @@ describe('shapiroWilk', () => {
     expect(r.pValue).toBeNaN();
   });
 
-  it('n = 3 uses closed-form branch', () => {
+  // Reference values below were computed with scipy.stats.shapiro
+  // (scipy 1.16.1, which implements the same Royston 1995 AS R94 algorithm).
+
+  it('n = 3 closed form matches scipy (W = 1, p = 1 for evenly spaced data)', () => {
     const r = shapiroWilk([1, 2, 3]);
-    expect(r).toBeDefined();
     expect(r.df).toBe(2);
     expect(r.extra?.sampleSize).toBe(3);
+    expect(r.statistic).toBeCloseTo(1.0, 10);
+    expect(r.pValue).toBeCloseTo(1.0, 10);
+    expect(r.significant).toBe(false);
   });
 
-  it('n ≥ 4 enters Royston branch (currently produces NaN due to bug)', () => {
+  it('n = 4 matches scipy reference values', () => {
+    const r = shapiroWilk([1.2, 2.5, 3.1, 4.8]);
+    expect(r.statistic).toBeCloseTo(0.9888411138, 6);
+    expect(r.pValue).toBeCloseTo(0.9514584746, 6);
+  });
+
+  it('n = 5 matches scipy reference values', () => {
+    const r = shapiroWilk([1, 2, 3, 4, 5]);
+    expect(r.statistic).toBeCloseTo(0.9867621552, 6);
+    expect(r.pValue).toBeCloseTo(0.9671739350, 6);
+  });
+
+  it('n = 10 uniform-like data matches scipy, normality not rejected', () => {
     const r = shapiroWilk([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    expect(r).toBeDefined();
     expect(r.df).toBe(9);
+    expect(r.statistic).toBeCloseTo(0.9701646111, 6);
+    expect(r.pValue).toBeCloseTo(0.8923673062, 6);
+    expect(r.statistic).toBeGreaterThan(0.9);
+    expect(r.significant).toBe(false);
+  });
+
+  it('n = 10 normal-like data matches scipy, normality not rejected', () => {
+    const r = shapiroWilk([-0.5, -0.3, -0.1, 0.0, 0.1, 0.2, 0.3, 0.5, -0.2, 0.4]);
+    expect(r.statistic).toBeCloseTo(0.9808779657, 6);
+    expect(r.pValue).toBeCloseTo(0.9696925840, 6);
+    expect(r.significant).toBe(false);
+  });
+
+  it('n = 10 strongly skewed data matches scipy, normality rejected', () => {
+    const r = shapiroWilk([1, 1, 1, 1, 1, 2, 2, 3, 5, 20]);
+    expect(r.statistic).toBeCloseTo(0.5290093888, 6);
+    expect(r.pValue).toBeCloseTo(0.0000079727, 6);
+    expect(r.pValue).toBeLessThan(0.05);
+    expect(r.significant).toBe(true);
+  });
+
+  it('n = 50 normal sample matches scipy, normality not rejected', () => {
+    const sample = [
+      0.496714, -0.138264, 0.647689, 1.52303, -0.234153, -0.234137,
+      1.579213, 0.767435, -0.469474, 0.54256, -0.463418, -0.46573,
+      0.241962, -1.91328, -1.724918, -0.562288, -1.012831, 0.314247,
+      -0.908024, -1.412304, 1.465649, -0.225776, 0.067528, -1.424748,
+      -0.544383, 0.110923, -1.150994, 0.375698, -0.600639, -0.291694,
+      -0.601707, 1.852278, -0.013497, -1.057711, 0.822545, -1.220844,
+      0.208864, -1.95967, -1.328186, 0.196861, 0.738467, 0.171368,
+      -0.115648, -0.301104, -1.478522, -0.719844, -0.460639, 1.057122,
+      0.343618, -1.76304,
+    ];
+    const r = shapiroWilk(sample);
+    expect(r.statistic).toBeCloseTo(0.9827494614, 4);
+    expect(r.pValue).toBeCloseTo(0.6722075649, 4);
+    expect(r.significant).toBe(false);
+  });
+
+  it('never returns NaN across a range of sample sizes', () => {
+    for (const n of [3, 4, 5, 6, 10, 20, 50]) {
+      const sample = Array.from({ length: n }, (_, i) => i * i + 0.5 * i);
+      const r = shapiroWilk(sample);
+      expect(r.statistic).not.toBeNaN();
+      expect(r.pValue).not.toBeNaN();
+      expect(r.statistic).toBeGreaterThan(0);
+      expect(r.statistic).toBeLessThanOrEqual(1);
+    }
   });
 });
 

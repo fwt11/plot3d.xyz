@@ -91,9 +91,12 @@ export function savitzkyGolay(values: number[], windowSize: number, polyOrder = 
       const v = values[idx];
       if (!Number.isFinite(v)) continue;
       sum += coeffs[k] * v;
-      weight += Math.abs(coeffs[k]);
+      weight += coeffs[k];
     }
-    out[i] = weight !== 0 ? sum : NaN;
+    // Normalize by the (possibly truncated) window's coefficient sum so
+    // boundary points and NaN gaps don't attenuate the output. For a full
+    // interior window the SG coefficients sum to 1, so this is a no-op there.
+    out[i] = weight !== 0 ? sum / weight : NaN;
   }
   return out;
 }
@@ -269,7 +272,9 @@ export function cubicSplineInterp(xs: number[], ys: number[], queryX: number[]):
   if (n === 1) return queryX.map(() => pts[0].y);
   if (n === 2) return linearInterp(xs, ys, queryX);
 
-  // Compute second derivatives s[i] for natural spline (s[0] = s[n-1] = 0)
+  // Solve the tridiagonal system for the natural spline (s[0] = s[n-1] = 0).
+  // The Burden-Faires algorithm below yields c[i] = M[i]/2 (half the second
+  // derivative), so scale by 2 afterwards to get the true second derivatives M[i].
   const h = new Array<number>(n - 1);
   for (let i = 0; i < n - 1; i++) h[i] = pts[i + 1].x - pts[i].x;
   const alpha = new Array<number>(n).fill(0);
@@ -290,6 +295,8 @@ export function cubicSplineInterp(xs: number[], ys: number[], queryX: number[]):
   for (let j = n - 2; j >= 0; j--) {
     s[j] = z[j] - mu[j] * s[j + 1];
   }
+  // Convert c = M/2 to the second derivatives M used by the evaluation formula.
+  for (let i = 0; i < n; i++) s[i] *= 2;
 
   return queryX.map((qx) => {
     if (qx <= pts[0].x) return pts[0].y;

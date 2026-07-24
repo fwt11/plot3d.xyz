@@ -127,16 +127,20 @@ export function skewness(values: number[]): number {
   const n = values.length;
   if (n < 3) return NaN;
   const mu = mean(values);
-  const sd = sampleStdDev(values);
-  if (sd === 0 || !Number.isFinite(sd)) return NaN;
-  let m3 = 0;
+  let s2 = 0;
+  let s3 = 0;
   for (const v of values) {
     const d = v - mu;
-    m3 += d * d * d;
+    s2 += d * d;
+    s3 += d * d * d;
   }
-  m3 /= n;
-  const g1 = m3 / (sd * sd * sd);
-  // Bias-corrected (adjusted) skewness
+  if (s2 === 0 || !Number.isFinite(s2)) return NaN;
+  // Population central moments (divided by n, not n - 1)
+  const m2 = s2 / n;
+  const m3 = s3 / n;
+  const g1 = m3 / Math.pow(m2, 1.5);
+  // Bias-corrected (adjusted Fisher-Pearson) skewness, cf. Excel SKEW /
+  // scipy.stats.skew(bias=False)
   return g1 * Math.sqrt(n * (n - 1)) / (n - 2);
 }
 
@@ -146,17 +150,20 @@ export function kurtosis(values: number[]): number {
   const n = values.length;
   if (n < 4) return NaN;
   const mu = mean(values);
-  const sd = sampleStdDev(values);
-  if (sd === 0 || !Number.isFinite(sd)) return NaN;
-  let m4 = 0;
+  let s2 = 0;
+  let s4 = 0;
   for (const v of values) {
     const d = v - mu;
     const d2 = d * d;
-    m4 += d2 * d2;
+    s2 += d2;
+    s4 += d2 * d2;
   }
-  m4 /= n;
-  const g2 = m4 / (sd * sd * sd * sd) - 3;
-  // Bias-corrected excess kurtosis
+  if (s2 === 0 || !Number.isFinite(s2)) return NaN;
+  // Population central moments (divided by n, not n - 1)
+  const m2 = s2 / n;
+  const m4 = s4 / n;
+  const g2 = m4 / (m2 * m2) - 3;
+  // Bias-corrected excess kurtosis, cf. scipy.stats.kurtosis(bias=False)
   return ((n - 1) / ((n - 2) * (n - 3))) * ((n + 1) * g2 + 6);
 }
 
@@ -597,99 +604,4 @@ function logGammaLocal(x: number): number {
     a += c[i] / (x + i);
   }
   return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
-}
-
-/** Variance Inflation Factor (VIF) for detecting multicollinearity.
- *  VIF > 10 indicates strong multicollinearity.
- *  @param designMatrix Array of predictor arrays (each inner array is one predictor's values).
- *  @param columnIndex Index of the predictor to compute VIF for. */
-export function varianceInflationFactor(designMatrix: number[][], columnIndex: number): number {
-  const k = designMatrix.length;
-  if (k < 2 || columnIndex < 0 || columnIndex >= k) return NaN;
-  const target = designMatrix[columnIndex];
-  const others = designMatrix.filter((_, i) => i !== columnIndex);
-  // Regress target on others (linear regression with intercept)
-  const n = target.length;
-  if (n < others.length + 2) return NaN;
-  // Build design matrix with intercept
-  const X: number[][] = [];
-  for (let i = 0; i < n; i++) {
-    const row = [1];
-    for (const col of others) row.push(col[i]);
-    X.push(row);
-  }
-  const y = target;
-  // OLS: beta = (X^T X)^-1 X^T y
-  const p = X[0].length;
-  // Normal equations: X^T X
-  const XtX = Array.from({ length: p }, () => new Array(p).fill(0));
-  const Xty = new Array(p).fill(0);
-  for (let i = 0; i < n; i++) {
-    for (let a = 0; a < p; a++) {
-      Xty[a] += X[i][a] * y[i];
-      for (let b = 0; b < p; b++) {
-        XtX[a][b] += X[i][a] * X[i][b];
-      }
-    }
-  }
-  // Solve via Gaussian elimination
-  const beta = gaussianElimination(XtX, Xty);
-  if (!beta) return NaN;
-  // Compute R²
-  const yMean = mean(y);
-  let ssRes = 0, ssTot = 0;
-  for (let i = 0; i < n; i++) {
-    let pred = 0;
-    for (let j = 0; j < p; j++) pred += beta[j] * X[i][j];
-    ssRes += (y[i] - pred) ** 2;
-    ssTot += (y[i] - yMean) ** 2;
-  }
-  if (ssTot === 0) return NaN;
-  const r2 = 1 - ssRes / ssTot;
-  if (r2 >= 1) return Infinity;
-  return 1 / (1 - r2);
-}
-
-/** Solve a linear system Ax = b via Gaussian elimination with partial pivoting. */
-function gaussianElimination(A: number[][], b: number[]): number[] | null {
-  const n = A.length;
-  const aug = A.map((row, i) => [...row, b[i]]);
-  for (let i = 0; i < n; i++) {
-    // Find pivot
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(aug[k][i]) > Math.abs(aug[maxRow][i])) maxRow = k;
-    }
-    [aug[i], aug[maxRow]] = [aug[maxRow], aug[i]];
-    if (Math.abs(aug[i][i]) < 1e-12) return null;
-    // Eliminate
-    for (let k = i + 1; k < n; k++) {
-      const factor = aug[k][i] / aug[i][i];
-      for (let j = i; j <= n; j++) {
-        aug[k][j] -= factor * aug[i][j];
-      }
-    }
-  }
-  // Back-substitute
-  const x = new Array(n).fill(0);
-  for (let i = n - 1; i >= 0; i--) {
-    let sum = 0;
-    for (let j = i + 1; j < n; j++) sum += aug[i][j] * x[j];
-    x[i] = (aug[i][n] - sum) / aug[i][i];
-  }
-  return x;
-}
-
-/** Jarque-Bera test for normality of residuals.
- *  Tests whether the skewness and kurtosis match a normal distribution. */
-export function jarqueBeraTest(values: number[]): { jb: number; pValue: number; significant: boolean } {
-  const n = values.length;
-  if (n < 4) return { jb: NaN, pValue: NaN, significant: false };
-  const s = skewness(values);
-  const k = kurtosis(values);
-  if (!Number.isFinite(s) || !Number.isFinite(k)) return { jb: NaN, pValue: NaN, significant: false };
-  const jb = (n / 6) * (s * s + (k * k) / 4);
-  // p-value from chi-square with 2 df
-  const pValue = chi2PLocal(jb, 2);
-  return { jb, pValue, significant: pValue < 0.05 };
 }

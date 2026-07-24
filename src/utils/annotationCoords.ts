@@ -63,23 +63,6 @@ export function toDisplayPercent(
   };
 }
 
-/** Rotate a point (px,py) around a center (cx,cy) by angleDeg degrees. */
-export function rotatePoint(
-  px: number,
-  py: number,
-  cx: number,
-  cy: number,
-  angleDeg: number,
-): { x: number; y: number } {
-  const rad = (angleDeg * Math.PI) / 180;
-  const dx = px - cx;
-  const dy = py - cy;
-  return {
-    x: cx + dx * Math.cos(rad) - dy * Math.sin(rad),
-    y: cy + dx * Math.sin(rad) + dy * Math.cos(rad),
-  };
-}
-
 /**
  * Rotate a point in percent coordinates while compensating for container aspect ratio.
  * Percent coords are non-isometric (1% x != 1% y when width != height), so naive rotation

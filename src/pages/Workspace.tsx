@@ -20,6 +20,7 @@ import ToastContainer from '@/components/Toast';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2 } from 'lucide-react';
 import { serializeProject, saveProjectFile } from '@/utils/projectFile';
 import { parseShareHash, decodeShareFigure } from '@/utils/shareLink';
+import i18n from '@/i18n';
 import { useToastStore } from '@/store/toastStore';
 import type { Annotation } from '@/types';
 import { uid } from '@/utils/sampleData';
@@ -175,7 +176,7 @@ export default function Workspace() {
     if (!figure) return;
     useChartStore.setState({ figure });
     const { addToast } = useToastStore.getState();
-    addToast(t('toast.shareLoaded', { defaultValue: 'Loaded shared figure' }), 'success');
+    addToast(i18n.t('toast.shareLoaded', { defaultValue: 'Loaded shared figure' }), 'success');
   }, []);
 
   // Resizable panel tracking
@@ -201,16 +202,19 @@ export default function Workspace() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
       const isCtrl = e.ctrlKey || e.metaKey;
 
-      // Undo / Redo / Save (work everywhere)
+      // Undo / Redo / Save. Inside text inputs let the browser's native
+      // undo/redo run so typing is not clobbered by a global state restore.
       if (isCtrl && e.key === 'z' && !e.shiftKey) {
+        if (isInputFocused) return;
         e.preventDefault();
         if (pastLength > 0) undo();
         return;
       }
       if (isCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        if (isInputFocused) return;
         e.preventDefault();
         if (futureLength > 0) redo();
         return;

@@ -34,7 +34,9 @@ interface DatasetStore {
   updateDataset: (id: string, data: Partial<Dataset>) => void;
   setActiveDataset: (id: string) => void;
   updateCellValue: (datasetId: string, columnId: string, rowIndex: number, value: string) => void;
-  /** Update cell without pushing to history (used during typing; commit on blur via updateCellValue) */
+  /** Update cell without pushing to history. Used while typing in DataTable —
+   *  the caller pushes a single snapshot when the edit session starts (on focus)
+   *  and drops it on blur if nothing changed. */
   updateCellValueSilent: (datasetId: string, columnId: string, rowIndex: number, value: string) => void;
   addColumn: (datasetId: string) => void;
   removeColumn: (datasetId: string, columnId: string) => void;
@@ -231,8 +233,8 @@ export const useDatasetStore = create<DatasetStore>()((set, get) => ({
   setActiveDataset: (id) => set({ activeDatasetId: id }),
 
   updateCellValue: (datasetId, columnId, rowIndex, value) => {
-    // Push a single history snapshot when the user commits a cell edit (on blur).
-    // During typing, updateCellValueSilent is used to avoid flooding the history stack.
+    // Push a history snapshot before a one-shot programmatic edit (e.g. find-replace).
+    // Interactive typing in DataTable uses updateCellValueSilent plus a focus-time snapshot instead.
     useHistoryStore.getState().pushSnapshot(i18n.t('history.editCell', { defaultValue: 'Edit cell' }));
     set((s) => ({
       datasets: s.datasets.map((d) =>

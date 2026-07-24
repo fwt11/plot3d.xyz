@@ -165,7 +165,7 @@ export function MultiPeakFitModal({ onClose }: MultiPeakFitModalProps) {
     a.href = url;
     a.download = `multipeak_fit_${shape}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     addToast(t('toast.exportSuccess'), 'success');
   }, [result, shape, addToast, t]);
 

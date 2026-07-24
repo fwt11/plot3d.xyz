@@ -97,5 +97,7 @@ export function downloadTextFile(content: string, filename: string, mime = 'text
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  // Delay revoke so the download has actually started (Safari cancels the
+  // download if the URL is revoked synchronously after click()).
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

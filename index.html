@@ -4,19 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:;" />
+    <!--
+      CSP notes:
+      - script-src 'self' only: the theme pre-init script lives in /theme-init.js
+        (external) so 'unsafe-inline' is not needed; no dependency uses eval /
+        new Function, so 'unsafe-eval' is dropped too.
+      - style-src keeps 'unsafe-inline': React/Plotly set inline style
+        attributes and the splash <style> block below is inline; style
+        attributes are governed by style-src(-attr), so this must stay.
+      - img-src/font-src allow data: for Plotly modebar icons, html-to-image
+        rasterization and KaTeX fonts; blob: for worker (fitWorker) and
+        export downloads.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none';" />
     <title>plot3d.xyz</title>
-    <script>
-      // Apply stored theme synchronously so the splash matches the user's theme
-      // before React mounts. Mirrors the readStoredTheme() logic in uiStore.ts.
-      try {
-        var t = localStorage.getItem('plot3d-theme');
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-        else document.documentElement.setAttribute('data-theme', 'light');
-      } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
-      }
-    </script>
+    <script src="/theme-init.js"></script>
     <style>
       /* Splash shown until React mounts and removes #app-splash. Pure CSS so
          it works even when JS is slow to load. */

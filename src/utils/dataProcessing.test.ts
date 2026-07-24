@@ -55,6 +55,38 @@ describe('savitzkyGolay', () => {
     const y = savitzkyGolay(x, 4); // Even → bumped to 5
     expect(y.length).toBe(5);
   });
+
+  it('preserves a constant signal at the boundaries (normalized truncated window)', () => {
+    for (const [win, order] of [[5, 2], [7, 2], [7, 3], [3, 1]] as const) {
+      const y = savitzkyGolay(new Array(11).fill(1), win, order);
+      for (let i = 0; i < y.length; i++) {
+        expect(y[i]).toBeCloseTo(1, 9);
+      }
+    }
+  });
+
+  it('matches scipy.signal.savgol_filter in the interior', () => {
+    // Reference: scipy.signal.savgol_filter(sig, 5, 2) / savgol_filter(sig, 7, 3).
+    // Edges differ by design (scipy uses mode='interp'; we use a normalized
+    // truncated window), so only interior points are compared.
+    const sig = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5];
+    const y5 = savitzkyGolay(sig, 5, 2);
+    const expected5 = [
+      1.942857142857, 2.714285714286, 5.342857142857,
+      6.171428571429, 5.257142857143, 4.285714285714, 4.914285714286,
+    ];
+    for (let i = 0; i < expected5.length; i++) {
+      expect(Math.abs(y5[i + 2] - expected5[i])).toBeLessThan(1e-9);
+    }
+    const y7 = savitzkyGolay(sig, 7, 3);
+    const expected7 = [
+      3.857142857143, 4.714285714286, 5.142857142857,
+      6.0, 4.761904761905,
+    ];
+    for (let i = 0; i < expected7.length; i++) {
+      expect(Math.abs(y7[i + 3] - expected7[i])).toBeLessThan(1e-9);
+    }
+  });
 });
 
 describe('movingAverage', () => {
@@ -156,7 +188,7 @@ describe('cubicSplineInterp', () => {
   });
 
   it('matches sin curve for 4+ points (relaxed tolerance)', () => {
-    // Implementation uses not-a-knot cubic spline; check that interior values
+    // Implementation uses a natural cubic spline; check that interior values
     // are finite and within reasonable range — strict sin-matching is too tight
     const xs = [0, 1, 2, 3, 4, 5];
     const ys = xs.map(Math.sin);
@@ -165,6 +197,43 @@ describe('cubicSplineInterp', () => {
     expect(Math.abs(out[0] - Math.sin(0.5))).toBeLessThan(0.3);
     expect(Math.abs(out[1] - Math.sin(1.5))).toBeLessThan(0.3);
     expect(Math.abs(out[2] - Math.sin(2.5))).toBeLessThan(0.3);
+  });
+
+  it('matches scipy CubicSpline (natural) on nonlinear data y = x²', () => {
+    // Reference: scipy.interpolate.CubicSpline(x, x**2, bc_type='natural')
+    // evaluated at [0.5, 1.5, 2.5, 3.5, 4.5].
+    const xs = [0, 1, 2, 3, 4, 5];
+    const ys = xs.map((v) => v * v);
+    const out = cubicSplineInterp(xs, ys, [0.5, 1.5, 2.5, 3.5, 4.5]);
+    const expected = [
+      0.342105263158,
+      2.223684210526,
+      6.263157894737,
+      12.223684210526,
+      20.342105263158,
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      expect(Math.abs(out[i] - expected[i])).toBeLessThan(1e-9);
+    }
+  });
+
+  it('matches scipy CubicSpline (natural) on sin samples', () => {
+    // Reference: scipy.interpolate.CubicSpline(linspace(0, 2π, 9), sin(x),
+    // bc_type='natural') evaluated at [0.4, 1.3, 2.9, 4.1, 5.5].
+    const xs: number[] = [];
+    for (let i = 0; i < 9; i++) xs.push((i * 2 * Math.PI) / 8);
+    const ys = xs.map(Math.sin);
+    const out = cubicSplineInterp(xs, ys, [0.4, 1.3, 2.9, 4.1, 5.5]);
+    const expected = [
+      0.388983658740,
+      0.962712781974,
+      0.238816359972,
+      -0.817688729934,
+      -0.705543794577,
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      expect(Math.abs(out[i] - expected[i])).toBeLessThan(1e-9);
+    }
   });
 });
 

@@ -32,8 +32,9 @@ export default mergeConfig(
           // statistics.ts: 32 exports; remaining branches require additional
           //   edge-case tests beyond Phase 0 scope (Phase 1 follow-up)
           'src/utils/statistics.ts': { branches: 77, functions: 82, lines: 70 },
-          // hypothesisTests.ts: Royston W approximation in shapiroWilk has a
-          //   sign error producing NaN for n ≥ 4 (tracked for Phase 1 fix)
+          // hypothesisTests.ts: shapiroWilk Royston approximation fixed
+          //   (2026-07, see REVIEW-2026-07-17.md §三.1.1); remaining branches
+          //   are edge-case paths in the test statistics
           'src/utils/hypothesisTests.ts': { branches: 88, functions: 100, lines: 95 },
           // dataProcessing.ts: corner cases in pchipInterp / fillMissingValues
           //   fallback paths are difficult to reach deterministically

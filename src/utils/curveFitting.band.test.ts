@@ -99,3 +99,23 @@ describe('ConfidenceBand shape', () => {
     }
   });
 });
+
+describe('computePredictionBand — degree=1 polynomial matches linear branch (regression)', () => {
+  it('produces identical bands via both code paths', () => {
+    // (XᵀX)⁻¹ = R⁻¹(R⁻¹)ᵀ was previously computed without the transpose,
+    // so the polynomial branch disagreed with the closed-form linear branch.
+    const x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const y = x.map((xi, i) => 2 * xi + 1 + (i % 2 === 0 ? 0.1 : -0.1));
+    const queryX = [-1, 0, 2.5, 4.5, 9, 12];
+    const linear = computePredictionBand('linear', { x, y }, queryX, 0.05);
+    const poly = computePredictionBand('polynomial', { x, y, degree: 1 }, queryX, 0.05);
+    expect(linear).not.toBeNull();
+    expect(poly).not.toBeNull();
+    expect(poly!.x).toEqual(linear!.x);
+    expect(poly!.tCritical).toBeCloseTo(linear!.tCritical, 10);
+    for (let i = 0; i < queryX.length; i++) {
+      expect(poly!.upper[i]).toBeCloseTo(linear!.upper[i], 8);
+      expect(poly!.lower[i]).toBeCloseTo(linear!.lower[i], 8);
+    }
+  });
+});

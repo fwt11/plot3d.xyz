@@ -51,13 +51,15 @@ export function detectPeaks(
       // Simplified: walk outward until y rises above y[i] or reaches the end.
       let leftBase = y[i];
       for (let j = i - 1; j >= 0; j--) {
-        if (y[j] > y[i]) { leftBase = y[i]; break; }
+        // Stop at a higher peak: the min-so-far is already the correct saddle
+        // (scipy.signal.peak_prominences semantics).
+        if (y[j] > y[i]) break;
         if (y[j] < leftBase) leftBase = y[j];
         if (j === 0) leftBase = y[0];
       }
       let rightBase = y[i];
       for (let j = i + 1; j < n; j++) {
-        if (y[j] > y[i]) { rightBase = y[i]; break; }
+        if (y[j] > y[i]) break;
         if (y[j] < rightBase) rightBase = y[j];
         if (j === n - 1) rightBase = y[n - 1];
       }

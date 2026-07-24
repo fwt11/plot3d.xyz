@@ -10,17 +10,6 @@ function uid(): string {
   return `id_${Date.now()}_${++idCounter}`;
 }
 
-export function createEmptyDataset(name = i18n.t('sampleData.dataset1')): Dataset {
-  return {
-    id: uid(),
-    name,
-    columns: [
-      { id: uid(), name: 'A', type: 'X', values: [] },
-      { id: uid(), name: 'B', type: 'Y', values: [] },
-    ],
-  };
-}
-
 export function createSampleSineDataset(): Dataset {
   const xVals: number[] = [];
   const yVals: number[] = [];

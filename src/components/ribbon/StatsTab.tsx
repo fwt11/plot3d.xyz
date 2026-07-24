@@ -147,7 +147,7 @@ export function StatsTab() {
     a.href = url;
     a.download = `stats_${statsResult.datasetName}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     addToast(t('toast.exportSuccess'), 'success');
   }, [statsResult, addToast, t]);
 
@@ -187,7 +187,7 @@ export function StatsTab() {
     a.href = url;
     a.download = 'batch_stats.csv';
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     addToast(t('toast.exportSuccess'), 'success');
   }, [batchResult, addToast, t]);
 

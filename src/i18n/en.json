@@ -52,7 +52,6 @@
     "exportSvg": "Export as SVG",
     "exportPdf": "Export as PDF",
     "exportCsv": "Export as CSV",
-    "exportEps": "Export as EPS (Experimental)",
     "exportTiff": "Export as TIFF (300 DPI)",
     "exportMatplotlib": "Export as Matplotlib Script",
     "theme": "Theme",
@@ -340,7 +339,8 @@
     "filterApplied": "Filter applied",
     "missingHandled": "Missing values handled",
     "outliersRemoved": "Removed {{count}} outlier rows",
-    "outliersReplaced": "Outliers replaced"
+    "outliersReplaced": "Outliers replaced",
+    "usedInActiveChart": "Used in active chart"
   },
   "layer": {
     "none": "None",
@@ -447,7 +447,8 @@
     "layers": "Layers"
   },
   "chart2d": {
-    "addLayer": "Please add a data layer"
+    "addLayer": "Please add a data layer",
+    "loading": "Loading chart…"
   },
   "scene3dView": {
     "select3d": "Select a 3D chart type to enable 3D visualization"
@@ -498,7 +499,8 @@
     "copy": "Copy",
     "exportCsv": "Export fit parameters as CSV",
     "exportLatex": "Export LaTeX equation",
-    "clearResult": "Clear fit results"
+    "clearResult": "Clear fit results",
+    "pinEquation": "Pin equation to chart (LaTeX)"
   },
   "stats": {
     "descriptive": "Descriptive Statistics",
@@ -605,7 +607,8 @@
     "templateDeleted": "Template deleted",
     "computedColumnAdded": "Computed column added",
     "autoLayersAdded": "Added curves for {{count}} Y column(s)",
-    "autoLayersRemoved": "Removed {{count}} curve(s)"
+    "autoLayersRemoved": "Removed {{count}} curve(s)",
+    "annotationAdded": "Annotation added"
   },
   "export": {
     "title": "Export",
@@ -625,7 +628,17 @@
     "pageSizeA3": "A3",
     "pageSizeLetter": "Letter",
     "pageSizeLegal": "Legal",
-    "pageSizeAuto": "Auto"
+    "pageSizeAuto": "Auto",
+    "cancel": "Cancel",
+    "close": "Close",
+    "dimensions": "Dimensions (px)",
+    "exporting": "Exporting…",
+    "filenamePlaceholder": "Enter filename (without extension)",
+    "generatePreview": "Generate",
+    "previewHint": "Click \"Generate\" to preview the export.",
+    "resetSize": "Reset",
+    "batchHint": "Select multiple formats to export them all at once.",
+    "selectAtLeastOneFormat": "Please select at least one format"
   },
   "findReplace": {
     "title": "Find & Replace",
@@ -647,7 +660,15 @@
     "batchFill": "Fill Selected Cells",
     "clearSelection": "Clear Selection",
     "fillValue": "Enter value to fill:",
-    "filled": "Filled {{count}} cells"
+    "filled": "Filled {{count}} cells",
+    "all": "All",
+    "close": "Close",
+    "findPlaceholder": "Find…",
+    "matchCount": "{{current}} of {{total}} matches",
+    "replacePlaceholder": "Replace with…",
+    "replacedAll": "Replaced {{count}} occurrences",
+    "scope": "Search in",
+    "typeToSearch": "Type to search"
   },
   "history": {
     "title": "History",
@@ -694,6 +715,8 @@
     "removeDataset": "Remove dataset",
     "updateDataset": "Update dataset",
     "editCell": "Edit cell",
+    "fillCells": "Fill cells",
+    "replaceAll": "Replace all",
     "addColumn": "Add column",
     "removeColumn": "Remove column",
     "addRow": "Add row",
@@ -711,7 +734,9 @@
     "fillMissing": "Fill missing values",
     "replaceOutliers": "Replace outliers",
     "removeRows": "Remove rows",
-    "acceptChartType": "Accept chart type suggestion"
+    "acceptChartType": "Accept chart type suggestion",
+    "setGap": "Adjust grid gap",
+    "setGrid": "Change grid layout"
   },
   "common": {
     "close": "Close",

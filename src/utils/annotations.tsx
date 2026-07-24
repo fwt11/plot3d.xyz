@@ -21,15 +21,6 @@ import {
 
 export type AnnotationTool = AnnotationType | 'select';
 
-/** Backward-compatible helper for existing panels that only need the original 4 types. */
-export function getAnnotationTypes(t: (key: string) => string): { type: AnnotationType; label: string; icon: React.ReactNode }[] {
-  return [
-    { type: 'text', label: t('annotation.text'), icon: <Type size={16} /> },
-    { type: 'arrow', label: t('annotation.arrow'), icon: <ArrowUpRight size={16} /> },
-    { type: 'rect', label: t('annotation.rect'), icon: <Square size={16} /> },
-  ];
-}
-
 export function getAnnotationTools(t: (key: string) => string): { type: AnnotationTool; label: string; icon: React.ReactNode }[] {
   return [
     { type: 'select', label: t('annotation.select'), icon: <MousePointer2 size={16} /> },

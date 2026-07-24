@@ -1,5 +1,6 @@
 import { useDatasetStore } from '@/store/datasetStore';
 import { useChartStore, selectActiveChart } from '@/store/chartStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { useToastStore } from '@/store/toastStore';
 import { confirm } from '@/store/confirmStore';
 import { Plus, Trash2, ArrowUpDown, ArrowDown, ArrowUp, Copy, ClipboardPaste, Filter, Sparkles, AlertTriangle, Search, X, FunctionSquare } from 'lucide-react';
@@ -46,7 +47,6 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
   const datasets = useDatasetStore((s) => s.datasets);
   const activeDatasetId = useDatasetStore((s) => s.activeDatasetId);
   const setActiveDataset = useDatasetStore((s) => s.setActiveDataset);
-  const updateCellValue = useDatasetStore((s) => s.updateCellValue);
   const updateCellValueSilent = useDatasetStore((s) => s.updateCellValueSilent);
   const addColumn = useDatasetStore((s) => s.addColumn);
   const removeColumn = useDatasetStore((s) => s.removeColumn);
@@ -70,6 +70,8 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
   const [showComputedColumn, setShowComputedColumn] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [lastSelectedRow, setLastSelectedRow] = useState<number | null>(null);
+  /** Active cell edit session: the snapshot pushed on focus plus the value before editing. */
+  const cellEditRef = useRef<{ description: string; original: string } | null>(null);
 
   const dataset = datasets.find((d) => d.id === activeDatasetId);
 
@@ -171,6 +173,8 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
     if (!dataset || selectedRows.size === 0) return;
     const value = window.prompt(t('findReplace.fillValue', 'Enter value to fill:'), '');
     if (value === null) return;
+    // Capture the pre-fill state once so the whole batch undoes as a unit.
+    useHistoryStore.getState().pushSnapshot(t('history.fillCells', { defaultValue: 'Fill cells' }));
     selectedRows.forEach((rowIdx) => {
       updateCellValueSilent(dataset.id, colId, rowIdx, value);
     });
@@ -578,7 +582,14 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
                         data-row={rowIdx}
                         data-col={colIdx}
                         onChange={(e) => updateCellValueSilent(dataset.id, col.id, rowIdx, e.target.value)}
-                        onBlur={(e) => updateCellValue(dataset.id, col.id, rowIdx, e.target.value)}
+                        onBlur={(e) => {
+                          const session = cellEditRef.current;
+                          cellEditRef.current = null;
+                          // No change during this edit session: drop the speculative snapshot.
+                          if (session && e.target.value === session.original) {
+                            useHistoryStore.getState().popLastSnapshot(session.description);
+                          }
+                        }}
                         onKeyDown={(e) => handleCellKeyDown(e, rowIdx, colIdx, dataset.columns.length, maxRows)}
                         className="w-full px-2 py-0.5 outline-none transition-colors"
                         style={{
@@ -587,7 +598,13 @@ export default function DataTable({ showToolbar = false }: DataTableProps) {
                           borderBottom: isInvalid ? '2px solid var(--color-error)' : undefined,
                         }}
                         title={isInvalid ? t('data.invalidValue', 'Please enter a valid number') : undefined}
-                        onFocus={(e) => { e.currentTarget.style.background = 'var(--bg-surface-hover)'; }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.background = 'var(--bg-surface-hover)';
+                          // Snapshot BEFORE the first silent write so undo restores the pre-edit value.
+                          const description = t('history.editCell', { defaultValue: 'Edit cell' });
+                          cellEditRef.current = { description, original: e.currentTarget.value };
+                          useHistoryStore.getState().pushSnapshot(description);
+                        }}
                       />
                     </td>
                     );

@@ -242,8 +242,8 @@ export async function export3DToPng(
   tempDiv.style.height = `${targetHeight}px`;
   document.body.appendChild(tempDiv);
 
+  const Plotly = (await import('plotly.js-dist-min')).default;
   try {
-    const Plotly = (await import('plotly.js-dist-min')).default;
     await Plotly.newPlot(tempDiv, data, layout, {
       responsive: false,
       displayModeBar: false,
@@ -259,6 +259,10 @@ export async function export3DToPng(
       height: targetHeight,
     });
   } finally {
+    // Release the off-screen WebGL context before detaching the node —
+    // browsers cap live contexts (~16) and silently drop the oldest,
+    // which would break the on-screen 3D chart.
+    Plotly.purge(tempDiv);
     document.body.removeChild(tempDiv);
   }
 }
@@ -578,10 +582,13 @@ export async function exportFigureToPng(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // Render all cells concurrently, then draw.
-  const dataUrls = await Promise.all(
-    cellDivs.map((cell, i) => renderCellToPng(cell, cellConfigs[i], opts)),
-  );
+  // Render cells sequentially: each 3D cell spins up an off-screen WebGL
+  // context (purged right after capture), and browsers cap live contexts,
+  // so concurrent renders could force-drop the on-screen chart's context.
+  const dataUrls: string[] = [];
+  for (let i = 0; i < cellDivs.length; i++) {
+    dataUrls.push(await renderCellToPng(cellDivs[i], cellConfigs[i], opts));
+  }
   const images = await Promise.all(
     dataUrls.map(
       (url) =>
@@ -625,10 +632,20 @@ export async function exportFigureToSvg(
     throw new Error(`exportFigureToSvg: expected ${rows * cols} cells and configs, got ${cellDivs.length} / ${cellConfigs.length}`);
   }
   // Capture the inner content of each cell first so we know the intrinsic
-  // dimensions to use for slot sizing.
-  const cells = await Promise.all(
-    cellDivs.map((cell, i) => renderCellToSvgOrImage(cell, cellConfigs[i], opts)),
-  );
+  // dimensions to use for slot sizing. Rendered sequentially (not via
+  // Promise.all) because 3D cells each hold an off-screen WebGL context and
+  // browsers cap the number of live contexts.
+  const cells: {
+    kind: 'svg' | 'image';
+    content: string;
+    width: number;
+    height: number;
+    intrinsicW: number;
+    intrinsicH: number;
+  }[] = [];
+  for (let i = 0; i < cellDivs.length; i++) {
+    cells.push(await renderCellToSvgOrImage(cellDivs[i], cellConfigs[i], opts));
+  }
   const scale = opts.scale * opts.figureMultiplier;
 
   // Compute per-row / per-column slot sizes from each cell's intrinsic

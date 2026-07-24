@@ -311,7 +311,7 @@ export function AnnotationCanvas({
         setDrawing({ tool: activeTool, start: { x, y }, current: { x, y } });
       }
     },
-    [activeTool, drawing, finishDrawing, getRect, onAdd, setActiveTool, setEditingId, setSelectedId, t, toStored]
+    [activeTool, drawing, finishDrawing, getRect, lastClickTime, onAdd, setActiveTool, setEditingId, setSelectedId, t, toStored]
   );
 
   const handleContainerMouseMove = useCallback(

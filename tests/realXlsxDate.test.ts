@@ -1,16 +1,21 @@
-// Drive detectColumnType + buildLayout through Vitest (no DOM needed) to
-// confirm the real xlsx in /home/fwt/Downloads/request-usage-2026-07-07.xlsx
-// gets parsed as a date column.
+// Diagnostic test against a real xlsx file on the original developer's
+// machine (/home/fwt/Downloads/request-usage-2026-07-07.xlsx). The file is
+// NOT in the repo; on machines without it this suite is skipped via
+// describe.skipIf so `npm test` stays green.
+//
+// Purpose: drive detectColumnType + buildLayout through Vitest (no DOM
+// needed) to confirm the real xlsx gets parsed as a date column.
 import { describe, it, expect } from 'vitest';
 import XLSX from 'xlsx';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { enrichColumns, colToDateMs, colToXValues } from '../src/utils/tracesBuilder';
 import { buildLayout, LIGHT_CHART_CSS_VARS } from '../src/utils/layoutBuilder';
 import type { ChartConfig, DataColumn } from '../src/types';
 
 const FILE = '/home/fwt/Downloads/request-usage-2026-07-07.xlsx';
 
-describe('real-world xlsx — request-usage-2026-07-07.xlsx', () => {
+// Skip when the local diagnostic file is absent (e.g. CI, other machines).
+describe.skipIf(!existsSync(FILE))('real-world xlsx — request-usage-2026-07-07.xlsx', () => {
   it('parses the time column as date and credits column as number', () => {
     const wb = XLSX.read(readFileSync(FILE));
     const ws = wb.Sheets[wb.SheetNames[0]];

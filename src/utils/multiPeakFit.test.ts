@@ -86,7 +86,12 @@ describe('multiPeakFit — boundary conditions', () => {
     }
     const result = multiPeakFit(x, y, undefined, { shape: 'gaussian', backgroundType: 'linear' });
     expect(result).not.toBeNull();
-    expect(result!.peaks.length).toBeGreaterThanOrEqual(1);
+    // Both peaks must be found (regression: prominence bug dropped all but
+    // the global maximum during auto-detection).
+    expect(result!.peaks.length).toBe(2);
+    const centers = result!.peaks.map((p) => p.center).sort((a, b) => a - b);
+    expect(centers[0]).toBeCloseTo(25, 0);
+    expect(centers[1]).toBeCloseTo(70, 0);
   });
 
   it('respects lorentzian shape', () => {

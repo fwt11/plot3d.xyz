@@ -1,7 +1,8 @@
 import { useChartStore, selectActiveChart } from '@/store/chartStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { is3DChart } from '@/utils/chart';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AxisConfig, ExportBackground, Scene3DConfig } from '@/types';
 import AnnotationPanel from './AnnotationPanel';
@@ -27,17 +28,53 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
   );
 }
 
-function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false, allowTimezone = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; is3D?: boolean; allowCategory?: boolean; allowTimezone?: boolean }) {
+interface SnapshotInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+  value: string;
+  /** History description for the snapshot pushed when the edit session starts. */
+  historyDescription: string;
+  /** Called on every keystroke; must update state WITHOUT pushing history. */
+  onSilentChange: (value: string) => void;
+}
+
+/**
+ * Text/number input that follows DataTable's edit-session convention:
+ * push one history snapshot on focus, apply silent updates while typing,
+ * and drop the snapshot on blur if nothing changed — so a typing session
+ * produces a single undoable entry instead of one per keystroke.
+ */
+function SnapshotInput({ value, historyDescription, onSilentChange, ...rest }: SnapshotInputProps) {
+  const originalRef = useRef<string | null>(null);
+  return (
+    <input
+      {...rest}
+      value={value}
+      onFocus={(e) => {
+        originalRef.current = e.currentTarget.value;
+        useHistoryStore.getState().pushSnapshot(historyDescription);
+      }}
+      onChange={(e) => onSilentChange(e.target.value)}
+      onBlur={(e) => {
+        if (originalRef.current !== null && e.target.value === originalRef.current) {
+          useHistoryStore.getState().popLastSnapshot(historyDescription);
+        }
+        originalRef.current = null;
+      }}
+    />
+  );
+}
+
+function AxisEditor({ label, axis, onChange, onSilentChange, historyDescription, is3D = false, allowCategory = false, allowTimezone = false }: { label: string; axis: AxisConfig; onChange: (a: Partial<AxisConfig>) => void; onSilentChange: (a: Partial<AxisConfig>) => void; historyDescription: string; is3D?: boolean; allowCategory?: boolean; allowTimezone?: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="space-y-1.5">
       <div className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</div>
       <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="truncate">{t('config.label')}</span>
-        <input
+        <SnapshotInput
           type="text"
           value={axis.label}
-          onChange={(e) => onChange({ label: e.target.value })}
+          historyDescription={historyDescription}
+          onSilentChange={(v) => onSilentChange({ label: v })}
           className="w-full border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           aria-label={`${label} ${t('config.label')}`}
@@ -45,10 +82,11 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
       </label>
       <label className="grid grid-cols-[40px_1fr] items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
         <span className="truncate">{t('config.unit')}</span>
-        <input
+        <SnapshotInput
           type="text"
           value={axis.unit ?? ''}
-          onChange={(e) => onChange({ unit: e.target.value })}
+          historyDescription={historyDescription}
+          onSilentChange={(v) => onSilentChange({ unit: v })}
           placeholder="e.g. s, mol/L"
           className="w-full border rounded px-2 py-0.5 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
@@ -177,14 +215,15 @@ function AxisEditor({ label, axis, onChange, is3D = false, allowCategory = false
   );
 }
 
-function MarginInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function MarginInput({ label, value, onSilentChange, historyDescription }: { label: string; value: number; onSilentChange: (v: number) => void; historyDescription: string }) {
   return (
     <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
       {label}
-      <input
+      <SnapshotInput
         type="number"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={String(value)}
+        historyDescription={historyDescription}
+        onSilentChange={(v) => onSilentChange(Number(v))}
         className="w-14 border rounded px-1.5 py-0.5 outline-none focus:border-sky-500/50"
         style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         aria-label={label}
@@ -197,13 +236,18 @@ export default function ConfigPanel() {
   const { t } = useTranslation();
   const chartConfig = useChartStore(selectActiveChart);
   const is3D = is3DChart(chartConfig.type);
-  const setChartTitle = useChartStore((s) => s.setChartTitle);
+  const setChartTitle = useChartStore((s) => s.setChartTitleSilent);
   const setXAxis = useChartStore((s) => s.setXAxis);
   const setYAxis = useChartStore((s) => s.setYAxis);
   const setYAxisRight = useChartStore((s) => s.setYAxisRight);
   const setZAxis = useChartStore((s) => s.setZAxis);
+  const setXAxisSilent = useChartStore((s) => s.setXAxisSilent);
+  const setYAxisSilent = useChartStore((s) => s.setYAxisSilent);
+  const setYAxisRightSilent = useChartStore((s) => s.setYAxisRightSilent);
+  const setZAxisSilent = useChartStore((s) => s.setZAxisSilent);
+  const setMarginsSilent = useChartStore((s) => s.setMarginsSilent);
+  const marginsHistoryDesc = t('history.setMargins', { defaultValue: 'Adjust margins' });
   const setLegend = useChartStore((s) => s.setLegend);
-  const setMargins = useChartStore((s) => s.setMargins);
   const setExportConfig = useChartStore((s) => s.setExportConfig);
   const setFontSize = useChartStore((s) => s.setFontSize);
   const setScene3D = useChartStore((s) => s.setScene3D);
@@ -214,10 +258,11 @@ export default function ConfigPanel() {
   return (
     <div className="h-full overflow-y-auto text-xs pb-6">
       <Section title={t('config.title')}>
-        <input
+        <SnapshotInput
           type="text"
           value={chartConfig.title}
-          onChange={(e) => setChartTitle(e.target.value)}
+          historyDescription={t('history.setChartTitle', { defaultValue: 'Edit title' })}
+          onSilentChange={setChartTitle}
           className="w-full border rounded px-2 py-1 outline-none focus:border-sky-500/50"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           aria-label={t('config.title')}
@@ -225,22 +270,22 @@ export default function ConfigPanel() {
       </Section>
 
       <Section title={t('config.xAxis')}>
-        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} is3D={is3D} allowCategory={chartConfig.type === 'bar'} allowTimezone />
+        <AxisEditor label={t('config.xAxis')} axis={chartConfig.xAxis} onChange={setXAxis} onSilentChange={setXAxisSilent} historyDescription={t('history.setXAxis', { defaultValue: 'Edit X axis' })} is3D={is3D} allowCategory={chartConfig.type === 'bar'} allowTimezone />
       </Section>
 
       <Section title={t('config.yAxis')}>
-        <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} is3D={is3D} />
+        <AxisEditor label={t('config.yAxis')} axis={chartConfig.yAxis} onChange={setYAxis} onSilentChange={setYAxisSilent} historyDescription={t('history.setYAxis', { defaultValue: 'Edit Y axis' })} is3D={is3D} />
       </Section>
 
       {hasRightYAxis && chartConfig.yAxisRight && (
         <Section title={t('config.yAxisRight', 'Right Y Axis')}>
-          <AxisEditor label={t('config.yAxisRight', 'Right Y')} axis={chartConfig.yAxisRight} onChange={setYAxisRight} is3D={is3D} />
+          <AxisEditor label={t('config.yAxisRight', 'Right Y')} axis={chartConfig.yAxisRight} onChange={setYAxisRight} onSilentChange={setYAxisRightSilent} historyDescription={t('history.setYAxisRight', { defaultValue: 'Edit right Y axis' })} is3D={is3D} />
         </Section>
       )}
 
       {is3D && chartConfig.zAxis && (
         <Section title={t('config.zAxis')}>
-          <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} is3D={is3D} />
+          <AxisEditor label={t('config.zAxis')} axis={chartConfig.zAxis} onChange={setZAxis} onSilentChange={setZAxisSilent} historyDescription={t('history.setZAxis', { defaultValue: 'Edit Z axis' })} is3D={is3D} />
         </Section>
       )}
 
@@ -343,10 +388,10 @@ export default function ConfigPanel() {
       {!is3D && (
         <Section title={t('config.margins')} defaultOpen={false}>
           <div className="grid grid-cols-2 gap-2">
-            <MarginInput label={t('config.marginTop')} value={chartConfig.marginTop} onChange={(v) => setMargins({ marginTop: v })} />
-            <MarginInput label={t('config.marginRight')} value={chartConfig.marginRight} onChange={(v) => setMargins({ marginRight: v })} />
-            <MarginInput label={t('config.marginBottom')} value={chartConfig.marginBottom} onChange={(v) => setMargins({ marginBottom: v })} />
-            <MarginInput label={t('config.marginLeft')} value={chartConfig.marginLeft} onChange={(v) => setMargins({ marginLeft: v })} />
+            <MarginInput label={t('config.marginTop')} value={chartConfig.marginTop} onSilentChange={(v) => setMarginsSilent({ marginTop: v })} historyDescription={marginsHistoryDesc} />
+            <MarginInput label={t('config.marginRight')} value={chartConfig.marginRight} onSilentChange={(v) => setMarginsSilent({ marginRight: v })} historyDescription={marginsHistoryDesc} />
+            <MarginInput label={t('config.marginBottom')} value={chartConfig.marginBottom} onSilentChange={(v) => setMarginsSilent({ marginBottom: v })} historyDescription={marginsHistoryDesc} />
+            <MarginInput label={t('config.marginLeft')} value={chartConfig.marginLeft} onSilentChange={(v) => setMarginsSilent({ marginLeft: v })} historyDescription={marginsHistoryDesc} />
           </div>
         </Section>
       )}

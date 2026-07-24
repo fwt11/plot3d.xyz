@@ -5,7 +5,7 @@
 import { mean, sampleVariance, sampleStdDev, toValidNumbers } from '@/utils/statistics';
 import {
   tTwoTailedP, tCritical005,
-  chi2P, chi2Critical005,
+  chi2P,
   fP, normalCdf,
 } from '@/utils/distributions';
 
@@ -436,27 +436,41 @@ export function shapiroWilk(sample: number[]): TestResult {
   if (S2 === 0) {
     return invalidResult('Shapiro-Wilk test', '数据方差为 0');
   }
-  // Compute Royston's approximation for the W coefficients
-  const m = Array.from({ length: n }, (_, i) => normPPF((i + 1) / (n + 1)));
-  const m2 = m.reduce((s, v) => s + v * v, 0);
-  const u = 1 / Math.sqrt(n);
-  // Royston's coefficients
-  const aN = -2.706556 + 4.434685 * u - 2.071498 * u * u - 0.147981 * u * u * u + 0.221096 * u * u * u * u;
-  const aN1 = -3.582633 + 5.682633 * u - 1.752460 * u * u - 0.293762 * u * u * u + 0.421801 * u * u * u * u;
-  const a = new Array(n);
-  a[n - 1] = aN;
-  a[0] = -aN;
-  if (n > 5) {
-    a[n - 2] = aN1;
-    a[1] = -aN1;
-    const eps = (m2 - 2 * m[n - 1] * m[n - 1] - 2 * m[n - 2] * m[n - 2]) / (1 - 2 * aN * aN - 2 * aN1 * aN1);
-    for (let i = 2; i < n - 2; i++) {
-      a[i] = m[i] / Math.sqrt(eps);
-    }
+  // Royston (1995) AS R94 approximation for the W coefficients.
+  // m_i are Blom's expected normal order statistics; the largest one or two
+  // coefficients come from polynomials in 1/sqrt(n), the rest are rescaled
+  // m_i so that sum(a_i^2) = 1. n = 3 has the closed form a = (∓1/√2, 0, ±1/√2).
+  const a = new Array<number>(n).fill(0);
+  if (n === 3) {
+    a[0] = -Math.SQRT1_2;
+    a[2] = Math.SQRT1_2;
   } else {
-    const eps = (m2 - 2 * m[n - 1] * m[n - 1]) / (1 - 2 * aN * aN);
-    for (let i = 1; i < n - 1; i++) {
-      a[i] = m[i] / Math.sqrt(eps);
+    const n2 = Math.floor(n / 2);
+    const mHalf = Array.from({ length: n2 }, (_, i) => normPPF((i + 1 - 0.375) / (n + 0.25)));
+    const summ2 = 2 * mHalf.reduce((s, v) => s + v * v, 0);
+    const ssumm2 = Math.sqrt(summ2);
+    const rsn = 1 / Math.sqrt(n);
+    // Polynomial coefficients from Royston (1995), Table 1 (AS R94)
+    const poly1 = rsn * (0.221157 + rsn * (-0.147981 + rsn * (-2.07119 + rsn * (4.434685 + rsn * -2.706056))));
+    const aN = poly1 - mHalf[0] / ssumm2;
+    let i1: number;
+    let fac: number;
+    if (n > 5) {
+      const poly2 = rsn * (0.042981 + rsn * (-0.293762 + rsn * (-1.752461 + rsn * (5.682633 + rsn * -3.582633))));
+      const aN1 = poly2 - mHalf[1] / ssumm2;
+      fac = Math.sqrt((summ2 - 2 * mHalf[0] ** 2 - 2 * mHalf[1] ** 2) / (1 - 2 * aN * aN - 2 * aN1 * aN1));
+      a[n - 2] = aN1;
+      a[1] = -aN1;
+      i1 = 2;
+    } else {
+      fac = Math.sqrt((summ2 - 2 * mHalf[0] ** 2) / (1 - 2 * aN * aN));
+      i1 = 1;
+    }
+    a[n - 1] = aN;
+    a[0] = -aN;
+    for (let i = i1; i < n2; i++) {
+      a[n - 1 - i] = -mHalf[i] / fac;
+      a[i] = mHalf[i] / fac;
     }
   }
   // W statistic
@@ -464,7 +478,7 @@ export function shapiroWilk(sample: number[]): TestResult {
   for (let i = 0; i < n; i++) {
     numerator += a[i] * sorted[i];
   }
-  const W = (numerator * numerator) / S2;
+  const W = Math.min(1, (numerator * numerator) / S2);
   // Royston's p-value approximation
   let p: number;
   if (n === 3) {
@@ -473,9 +487,12 @@ export function shapiroWilk(sample: number[]): TestResult {
     let y, muY, sigmaY;
     if (n <= 11) {
       const gamma = -2.273 + 0.459 * n;
+      const log1mW = Math.log(1 - W);
+      // When log(1-W) >= gamma the approximation breaks down; clamp so that
+      // p is effectively 0 (AS R94 returns SMALL in this case)
       muY = 0.5440 - 0.39978 * n + 0.025054 * n * n - 0.0006714 * n * n * n;
       sigmaY = Math.exp(1.3822 - 0.77857 * n + 0.062767 * n * n - 0.0020322 * n * n * n);
-      y = -Math.log(gamma - Math.log(1 - W));
+      y = -Math.log(Math.max(gamma - log1mW, 1e-19));
     } else {
       const lnN = Math.log(n);
       muY = 0.0038915 * Math.pow(lnN, 3) - 0.083751 * lnN * lnN - 0.31082 * lnN - 1.5861;
@@ -621,6 +638,3 @@ export function qqPlotData(sample: number[]): { theoretical: number[]; sample: n
   }
   return { theoretical, sample: sampleQ };
 }
-
-// Re-export for convenience
-export { tCritical005, chi2Critical005 };

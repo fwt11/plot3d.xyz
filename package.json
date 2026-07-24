@@ -9,12 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc -b --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "clsx": "^2.1.1",
     "html-to-image": "^1.11.11",
     "i18next": "^26.3.1",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -28,8 +28,7 @@
     "react-dom": "^18.3.1",
     "react-i18next": "^17.0.8",
     "react-plotly.js": "^4.0.0",
-    "tailwind-merge": "^3.0.2",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

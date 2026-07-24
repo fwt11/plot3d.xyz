@@ -344,3 +344,70 @@ describe('generateFittedValues', () => {
     expect(result.y).toEqual([10]);
   });
 });
+
+
+// --- Regression: logisticFit undamped Gauss-Newton divergence (P2) ---
+// Clean sigmoids with k = 0.5 / 2 previously diverged and returned r2 < 0
+// garbage with no failure signal. The fit is now Levenberg-Marquardt damped.
+
+/** Deterministic pseudo-noise in [-amp, amp] (no Math.random → reproducible). */
+const detNoise = (i: number, amp: number) => amp * Math.sin(i * 7.13 + 1.7);
+
+describe('logisticFit — divergence regression', () => {
+  it('converges on a clean sigmoid with k=0.5', () => {
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i <= 20; i++) {
+      x.push(i);
+      y.push(10 / (1 + Math.exp(-0.5 * (i - 8))) + detNoise(i, 0.02));
+    }
+    const result = logisticFit(x, y);
+    expect(result).not.toBeNull();
+    expect(Math.abs(result!.L - 10)).toBeLessThan(0.2);
+    expect(Math.abs(result!.k - 0.5)).toBeLessThan(0.05);
+    expect(Math.abs(result!.x0 - 8)).toBeLessThan(0.2);
+    expect(result!.rSquared).toBeGreaterThan(0.99);
+  });
+
+  it('converges on a clean sigmoid with k=2', () => {
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i <= 24; i++) {
+      const xi = i * 0.25;
+      x.push(xi);
+      y.push(5 / (1 + Math.exp(-2 * (xi - 3))) + detNoise(i, 0.02));
+    }
+    const result = logisticFit(x, y);
+    expect(result).not.toBeNull();
+    expect(Math.abs(result!.L - 5)).toBeLessThan(0.2);
+    expect(Math.abs(result!.k - 2)).toBeLessThan(0.3);
+    expect(Math.abs(result!.x0 - 3)).toBeLessThan(0.1);
+    expect(result!.rSquared).toBeGreaterThan(0.99);
+  });
+
+  it('converges with larger noise instead of returning negative r2', () => {
+    const x: number[] = [];
+    const y: number[] = [];
+    for (let i = 0; i <= 20; i++) {
+      x.push(i);
+      y.push(10 / (1 + Math.exp(-0.5 * (i - 8))) + detNoise(i, 0.5));
+    }
+    const result = logisticFit(x, y);
+    expect(result).not.toBeNull();
+    expect(result!.rSquared).toBeGreaterThan(0.95);
+  });
+});
+
+describe('gaussianFit — n=3 regression (P2)', () => {
+  it('returns null for n=3 (zero residual degrees of freedom → divergence)', () => {
+    // Previously returned garbage with r2 = −61.75
+    expect(gaussianFit([1, 2, 3], [1, 2, 1])).toBeNull();
+  });
+
+  it('still fits with n=4', () => {
+    const x = [0, 1, 2, 3];
+    const y = x.map((xi) => 5 * Math.exp(-Math.pow(xi - 1.5, 2) / 2));
+    const result = gaussianFit(x, y);
+    expect(result).not.toBeNull();
+  });
+});

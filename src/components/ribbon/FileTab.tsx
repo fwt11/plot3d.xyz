@@ -281,7 +281,8 @@ export function FileTab() {
           unit: 'mm',
           format: [pdfWidth, pdfHeight],
         });
-        // Embed SVG as a vector image (text stays selectable, scales losslessly)
+        // jsPDF's addSvgAsImage rasterizes the SVG via canvg internally, so the
+        // embedded image is a bitmap (text is NOT selectable), not true vector.
         await pdf.addSvgAsImage(svgString, margin, margin, contentWidth, contentHeight);
         pdf.save('chart.pdf');
         return;
@@ -373,7 +374,8 @@ export function FileTab() {
       link.download = 'chart.tiff';
       link.href = URL.createObjectURL(blob);
       link.click();
-      URL.revokeObjectURL(link.href);
+      // Revoke asynchronously: revoking immediately can cancel the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     };
 
     const rgbaFromCanvas = (canvas: HTMLCanvasElement): Uint8Array => {
@@ -493,6 +495,7 @@ export function FileTab() {
     link.download = `${ds.name}.csv`;
     link.href = URL.createObjectURL(blob);
     link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     addToast(t('toast.exportSuccess'), 'success');
   };
 
@@ -565,8 +568,9 @@ export function FileTab() {
     useChartStore.setState({
       figure: project.figure,
     });
-    // Clear history after loading a project
-    useHistoryStore.setState({ _past: [], _future: [] });
+    // Clear all history (including saved branches) after loading a project,
+    // so stale branch snapshots from the old project can't bleed into the new one.
+    useHistoryStore.getState().clearHistory();
     if (project.theme) {
       useUiStore.getState().setTheme(project.theme);
     }

@@ -49,33 +49,6 @@ export const colorMaps: ColorMap = {
   ],
 };
 
-export function getColorFromMap(value: number, mapName: ColorMapName): string {
-  const map = colorMaps[mapName];
-  const clamped = Math.max(0, Math.min(1, value));
-  const idx = clamped * (map.length - 1);
-  const lower = Math.floor(idx);
-  const upper = Math.min(lower + 1, map.length - 1);
-  const t = idx - lower;
-
-  const c1 = hexToRgb(map[lower]);
-  const c2 = hexToRgb(map[upper]);
-
-  const r = Math.round(c1.r + (c2.r - c1.r) * t);
-  const g = Math.round(c1.g + (c2.g - c1.g) * t);
-  const b = Math.round(c1.b + (c2.b - c1.b) * t);
-
-  return `rgb(${r},${g},${b})`;
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.substring(0, 2), 16),
-    g: parseInt(h.substring(2, 4), 16),
-    b: parseInt(h.substring(4, 6), 16),
-  };
-}
-
 export function getColorMapGradient(mapName: ColorMapName): string {
   const map = colorMaps[mapName];
   const stops = map.map((color, i) => `${color} ${(i / (map.length - 1)) * 100}%`);

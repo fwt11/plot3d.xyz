@@ -26,6 +26,9 @@ jobs:
       - name: Typecheck (tsc)
         run: npm run check
 
+      - name: i18n keys check
+        run: npm run check:i18n
+
       - name: Lint (eslint)
         run: npm run lint
 

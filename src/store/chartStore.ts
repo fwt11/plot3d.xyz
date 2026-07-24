@@ -83,6 +83,13 @@ interface ChartStore {
   setYAxis: (axis: Partial<AxisConfig>) => void;
   setYAxisRight: (axis: Partial<AxisConfig>) => void;
   setZAxis: (axis: Partial<AxisConfig>) => void;
+  /** Silent variants for text/number inputs: update without pushing to history.
+   *  The caller pushes a single snapshot when the edit session starts (focus). */
+  setChartTitleSilent: (title: string) => void;
+  setXAxisSilent: (axis: Partial<AxisConfig>) => void;
+  setYAxisSilent: (axis: Partial<AxisConfig>) => void;
+  setYAxisRightSilent: (axis: Partial<AxisConfig>) => void;
+  setZAxisSilent: (axis: Partial<AxisConfig>) => void;
   setLegend: (legend: Partial<ChartConfig['legend']>) => void;
   setColorMap: (colorMap: ColorMapName) => void;
   addLayer: (layer: LayerConfig) => void;
@@ -93,6 +100,8 @@ interface ChartStore {
   /** Reorder layers by providing a new array of layer IDs. */
   reorderLayers: (layerIds: string[]) => void;
   setMargins: (margins: { marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number }) => void;
+  /** Silent variant of setMargins (see the silent axis setters above). */
+  setMarginsSilent: (margins: { marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number }) => void;
   setExportConfig: (config: Partial<ExportConfig>) => void;
   setFontSize: (fontSize: number) => void;
   setScene3D: (scene: Partial<Scene3DConfig>) => void;
@@ -211,6 +220,29 @@ export const useChartStore = create<ChartStore>()((set) => {
         zAxis: c.zAxis ? { ...c.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis },
       })), i18n.t('history.setZAxis', { defaultValue: 'Edit Z axis' })),
 
+    setChartTitleSilent: (title) =>
+      set((s) => patchActive(s, (c) => ({ ...c, title }))),
+
+    setXAxisSilent: (axis) =>
+      set((s) => patchActive(s, (c) => ({ ...c, xAxis: { ...c.xAxis, ...axis } }))),
+
+    setYAxisSilent: (axis) =>
+      set((s) => patchActive(s, (c) => ({ ...c, yAxis: { ...c.yAxis, ...axis } }))),
+
+    setYAxisRightSilent: (axis) =>
+      set((s) => patchActive(s, (c) => ({
+        ...c,
+        yAxisRight: c.yAxisRight
+          ? { ...c.yAxisRight, ...axis }
+          : { ...defaultAxis, label: i18n.t('store.yAxisRight', { defaultValue: 'Right Y' }), ...axis },
+      }))),
+
+    setZAxisSilent: (axis) =>
+      set((s) => patchActive(s, (c) => ({
+        ...c,
+        zAxis: c.zAxis ? { ...c.zAxis, ...axis } : { ...defaultAxis, label: i18n.t('store.zAxis'), ...axis },
+      }))),
+
     setLegend: (legend) =>
       setWithHistory((s) => patchActive(s, (c) => ({ ...c, legend: { ...c.legend, ...legend } })),
         i18n.t('history.setLegend', { defaultValue: 'Edit legend' })),
@@ -277,6 +309,9 @@ export const useChartStore = create<ChartStore>()((set) => {
     setMargins: (margins) =>
       setWithHistory((s) => patchActive(s, (c) => ({ ...c, ...margins })),
         i18n.t('history.setMargins', { defaultValue: 'Adjust margins' })),
+
+    setMarginsSilent: (margins) =>
+      set((s) => patchActive(s, (c) => ({ ...c, ...margins }))),
 
     setExportConfig: (config) =>
       setWithHistory((s) => patchActive(s, (c) => ({
@@ -363,7 +398,7 @@ export const useChartStore = create<ChartStore>()((set) => {
         const r = Math.max(1, rows);
         const c = Math.max(1, cols);
         const count = r * c;
-        let subplots = s.figure.subplots.slice(0, count);
+        const subplots = s.figure.subplots.slice(0, count);
         while (subplots.length < count) subplots.push(createDefaultChartConfig());
         const activeIndex = Math.min(s.figure.activeIndex, count - 1);
         return { figure: { ...s.figure, rows: r, cols: c, subplots, activeIndex } };

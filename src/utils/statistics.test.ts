@@ -159,6 +159,21 @@ describe('skewness / kurtosis', () => {
     expect(skewness(x)).toBeGreaterThan(0);
   });
 
+  // Reference values: scipy.stats.skew(x, bias=False) /
+  // scipy.stats.kurtosis(x, bias=False) (scipy 1.16.1)
+
+  it('skewness matches scipy.stats.skew(bias=False)', () => {
+    expect(skewness([1, 2, 3, 4, 5, 10])).toBeCloseTo(1.4395902745, 6);
+    expect(skewness([1, 1, 1, 2, 3, 4, 5, 6, 10])).toBeCloseTo(1.2341269841, 6);
+    expect(skewness([1, 2, 3, 4, 5, 6, 7, 8, 9])).toBeCloseTo(0, 10);
+  });
+
+  it('kurtosis matches scipy.stats.kurtosis(bias=False)', () => {
+    expect(kurtosis([1, 2, 3, 4, 5, 10])).toBeCloseTo(2.4377317925, 6);
+    expect(kurtosis([1, 1, 1, 2, 3, 4, 5, 6, 10])).toBeCloseTo(1.3853615520, 6);
+    expect(kurtosis([1, 2, 3, 4, 5, 6, 7, 8, 9])).toBeCloseTo(-1.2, 10);
+  });
+
   it('kurtosis exists', () => {
     const x = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     expect(typeof kurtosis(x)).toBe('number');

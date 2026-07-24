@@ -41,6 +41,8 @@ describe('SVG figure export — inner SVG viewBox must be set', () => {
     expect(bottomWhitespace).toBe(103);
     const visibleSpan = visibleW * 2 + gap; // = 252
     const totalSpan = slotW * 2 + gap; // = 484
+    expect(visibleSpan).toBe(252);
+    expect(totalSpan).toBe(484);
     // The "visible chart to gap" ratio is 252/484, but the visible-gap-within-cell
     // ratio is what dominates: 116/232 = 50% of each slot is empty whitespace.
     expect(visibleW / slotW).toBe(0.5); // Half of slot width is empty
@@ -53,6 +55,9 @@ describe('SVG figure export — inner SVG viewBox must be set', () => {
     // from the viewBox coordinate space to fill the slot.
     const intrinsicW = 116, intrinsicH = 103;
     const slotW = 232, slotH = 206;
+    // The explicit viewBox maps content coords (116x103) onto the slot.
+    const viewBox = `0 0 ${intrinsicW} ${intrinsicH}`;
+    expect(viewBox).toBe('0 0 116 103');
     // Visible area now equals slot size, no letterboxing.
     const visibleW = slotW; // = 232
     const visibleH = slotH; // = 206

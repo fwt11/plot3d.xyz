@@ -61,3 +61,32 @@ describe('globalFit — error cases', () => {
     )).toBeNull();
   });
 });
+
+
+describe('globalFit — regression for inverted Jacobian sign (linear shared slope)', () => {
+  it('recovers shared slope=2 and intercepts 1 / 5 from two noisy lines', () => {
+    // y1 = 2x + 1, y2 = 2x + 5; layout [b1, b2, m] with m shared.
+    const detNoise = (i: number, amp: number) => amp * Math.sin(i * 7.13 + 1.7);
+    const x1: number[] = [];
+    const y1: number[] = [];
+    const x2: number[] = [];
+    const y2: number[] = [];
+    for (let i = 0; i <= 20; i++) {
+      x1.push(i);
+      y1.push(2 * i + 1 + detNoise(i, 0.05));
+      x2.push(i);
+      y2.push(2 * i + 5 + detNoise(i + 100, 0.05));
+    }
+    const datasets: GlobalFitDataset[] = [
+      { x: x1, y: y1, predict: (p, x) => p[0] + p[2] * x },
+      { x: x2, y: y2, predict: (p, x) => p[1] + p[2] * x },
+    ];
+    const result = globalFit(datasets, [0, 0, 1]);
+    expect(result).not.toBeNull();
+    // Before the fix the initial guess [0, 0, 1] was returned (r2 ≈ −0.85).
+    expect(Math.abs(result!.params[0] - 1)).toBeLessThan(0.1);
+    expect(Math.abs(result!.params[1] - 5)).toBeLessThan(0.1);
+    expect(Math.abs(result!.params[2] - 2)).toBeLessThan(0.02);
+    expect(result!.rSquared).toBeGreaterThan(0.999);
+  });
+});

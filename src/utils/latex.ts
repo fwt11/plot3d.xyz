@@ -31,7 +31,7 @@ export function renderLatexToHTML(latex: string, displayMode = false): string {
       strict: 'warn',
     });
   } catch {
-    return `<span style="color:#f87171">${latex}</span>`;
+    return `<span style="color:#f87171">${escapeHtml(latex)}</span>`;
   }
 }
 

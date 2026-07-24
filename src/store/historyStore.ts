@@ -43,6 +43,13 @@ interface HistoryStore {
    *  @param description Human-readable description of the operation about to happen. */
   pushSnapshot: (description?: string) => void;
 
+  /** Remove the most recent past entry. Used to cancel a speculative snapshot
+   *  pushed at the start of an edit session (e.g. cell focus) that ended
+   *  without any changes. If `description` is given, only pops when the
+   *  latest entry's description matches, so an unrelated entry is never
+   *  removed by accident. */
+  popLastSnapshot: (description?: string) => void;
+
   /** Undo: restore previous state. */
   undo: () => void;
 
@@ -124,6 +131,15 @@ export const useHistoryStore = create<HistoryStore>()((set, get) => ({
     });
   },
 
+  popLastSnapshot: (description?: string) => {
+    set((s) => {
+      const last = s._past[s._past.length - 1];
+      if (!last) return {};
+      if (description !== undefined && last.description !== description) return {};
+      return { _past: s._past.slice(0, -1) };
+    });
+  },
+
   undo: () => {
     const { _past, _future } = get();
     if (_past.length === 0) return;
@@ -172,21 +188,26 @@ export const useHistoryStore = create<HistoryStore>()((set, get) => ({
     const { _branches, _future } = get();
     const branch = _branches.find((b) => b.id === branchId);
     if (!branch) return;
-    // Swap: current future becomes a new branch, branch's entries become current future
-    const newBranch: HistoryBranch = {
-      id: makeBranchId(),
-      entries: _future,
-      createdAt: Date.now(),
-      description: i18n.t('history.branchRestored', 'Branch restored'),
-    };
     // Restore the last entry of the branch (the most recent future state)
     if (branch.entries.length > 0) {
       const lastEntry = branch.entries[branch.entries.length - 1];
       restoreSnapshot(lastEntry.snapshot);
     }
     set({
-      _future: branch.entries,
-      _branches: [..._branches.filter((b) => b.id !== branchId), newBranch].slice(-MAX_BRANCHES),
+      // The branch has been fully applied up to its tip; there is nothing to redo.
+      _future: [],
+      // Only save the current future as a new branch when there actually is one.
+      _branches: _future.length > 0
+        ? [
+            ..._branches.filter((b) => b.id !== branchId),
+            {
+              id: makeBranchId(),
+              entries: _future,
+              createdAt: Date.now(),
+              description: i18n.t('history.branchRestored', 'Branch restored'),
+            },
+          ].slice(-MAX_BRANCHES)
+        : _branches.filter((b) => b.id !== branchId),
     });
   },
 

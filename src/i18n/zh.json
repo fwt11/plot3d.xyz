@@ -52,7 +52,6 @@
     "exportSvg": "导出为 SVG",
     "exportPdf": "导出为 PDF",
     "exportCsv": "导出为 CSV",
-    "exportEps": "导出为 EPS（实验性）",
     "exportTiff": "导出为 TIFF (300 DPI)",
     "exportMatplotlib": "导出为 Matplotlib 脚本",
     "theme": "主题",
@@ -340,7 +339,8 @@
     "filterApplied": "筛选已应用",
     "missingHandled": "缺失值已处理",
     "outliersRemoved": "已删除 {{count}} 个异常行",
-    "outliersReplaced": "异常值已替换"
+    "outliersReplaced": "异常值已替换",
+    "usedInActiveChart": "当前图表使用的列"
   },
   "layer": {
     "none": "无",
@@ -447,7 +447,8 @@
     "layers": "图层"
   },
   "chart2d": {
-    "addLayer": "请添加数据图层"
+    "addLayer": "请添加数据图层",
+    "loading": "图表加载中…"
   },
   "scene3dView": {
     "select3d": "请选择 3D 图表类型以启用 3D 可视化"
@@ -498,7 +499,8 @@
     "copy": "复制",
     "exportCsv": "导出拟合参数为 CSV",
     "exportLatex": "导出 LaTeX 方程",
-    "clearResult": "清除拟合结果"
+    "clearResult": "清除拟合结果",
+    "pinEquation": "固定公式到图表"
   },
   "stats": {
     "descriptive": "描述性统计",
@@ -605,7 +607,8 @@
     "templateDeleted": "模板已删除",
     "computedColumnAdded": "计算列已添加",
     "autoLayersAdded": "已为 {{count}} 个 Y 列创建曲线",
-    "autoLayersRemoved": "已移除 {{count}} 条曲线"
+    "autoLayersRemoved": "已移除 {{count}} 条曲线",
+    "annotationAdded": "标注已添加"
   },
   "export": {
     "title": "导出",
@@ -625,7 +628,17 @@
     "pageSizeA3": "A3",
     "pageSizeLetter": "Letter",
     "pageSizeLegal": "Legal",
-    "pageSizeAuto": "自动"
+    "pageSizeAuto": "自动",
+    "cancel": "取消",
+    "close": "关闭",
+    "dimensions": "尺寸 (px)",
+    "exporting": "导出中…",
+    "filenamePlaceholder": "输入文件名（不含扩展名）",
+    "generatePreview": "生成",
+    "previewHint": "点击“生成”以预览导出效果。",
+    "resetSize": "重置",
+    "batchHint": "选择多个格式可一次性全部导出。",
+    "selectAtLeastOneFormat": "请至少选择一种格式"
   },
   "findReplace": {
     "title": "查找替换",
@@ -647,7 +660,15 @@
     "batchFill": "填充选中单元格",
     "clearSelection": "清除选择",
     "fillValue": "输入填充值：",
-    "filled": "已填充 {{count}} 个单元格"
+    "filled": "已填充 {{count}} 个单元格",
+    "all": "全部",
+    "close": "关闭",
+    "findPlaceholder": "查找…",
+    "matchCount": "{{current}} / {{total}} 个匹配",
+    "replacePlaceholder": "替换为…",
+    "replacedAll": "已替换 {{count}} 处",
+    "scope": "搜索范围",
+    "typeToSearch": "输入以搜索"
   },
   "history": {
     "title": "历史记录",
@@ -694,6 +715,8 @@
     "removeDataset": "删除数据集",
     "updateDataset": "更新数据集",
     "editCell": "编辑单元格",
+    "fillCells": "填充单元格",
+    "replaceAll": "全部替换",
     "addColumn": "添加列",
     "removeColumn": "删除列",
     "addRow": "添加行",
@@ -711,7 +734,9 @@
     "fillMissing": "填充缺失值",
     "replaceOutliers": "替换异常值",
     "removeRows": "删除行",
-    "acceptChartType": "接受图表类型建议"
+    "acceptChartType": "接受图表类型建议",
+    "setGap": "调整子图间距",
+    "setGrid": "修改网格布局"
   },
   "common": {
     "close": "关闭",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDatasetStore } from '@/store/datasetStore';
+import { useHistoryStore } from '@/store/historyStore';
 import { useToastStore } from '@/store/toastStore';
 import { X, ChevronUp, ChevronDown, Replace, CheckCheck } from 'lucide-react';
 
@@ -122,6 +123,8 @@ export function FindReplaceModal({ onClose }: { onClose: () => void }) {
     });
 
     let count = 0;
+    // Capture the pre-replace state once so the whole batch undoes as a unit.
+    useHistoryStore.getState().pushSnapshot(t('history.replaceAll', { defaultValue: 'Replace all' }));
     cellMap.forEach((match) => {
       const newValue = matchWholeCell
         ? replaceText
@@ -131,8 +134,6 @@ export function FindReplaceModal({ onClose }: { onClose: () => void }) {
       updateCellValueSilent(dataset.id, match.colId, match.rowIdx, newValue);
       count++;
     });
-    // Push a single history snapshot for the batch operation
-    useDatasetStore.getState(); // ensure store is accessed
     addToast(t('findReplace.replacedAll', { count, defaultValue: `Replaced ${count} occurrences` }), 'success');
     setTimeout(runSearch, 50);
   };

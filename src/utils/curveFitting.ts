@@ -751,7 +751,8 @@ export function powerFit(x: number[], y: number[]): PowerFitResult | null {
  */
 export function gaussianFit(x: number[], y: number[]): GaussianFitResult | null {
   const { x: xv, y: yv } = filterValidPairs(x, y);
-  if (xv.length < 3) return null;
+  // n = 3 (= p) leaves 0 residual degrees of freedom and the iteration diverges
+  if (xv.length < 4) return null;
 
   const n = xv.length;
   const p = 3;
@@ -883,8 +884,9 @@ export function gaussianFit(x: number[], y: number[]): GaussianFitResult | null 
 
 /**
  * Logistic (sigmoid) fit: y = L / (1 + exp(-k*(x - x0)))
- * Uses Gauss-Newton with initial guess from data.
- * Returns null if insufficient valid data points.
+ * Uses Levenberg-Marquardt (via lmFitGeneral) with initial guess from data;
+ * the previous undamped Gauss-Newton diverged on clean sigmoid data.
+ * Returns null if insufficient valid data points or the fit fails.
  */
 export function logisticFit(x: number[], y: number[]): LogisticFitResult | null {
   const { x: xv, y: yv } = filterValidPairs(x, y);
@@ -894,62 +896,17 @@ export function logisticFit(x: number[], y: number[]): LogisticFitResult | null 
   const p = 3;
 
   // Initial guess
-  let L = Math.max(...yv);
-  let x0 = xv[0] + (xv[n - 1] - xv[0]) / 2;
-  // Estimate k from slope at midpoint
-  let k = 1;
+  const L0 = Math.max(...yv);
+  const x00 = xv[0] + (xv[n - 1] - xv[0]) / 2;
+  const k0 = 1;
 
-  // Gauss-Newton
-  const maxIter = 100;
-  for (let iter = 0; iter < maxIter; iter++) {
-    const J: number[][] = [];
-    const residuals: number[] = [];
-    for (let i = 0; i < n; i++) {
-      const expTerm = Math.exp(-k * (xv[i] - x0));
-      const denom = 1 + expTerm;
-      const pred = L / denom;
-      residuals.push(yv[i] - pred);
-      // Partials
-      const dL = 1 / denom;
-      const dK = (L * expTerm * (xv[i] - x0)) / (denom * denom);
-      const dX0 = (L * expTerm * k) / (denom * denom);
-      J.push([dL, dK, dX0]);
-    }
-
-    const jtJ = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-    const jtR = [0, 0, 0];
-    for (let i = 0; i < n; i++) {
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
-          jtJ[r][c] += J[i][r] * J[i][c];
-        }
-        jtR[r] += J[i][r] * residuals[i];
-      }
-    }
-
-    const det = det3(jtJ);
-    if (Math.abs(det) < 1e-18) break;
-
-    const delta: number[] = [];
-    for (let col = 0; col < 3; col++) {
-      const m = jtJ.map((row, i) => row.map((v, j) => (j === col ? jtR[i] : v)));
-      delta.push(det3(m) / det);
-    }
-
-    if (delta.every((d) => Math.abs(d) < 1e-12)) break;
-    if (delta.some((d) => !Number.isFinite(d))) break;
-
-    L += delta[0];
-    k += delta[1];
-    x0 += delta[2];
-
-    if (!Number.isFinite(L) || !Number.isFinite(k) || !Number.isFinite(x0)) {
-      L = Math.max(...yv);
-      x0 = xv[0] + (xv[n - 1] - xv[0]) / 2;
-      k = 1;
-      break;
-    }
-  }
+  const predict = (params: number[], xi: number) => {
+    const [Lp, kp, x0p] = params;
+    return Lp / (1 + Math.exp(-kp * (xi - x0p)));
+  };
+  const fit = lmFitGeneral(predict, xv, yv, [L0, k0, x00], 100);
+  if (!fit) return null;
+  const [L, k, x0] = fit.params;
 
   const fittedValues = xv.map((xi) => {
     const expTerm = Math.exp(-k * (xi - x0));
@@ -1089,12 +1046,10 @@ interface BiexponentialFitResult extends FitResultShape { a: number; b: number; 
  *  NOTE: An earlier `lmFit(residualFn, ...)` variant is retained below as
  *  `_lmFitResidual` for legacy callers / future re-enablement. Not used in
  *  Phase 3 Task 3.2. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 /** Compute FitStatistics from final parameters and residuals.
  *  Retained as `_buildStatsLegacy` for legacy callers. Phase 3 Task 3.2 uses
  *  `buildStatsWithSE` which incorporates parameter covariance. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 /** Compute JᵀJ from the residual Jacobian (n×p) and solve for parameter SE. */
 function covarianceSE(jacobian: number[][], residuals: number[], p: number, n: number): number[] {
@@ -1246,7 +1201,7 @@ export function lmFitGeneral(
       paramsPlus[j] = params[j] + hj;
       paramsMinus[j] = params[j] - hj;
       for (let i = 0; i < n; i++) {
-        jacobian[i][j] = -(predictFn(paramsPlus, x[i]) - predictFn(paramsMinus, x[i])) / (2 * hj);
+        jacobian[i][j] = (predictFn(paramsPlus, x[i]) - predictFn(paramsMinus, x[i])) / (2 * hj);
       }
     }
     bestJacobian = jacobian.map((r) => [...r]);
@@ -1666,14 +1621,15 @@ export function computePredictionBand(
     const lower: number[] = [];
     for (const qx of queryX) {
       if (!Number.isFinite(qx)) continue;
-      // se = s * sqrt(x_p^T (X^T X)^{-1} x_p) = s * sqrt(Σ_i (Σ_j RInv[i][j] * qx^j)^2)
+      // se = s * sqrt(x_p^T (X^T X)^{-1} x_p) = s * sqrt(Σ_i (Σ_j RInv[j][i] * qx^j)^2)
+      // since (XᵀX)⁻¹ = R⁻¹(R⁻¹)ᵀ for X = QR
       let se2 = 0;
       for (let i = 0; i < p; i++) {
-        let rowSum = 0;
+        let colSum = 0;
         for (let j = 0; j < p; j++) {
-          rowSum += RInv[i][j] * qx ** j;
+          colSum += RInv[j][i] * qx ** j;
         }
-        se2 += rowSum * rowSum;
+        se2 += colSum * colSum;
       }
       const se = s * Math.sqrt(se2);
       let yHat = 0;
@@ -1758,21 +1714,10 @@ export function globalFit(
     for (let i = 0; i < filteredDatasets[d].x.length; i++) tag.push(d);
   }
 
-  // Shared counter — lmFitGeneral calls predictFn in three sequential patterns:
-  //   (1) residuals: n calls (i = 0..n-1)
-  //   (2) jacobian: p * n calls (j = 0..p-1, i = 0..n-1) twice (params+/-)
-  //   (3) newParams residuals: n calls
-  // All sequential by `i`, so a single counter is safe.
-  let counter = 0;
-  const wrappedPredict = (params: number[], x: number) => {
-    const idx = counter++;
-    return filteredDatasets[tag[idx]].predict(params, x);
-  };
-
-  // NB: lmFitGeneral may call predictFn in different orders depending on
-  // branch path. To be robust, we re-implement the inner LM loop here
-  // using our counter.
-  const fit = lmFitGlobal(wrappedPredict, xAll, yAll, initial, options?.maxIter ?? 200, tag, filteredDatasets);
+  // lmFitGeneral's `predictFn(params, x)` signature doesn't expose the row
+  // index needed for per-dataset dispatch, so the LM loop is re-implemented
+  // in lmFitGlobal with dispatch via the `tag` array.
+  const fit = lmFitGlobal(xAll, yAll, initial, options?.maxIter ?? 200, tag, filteredDatasets);
   if (!fit) return null;
 
   // Compute R² across all datasets with the returned params.
@@ -1792,12 +1737,9 @@ export function globalFit(
 
 // Note: this is a separate LM implementation from `lmFitGeneral` because that
 // function's `predictFn` signature is `predict(params, x)`, which doesn't expose
-// the row index. For global fitting with per-dataset dispatch, our wrapper
-// closure above maintains a counter that aligns predict calls with dataset
-// rows via the `tag` array. We re-implement the LM loop here so that we
-// control counter resets between "outer" iterations.
+// the row index. Here each row is dispatched to its dataset's predict function
+// via the `tag` array.
 function lmFitGlobal(
-  predict: (params: number[], x: number) => void,
   x: number[],
   y: number[],
   initial: number[],
@@ -1815,27 +1757,24 @@ function lmFitGlobal(
   let bestParams = [...params];
 
   for (let iter = 0; iter < maxIter; iter++) {
-    // Counter reset at the start of each lmFitGlobal iteration
-    let counter = 0;
     const predictAt = (paramsVec: number[], idx: number) =>
       datasets[tag[idx]].predict(paramsVec, x[idx]);
 
     // Residuals
     const residuals = new Array(n);
     for (let i = 0; i < n; i++) {
-      counter++;
       residuals[i] = y[i] - predictAt(params, i);
-      // silence unused 'predict' warning (kept for API parity)
-      void predict;
     }
     let sse = 0;
     for (let i = 0; i < n; i++) sse += residuals[i] * residuals[i];
-    if (sse < bestSSE) bestSSE = sse, bestParams = [...params];
+    if (sse < bestSSE) {
+      bestSSE = sse;
+      bestParams = [...params];
+    }
 
     // Jacobian (central difference)
     const jacobian: number[][] = [];
     for (let i = 0; i < n; i++) jacobian.push(new Array(p).fill(0));
-    counter = 0; // reset
     for (let j = 0; j < p; j++) {
       const paramsPlus = [...params];
       const paramsMinus = [...params];
@@ -1844,8 +1783,7 @@ function lmFitGlobal(
       paramsPlus[j] = params[j] + hj;
       paramsMinus[j] = params[j] - hj;
       for (let i = 0; i < n; i++) {
-        counter++;
-        jacobian[i][j] = -(predictAt(paramsPlus, i) - predictAt(paramsMinus, i)) / (2 * hj);
+        jacobian[i][j] = (predictAt(paramsPlus, i) - predictAt(paramsMinus, i)) / (2 * hj);
       }
     }
 
@@ -1867,11 +1805,9 @@ function lmFitGlobal(
     const delta = solveSymmetric(JtJDamped, Jtr);
     if (!delta || delta.some((d) => !Number.isFinite(d))) break;
 
-    counter = 0; // reset
     const rawNewParams = params.map((p0, i) => p0 + delta[i]);
     const newResiduals = new Array(n);
     for (let i = 0; i < n; i++) {
-      counter++;
       newResiduals[i] = y[i] - predictAt(rawNewParams, i);
     }
     let newSSE = 0;
