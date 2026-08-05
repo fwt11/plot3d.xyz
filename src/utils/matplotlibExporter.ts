@@ -406,27 +406,19 @@ function emitSubplotTracesAndTail(
           lines.push(`${gzVar} = ${np2DArray(grid.z)}`);
           lines.push(`# Note: surface plots expect a regular grid. X and Y are 1D, Z is 2D.`);
           lines.push(`${gxVar}_g, ${gyVar}_g = np.meshgrid(${gxVar}, ${gyVar})`);
-          lines.push(`surf = ${axVar}.plot_surface(${gxVar}_g, ${gyVar}_g, ${gzVar}, cmap='${mplColorMap(chartConfig.colorMap)}', edgecolor='none', alpha=${layer.fill ? 0.8 : 1})`);
+          lines.push(`surf = ${axVar}.plot_surface(${gxVar}_g, ${gyVar}_g, ${gzVar}, cmap='${mplColorMap(chartConfig.colorMap)}', edgecolor=${chartConfig.surfaceMesh ? "'gray', linewidth=0.5" : "'none'"}, alpha=${layer.fill ? 0.8 : 1})`);
+          // Contour projections (the former "Surface Projection" chart type).
+          const proj = chartConfig.contourProjection;
+          if (proj?.floor) {
+            lines.push(`${axVar}.contour(${gxVar}_g, ${gyVar}_g, ${gzVar}, zdir='z', offset=np.nanmin(${gzVar}), cmap='${mplColorMap(chartConfig.colorMap)}')`);
+          }
+          if (proj?.walls) {
+            lines.push(`${axVar}.contour(${gxVar}_g, ${gyVar}_g, ${gzVar}, zdir='x', offset=np.nanmin(${gxVar}), cmap='${mplColorMap(chartConfig.colorMap)}')`);
+            lines.push(`${axVar}.contour(${gxVar}_g, ${gyVar}_g, ${gzVar}, zdir='y', offset=np.nanmax(${gyVar}), cmap='${mplColorMap(chartConfig.colorMap)}')`);
+          }
           lines.push(`cbar = fig.colorbar(surf, ax=${axVar}, shrink=0.5)`);
           const cbarTitle = chartConfig.zAxis?.label || entry.zCol.name;
           lines.push(`cbar.set_label('${pyEscape(cbarTitle)}')`);
-        }
-        break;
-      }
-      case 'contour3d': {
-        if (entry.zCol) {
-          const xVals = colToNumbers(entry.xCol);
-          const yVals = colToNumbers(entry.yCol);
-          const zVals = colToNumbers(entry.zCol);
-          const grid = extractGridData(xVals, yVals, zVals);
-          const gxVar = `${idxPrefix}ct_x_${i}`;
-          const gyVar = `${idxPrefix}ct_y_${i}`;
-          const gzVar = `${idxPrefix}ct_z_${i}`;
-          lines.push(`${gxVar} = ${npArray(grid.x)}`);
-          lines.push(`${gyVar} = ${npArray(grid.y)}`);
-          lines.push(`${gzVar} = ${np2DArray(grid.z)}`);
-          lines.push(`${gxVar}_g, ${gyVar}_g = np.meshgrid(${gxVar}, ${gyVar})`);
-          lines.push(`${axVar}.contour3D(${gxVar}_g, ${gyVar}_g, ${gzVar}, 50, cmap='${mplColorMap(chartConfig.colorMap)}')`);
         }
         break;
       }

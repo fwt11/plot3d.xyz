@@ -53,6 +53,7 @@ export function createDefaultChartConfig(): ChartConfig {
     exportConfig: { resolutionMultiplier: 2, background: 'white', figureMultiplier: 1 },
     fontSize: 16,
     scene3D: { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' },
+    surfaceMesh: true,
     manuallyManagedDatasetIds: [],
     layers: [
       {
@@ -105,6 +106,10 @@ interface ChartStore {
   setExportConfig: (config: Partial<ExportConfig>) => void;
   setFontSize: (fontSize: number) => void;
   setScene3D: (scene: Partial<Scene3DConfig>) => void;
+  /** Toggle the wireframe mesh overlay on surface3d charts. */
+  setSurfaceMesh: (enabled: boolean) => void;
+  /** Set contour projection planes for surface3d charts. */
+  setContourProjection: (projection: { floor: boolean; walls: boolean }) => void;
   /** Apply a partial chart config patch atomically (used by journal templates). */
   applyConfigPatch: (patch: Partial<ChartConfig>) => void;
 
@@ -328,6 +333,14 @@ export const useChartStore = create<ChartStore>()((set) => {
         ...c,
         scene3D: { ...(c.scene3D ?? { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' }), ...scene },
       })), i18n.t('history.setScene3D', { defaultValue: 'Change 3D scene' })),
+
+    setSurfaceMesh: (enabled) =>
+      setWithHistory((s) => patchActive(s, (c) => ({ ...c, surfaceMesh: enabled })),
+        i18n.t('history.setSurfaceMesh', { defaultValue: 'Toggle surface mesh' })),
+
+    setContourProjection: (projection) =>
+      setWithHistory((s) => patchActive(s, (c) => ({ ...c, contourProjection: projection })),
+        i18n.t('history.setContourProjection', { defaultValue: 'Change contour projection' })),
 
     applyConfigPatch: (patch) =>
       setWithHistory((s) => patchActive(s, (c) => ({ ...c, ...patch })),

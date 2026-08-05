@@ -288,6 +288,55 @@ export function extractGridData(
   return { x: uniqueX, y: uniqueY, z: zMatrix };
 }
 
+/** Build wireframe mesh line coordinates for a surface grid, as flat arrays with
+ *  null separators (suitable for a single Plotly scatter3d 'lines' trace).
+ *  Emits one polyline per grid row (varying x) and per grid column (varying y).
+ *  Null z cells create gaps in the lines.
+ *  Dense grids are decimated to at most ~maxLines lines per direction so the mesh
+ *  stays readable instead of forming a moiré screen; boundary lines are kept. */
+export function buildSurfaceMeshLines(
+  grid: { x: number[]; y: number[]; z: (number | null)[][] },
+  maxLines: number = 25,
+): { x: (number | null)[]; y: (number | null)[]; z: (number | null)[] } {
+  const pickIndices = (count: number): number[] => {
+    if (count === 0) return [];
+    const stride = Math.max(1, Math.ceil((count - 1) / maxLines));
+    const indices: number[] = [];
+    for (let i = 0; i < count; i += stride) indices.push(i);
+    if (indices[indices.length - 1] !== count - 1) indices.push(count - 1);
+    return indices;
+  };
+  const rowIndices = pickIndices(grid.y.length);
+  const colIndices = pickIndices(grid.x.length);
+
+  const mx: (number | null)[] = [];
+  const my: (number | null)[] = [];
+  const mz: (number | null)[] = [];
+  // Lines along x for each picked y row
+  for (const yi of rowIndices) {
+    for (let xi = 0; xi < grid.x.length; xi++) {
+      mx.push(grid.x[xi]);
+      my.push(grid.y[yi]);
+      mz.push(grid.z[yi][xi]);
+    }
+    mx.push(null);
+    my.push(null);
+    mz.push(null);
+  }
+  // Lines along y for each picked x column
+  for (const xi of colIndices) {
+    for (let yi = 0; yi < grid.y.length; yi++) {
+      mx.push(grid.x[xi]);
+      my.push(grid.y[yi]);
+      mz.push(grid.z[yi][xi]);
+    }
+    mx.push(null);
+    my.push(null);
+    mz.push(null);
+  }
+  return { x: mx, y: my, z: mz };
+}
+
 export interface ExpandedEntry {
   label: string;
   xCol: DataColumn;

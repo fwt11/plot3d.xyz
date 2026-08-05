@@ -19,6 +19,7 @@ import {
   hexToRgba,
   toPlotlyColorScale,
   extractGridData,
+  buildSurfaceMeshLines,
   type ExpandedEntry,
 } from '@/utils/tracesBuilder';
 import { buildLayout, getThemeCssVars } from '@/utils/layoutBuilder';
@@ -475,7 +476,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
   // --- Build Plotly traces (memoized) ---
   const traces = useMemo<Record<string, unknown>[]>(() => {
     if (is3DType) {
-      return expandedDatasets.map((entry) => {
+      return expandedDatasets.flatMap((entry) => {
         const { label, xCol, yCol, zCol, color, layer } = entry;
         const xValues = colToXValues(xCol);
         const yValues = colToNumbers(yCol);
@@ -484,7 +485,13 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
           const zValues = colToNumbers(zCol);
           const { x: uniqueX, y: uniqueY, z: zMatrix } = extractGridData(xValues, yValues, zValues);
 
-          return {
+          // "Surface projection" (formerly the contour3d chart type) is a
+          // surface with contour projections, configured per-plane here.
+          // Wall (x/y) projections re-encode z a second/third time and read as
+          // clutter, so they stay opt-in via config.
+          const projection = chartConfig.contourProjection ?? { floor: false, walls: false };
+
+          const surfaceTrace: Record<string, unknown> = {
             type: 'surface',
             name: label,
             x: uniqueX,
@@ -498,36 +505,31 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
               tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
             },
             contours: {
-              z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: false } },
+              x: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', project: { x: projection.walls } },
+              y: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', project: { y: projection.walls } },
+              // Mesh overlay replaces the z-contour rings (they serve the same
+              // shape-reading purpose and look cluttered when combined) unless
+              // the floor projection needs them.
+              z: { show: !chartConfig.surfaceMesh || projection.floor, usecolormap: true, highlightcolor: '#fff', project: { z: projection.floor } },
             },
             lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5, fresnel: 0.2 },
             lightposition: { x: 1000, y: 1000, z: 1000 },
           };
-        }
-
-        if (chartType === 'contour3d' && zCol) {
-          const zValues = colToNumbers(zCol);
-          const { x: uniqueX, y: uniqueY, z: zMatrix } = extractGridData(xValues, yValues, zValues);
-
-          return {
-            type: 'surface',
-            name: label,
-            x: uniqueX,
-            y: uniqueY,
-            z: zMatrix,
-            colorscale: colorScale,
-            opacity: 0.9,
-            showscale: true,
-            colorbar: {
-              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
-              tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
-            },
-            contours: {
-              x: { show: true, usecolormap: true, highlightcolor: '#fff', project: { x: true } },
-              y: { show: true, usecolormap: true, highlightcolor: '#fff', project: { y: true } },
-              z: { show: true, usecolormap: true, highlightcolor: '#fff', project: { z: true } },
-            },
-          };
+          if (!chartConfig.surfaceMesh) return [surfaceTrace];
+          // Wireframe overlay: grid lines along x and y, drawn as a single
+          // scatter3d line trace with null separators.
+          const mesh = buildSurfaceMeshLines({ x: uniqueX, y: uniqueY, z: zMatrix });
+          return [surfaceTrace, {
+            type: 'scatter3d',
+            mode: 'lines',
+            name: `${label} mesh`,
+            x: mesh.x,
+            y: mesh.y,
+            z: mesh.z,
+            line: { color: cssVars.textColor, width: 1 },
+            showlegend: false,
+            hoverinfo: 'skip',
+          }];
         }
 
         if (chartType === 'scatter3d') {

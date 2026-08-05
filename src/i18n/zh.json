@@ -160,7 +160,6 @@
     "polar": "极坐标",
     "surface3d": "3D 曲面",
     "scatter3d": "3D 散点",
-    "contour3d": "曲面投影",
     "bar3d": "3D 方块",
     "box": "箱线图",
     "histogram": "直方图",
@@ -281,7 +280,10 @@
     "aspectRatio": "比例",
     "projection": "投影",
     "projectionOrthographic": "正交",
-    "projectionPerspective": "透视"
+    "projectionPerspective": "透视",
+    "surfaceMesh": "显示网格线",
+    "contourProjectionFloor": "底面投影",
+    "contourProjectionWalls": "墙面投影"
   },
   "data": {
     "noDataset": "无数据集",
@@ -703,6 +705,8 @@
     "setExportConfig": "修改导出配置",
     "setFontSize": "修改字号",
     "setScene3D": "修改 3D 场景",
+    "setSurfaceMesh": "切换曲面网格线",
+    "setContourProjection": "修改等值线投影",
     "applyTemplate": "应用模板",
     "addAnnotation": "添加标注",
     "removeAnnotation": "删除标注",

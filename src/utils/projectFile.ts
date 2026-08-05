@@ -1,10 +1,10 @@
 import type { Dataset, ChartConfig, DataColumn, FigureConfig, LayerConfig, Annotation, AnnotationType } from '@/types';
 
 /** .plot3d project file format version */
-const PROJECT_VERSION = 6;
+const PROJECT_VERSION = 9;
 
 const VALID_COLUMN_TYPES: DataColumn['type'][] = ['X', 'Y', 'Z', 'label', 'error', 'errorPlus', 'errorMinus'];
-const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
+const VALID_CHART_TYPES: ChartConfig['type'][] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'bar3d', 'box', 'histogram', 'heatmap', 'violin', 'isosurface3d', 'volume3d'];
 const VALID_COLORMAPS: ChartConfig['colorMap'][] = ['jet', 'viridis', 'hot', 'coolwarm', 'parula', 'plasma', 'cividis', 'inferno', 'magma', 'turbo', 'batlow'];
 const VALID_ANNOTATION_TYPES: AnnotationType[] = [
   'text', 'callout', 'arrow', 'line', 'bracket', 'rect', 'ellipse', 'polygon',
@@ -228,7 +228,12 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
   const c = config as Record<string, unknown>;
   if (typeof c.id !== 'string') return null;
 
-  const type = VALID_CHART_TYPES.includes(c.type as ChartConfig['type']) ? (c.type as ChartConfig['type']) : 'line';
+  // v9: the standalone 'contour3d' ("Surface Projection") chart type was
+  // merged into 'surface3d'; legacy files map to a surface with floor+wall
+  // projections enabled (their original appearance).
+  const legacyContour3d = c.type === 'contour3d';
+  const rawType = legacyContour3d ? 'surface3d' : c.type;
+  const type = VALID_CHART_TYPES.includes(rawType as ChartConfig['type']) ? (rawType as ChartConfig['type']) : 'line';
   const colorMap = VALID_COLORMAPS.includes(c.colorMap as ChartConfig['colorMap']) ? (c.colorMap as ChartConfig['colorMap']) : 'viridis';
 
   const legend = typeof c.legend === 'object' && c.legend !== null
@@ -259,7 +264,7 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
     xAxis: sanitizeAxis(c.xAxis, 'X'),
     yAxis: sanitizeAxis(c.yAxis, 'Y'),
     yAxisRight: c.yAxisRight ? sanitizeAxis(c.yAxisRight, 'Y2') : undefined,
-    zAxis: type.startsWith('surface') || type === 'scatter3d' || type === 'contour3d' || type === 'bar3d' || type === 'isosurface3d' || type === 'volume3d'
+    zAxis: type.startsWith('surface') || type === 'scatter3d' || type === 'bar3d' || type === 'isosurface3d' || type === 'volume3d'
       ? sanitizeAxis(c.zAxis, 'Z')
       : undefined,
     legend: {
@@ -296,6 +301,23 @@ function sanitizeChartConfig(config: unknown): ChartConfig | null {
       },
       projection,
     },
+    // v7 addition; default on (mesh overlay shown unless the user disabled it).
+    surfaceMesh: typeof c.surfaceMesh === 'boolean' ? c.surfaceMesh : true,
+    // v8 addition; undefined falls back to the renderer default (no projections).
+    // Legacy 'contour3d' charts (pre-v9) get floor+wall projections to preserve
+    // their original appearance.
+    contourProjection: typeof c.contourProjection === 'object' && c.contourProjection !== null
+      ? {
+          floor: typeof (c.contourProjection as Record<string, unknown>).floor === 'boolean'
+            ? (c.contourProjection as { floor: boolean }).floor
+            : false,
+          walls: typeof (c.contourProjection as Record<string, unknown>).walls === 'boolean'
+            ? (c.contourProjection as { walls: boolean }).walls
+            : false,
+        }
+      : legacyContour3d
+        ? { floor: true, walls: true }
+        : undefined,
   };
 }
 
@@ -446,6 +468,21 @@ export async function loadProjectFile(file: File): Promise<ProjectFile | null> {
     // wraps legacy `chartConfig` into a 1x1 figure automatically; we just bump the
     // version so the saved file is recognized as v6.
     if (typeof data === 'object' && data !== null && data.version === 5) {
+      data.version = PROJECT_VERSION;
+    }
+    // v6 -> v7: optional `surfaceMesh` flag on ChartConfig; sanitize defaults it
+    // to true (mesh on), so we just bump the version.
+    if (typeof data === 'object' && data !== null && data.version === 6) {
+      data.version = PROJECT_VERSION;
+    }
+    // v7 -> v8: optional `contourProjection` on ChartConfig; sanitize fills in
+    // defaults when absent, so we just bump the version.
+    if (typeof data === 'object' && data !== null && data.version === 7) {
+      data.version = PROJECT_VERSION;
+    }
+    // v8 -> v9: 'contour3d' chart type merged into 'surface3d'; sanitize maps
+    // the legacy type and enables floor+wall projections, so we just bump.
+    if (typeof data === 'object' && data !== null && data.version === 8) {
       data.version = PROJECT_VERSION;
     }
     return sanitizeProjectFile(data);

@@ -251,6 +251,8 @@ export default function ConfigPanel() {
   const setExportConfig = useChartStore((s) => s.setExportConfig);
   const setFontSize = useChartStore((s) => s.setFontSize);
   const setScene3D = useChartStore((s) => s.setScene3D);
+  const setSurfaceMesh = useChartStore((s) => s.setSurfaceMesh);
+  const setContourProjection = useChartStore((s) => s.setContourProjection);
 
   const hasRightYAxis = !is3D && chartConfig.layers.some((l) => l.yAxisSide === 'right');
   const scene3D = chartConfig.scene3D ?? { aspectMode: 'cube', aspectRatio: { x: 1, y: 1, z: 1 }, projection: 'orthographic' };
@@ -336,6 +338,45 @@ export default function ConfigPanel() {
               <option value="perspective">{t('config.projectionPerspective', { defaultValue: 'Perspective' })}</option>
             </select>
           </label>
+          {chartConfig.type === 'surface3d' && (
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {t('config.surfaceMesh', { defaultValue: 'Show mesh' })}
+              <input
+                type="checkbox"
+                checked={chartConfig.surfaceMesh ?? true}
+                onChange={(e) => setSurfaceMesh(e.target.checked)}
+                className="accent-sky-500"
+                aria-label={t('config.surfaceMesh', { defaultValue: 'Show mesh' })}
+              />
+            </label>
+          )}
+          {chartConfig.type === 'surface3d' && (() => {
+            const projection = chartConfig.contourProjection ?? { floor: false, walls: false };
+            return (
+              <>
+                <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {t('config.contourProjectionFloor', { defaultValue: 'Floor projection' })}
+                  <input
+                    type="checkbox"
+                    checked={projection.floor}
+                    onChange={(e) => setContourProjection({ ...projection, floor: e.target.checked })}
+                    className="accent-sky-500"
+                    aria-label={t('config.contourProjectionFloor', { defaultValue: 'Floor projection' })}
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {t('config.contourProjectionWalls', { defaultValue: 'Wall projections' })}
+                  <input
+                    type="checkbox"
+                    checked={projection.walls}
+                    onChange={(e) => setContourProjection({ ...projection, walls: e.target.checked })}
+                    className="accent-sky-500"
+                    aria-label={t('config.contourProjectionWalls', { defaultValue: 'Wall projections' })}
+                  />
+                </label>
+              </>
+            );
+          })()}
         </Section>
       )}
 

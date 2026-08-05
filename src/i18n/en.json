@@ -160,7 +160,6 @@
     "polar": "Polar",
     "surface3d": "3D Surface",
     "scatter3d": "3D Scatter",
-    "contour3d": "Surface Projection",
     "bar3d": "3D Blocks",
     "box": "Box Plot",
     "histogram": "Histogram",
@@ -281,7 +280,10 @@
     "aspectRatio": "Aspect Ratio",
     "projection": "Projection",
     "projectionOrthographic": "Orthographic",
-    "projectionPerspective": "Perspective"
+    "projectionPerspective": "Perspective",
+    "surfaceMesh": "Show Mesh",
+    "contourProjectionFloor": "Floor Projection",
+    "contourProjectionWalls": "Wall Projections"
   },
   "data": {
     "noDataset": "No Dataset",
@@ -703,6 +705,8 @@
     "setExportConfig": "Change export config",
     "setFontSize": "Change font size",
     "setScene3D": "Change 3D scene",
+    "setSurfaceMesh": "Toggle surface mesh",
+    "setContourProjection": "Change contour projection",
     "applyTemplate": "Apply template",
     "addAnnotation": "Add annotation",
     "removeAnnotation": "Remove annotation",

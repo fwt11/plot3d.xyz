@@ -1,6 +1,18 @@
 import type { ChartConfig } from '@/types';
-import { axisLabelText, type ExpandedEntry } from '@/utils/tracesBuilder';
+import { axisLabelText, hexToRgba, type ExpandedEntry } from '@/utils/tracesBuilder';
 import { detectColumnType } from '@/types';
+
+/** Re-emit a color with a fixed alpha. Handles 'rgb(a)(...)' and '#rrggbb'/'#rgb';
+ *  anything else is returned unchanged. */
+export function fadeColorAlpha(color: string, alpha: number): string {
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (match) {
+    const parts = match[1].split(',').map((s) => parseFloat(s.trim()));
+    return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+  }
+  if (color.startsWith('#')) return hexToRgba(color, alpha);
+  return color;
+}
 
 export interface ChartCssVars {
   textColor: string;
@@ -91,39 +103,45 @@ export function buildLayout(
   };
 
   if (is3DType) {
+    // 3D pane grids: thinner and fainter than 2D grids — journal-style 3D plots
+    // keep the box walls quiet so they don't fight the data for attention.
+    const sceneGridColor = fadeColorAlpha(cssVars.gridColor, 0.15);
+    // Limit tick count: dense 3D tick labels rotate in perspective and pile up
+    // at the front corner where the x/y axes meet.
+    const sceneTicks = { nticks: 5, tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize } };
     const sceneConfig: Record<string, unknown> = {
       xaxis: {
         title: { text: axisLabelText(chartConfig.xAxis.label, chartConfig.xAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
-        gridcolor: chartConfig.xAxis.gridVisible ? cssVars.gridColor : 'transparent',
-        gridwidth: 3,
-        zerolinecolor: cssVars.gridColor,
+        gridcolor: chartConfig.xAxis.gridVisible ? sceneGridColor : 'transparent',
+        gridwidth: 1,
+        zerolinecolor: sceneGridColor,
         showgrid: chartConfig.xAxis.gridVisible,
         showbackground: true,
         backgroundcolor: cssVars.bgSurface,
         linecolor: cssVars.borderColor,
-        tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
+        ...sceneTicks,
       },
       yaxis: {
         title: { text: axisLabelText(chartConfig.yAxis.label, chartConfig.yAxis.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
-        gridcolor: chartConfig.yAxis.gridVisible ? cssVars.gridColor : 'transparent',
-        gridwidth: 3,
-        zerolinecolor: cssVars.gridColor,
+        gridcolor: chartConfig.yAxis.gridVisible ? sceneGridColor : 'transparent',
+        gridwidth: 1,
+        zerolinecolor: sceneGridColor,
         showgrid: chartConfig.yAxis.gridVisible,
         showbackground: true,
         backgroundcolor: cssVars.bgSurface,
         linecolor: cssVars.borderColor,
-        tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
+        ...sceneTicks,
       },
       zaxis: {
         title: { text: axisLabelText(chartConfig.zAxis?.label, chartConfig.zAxis?.unit), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
-        gridcolor: chartConfig.zAxis?.gridVisible !== false ? cssVars.gridColor : 'transparent',
-        gridwidth: 3,
-        zerolinecolor: cssVars.gridColor,
+        gridcolor: chartConfig.zAxis?.gridVisible !== false ? sceneGridColor : 'transparent',
+        gridwidth: 1,
+        zerolinecolor: sceneGridColor,
         showgrid: chartConfig.zAxis?.gridVisible !== false,
         showbackground: true,
         backgroundcolor: cssVars.bgSurface,
         linecolor: cssVars.borderColor,
-        tickfont: { color: cssVars.textMuted, size: chartConfig.fontSize },
+        ...sceneTicks,
       },
       bgcolor: 'transparent',
       camera: {

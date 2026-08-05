@@ -11,6 +11,7 @@ import {
   enrichColumns,
   axisLabelText,
   buildErrorBar,
+  buildSurfaceMeshLines,
 } from './tracesBuilder';
 import type { DataColumn, ErrorBarConfig } from '@/types';
 
@@ -404,3 +405,71 @@ describe('buildErrorBar (statistical mode)', () => {
   });
 });
 
+
+describe('buildSurfaceMeshLines', () => {
+  it('emits one polyline per grid row and column with null separators', () => {
+    // 2 x 3 grid: x = [1, 2], y = [10, 20, 30]
+    const grid = {
+      x: [1, 2],
+      y: [10, 20, 30],
+      z: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+    };
+    const mesh = buildSurfaceMeshLines(grid);
+    // 3 row lines (2 points + separator each) + 2 column lines (3 points + separator each)
+    expect(mesh.x).toHaveLength(3 * 3 + 2 * 4);
+    expect(mesh.y).toHaveLength(mesh.x.length);
+    expect(mesh.z).toHaveLength(mesh.x.length);
+
+    // First row line: (1,10,1) → (2,10,2) → null
+    expect(mesh.x.slice(0, 3)).toEqual([1, 2, null]);
+    expect(mesh.y.slice(0, 3)).toEqual([10, 10, null]);
+    expect(mesh.z.slice(0, 3)).toEqual([1, 2, null]);
+
+    // First column line starts after the 3 row lines: (1,10,1) → (1,20,3) → (1,30,5) → null
+    const colStart = 3 * 3;
+    expect(mesh.x.slice(colStart, colStart + 4)).toEqual([1, 1, 1, null]);
+    expect(mesh.y.slice(colStart, colStart + 4)).toEqual([10, 20, 30, null]);
+    expect(mesh.z.slice(colStart, colStart + 4)).toEqual([1, 3, 5, null]);
+  });
+
+  it('preserves null z cells as gaps inside lines', () => {
+    const grid = {
+      x: [1, 2],
+      y: [10],
+      z: [[null, 5]],
+    };
+    const mesh = buildSurfaceMeshLines(grid);
+    expect(mesh.z).toContain(null);
+    // The null z sits inside the row line, not just in separators
+    expect(mesh.z[0]).toBeNull();
+    expect(mesh.z[1]).toBe(5);
+  });
+
+  it('handles an empty grid', () => {
+    const mesh = buildSurfaceMeshLines({ x: [], y: [], z: [] });
+    expect(mesh.x).toEqual([]);
+    expect(mesh.y).toEqual([]);
+    expect(mesh.z).toEqual([]);
+  });
+
+  it('decimates dense grids to about maxLines lines per direction, keeping boundaries', () => {
+    const n = 100;
+    const grid = {
+      x: Array.from({ length: n }, (_, i) => i),
+      y: Array.from({ length: n }, (_, i) => i),
+      z: Array.from({ length: n }, (_, yi) => Array.from({ length: n }, (_, xi) => xi + yi)),
+    };
+    const mesh = buildSurfaceMeshLines(grid, 25);
+    // Count polylines via null separators
+    const lineCount = mesh.x.filter((v) => v === null).length;
+    // ~25 rows + ~25 columns (+1 each for the forced boundary line), well under 100+100
+    expect(lineCount).toBeLessThanOrEqual(54);
+    expect(lineCount).toBeGreaterThan(20);
+    // First row line still spans the full x resolution (points, not decimated)
+    expect(mesh.x.slice(0, n)).toEqual(grid.x);
+  });
+});

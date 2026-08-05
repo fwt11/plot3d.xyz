@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LIGHT_CHART_CSS_VARS, buildLayout, buildInsets, getThemeCssVars } from './layoutBuilder';
+import { LIGHT_CHART_CSS_VARS, buildLayout, buildInsets, fadeColorAlpha, getThemeCssVars } from './layoutBuilder';
 import type { AxisConfig, ChartConfig, ExportConfig, InsetConfig } from '@/types';
 
 const axis = (overrides: Partial<AxisConfig> = {}): AxisConfig => ({
@@ -96,6 +96,24 @@ describe('buildLayout', () => {
     const cfg = { ...baseConfig, title: '' };
     const result = buildLayout(cfg, LIGHT_CHART_CSS_VARS, false, false, false, [], false);
     expect((result.title as { text: string }).text).toBe('');
+  });
+});
+
+describe('fadeColorAlpha', () => {
+  it('overrides alpha on rgba() colors', () => {
+    expect(fadeColorAlpha('rgba(148, 148, 170, 0.35)', 0.15)).toBe('rgba(148, 148, 170, 0.15)');
+  });
+
+  it('adds alpha to rgb() colors', () => {
+    expect(fadeColorAlpha('rgb(10, 20, 30)', 0.5)).toBe('rgba(10, 20, 30, 0.5)');
+  });
+
+  it('converts hex colors with the given alpha', () => {
+    expect(fadeColorAlpha('#ff0000', 0.25)).toBe('rgba(255, 0, 0, 0.25)');
+  });
+
+  it('passes through unrecognized color strings', () => {
+    expect(fadeColorAlpha('red', 0.5)).toBe('red');
   });
 });
 

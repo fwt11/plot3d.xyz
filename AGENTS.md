@@ -9,11 +9,11 @@
 - **产品定位**：单页 Web 应用（SPA），纯前端运行，无后端服务。
 - **核心能力**：
   - 2D 图表：折线图、散点图、柱状图、面积图、饼图、极坐标图、箱线图、小提琴图、直方图、热力图。
-  - 3D 图表：曲面图、3D 散点、3D 等高线、3D 柱状图、等值面（isosurface）、体积渲染（volume）。
+  - 3D 图表：曲面图（可选底面/墙面等值线投影）、3D 散点、3D 柱状图、等值面（isosurface）、体积渲染（volume）。
   - 数据处理：CSV / Excel 导入，单元格编辑，列变换，平滑，插值，缺失值/异常值处理。
   - 曲线拟合：线性、多项式、指数、对数、幂律、高斯、Logistic，多峰拟合与全局拟合（globalFit）。
   - 标注与导出：文本 / LaTeX / 箭头 / 矩形等标注；导出 PNG / SVG / PDF / TIFF，并可生成 matplotlib Python 复现脚本（部分格式有实现限制，见 §9）。
-- **项目文件格式**：`.plot3d`，保存完整应用状态（数据集、图表配置、主题、语言），当前版本号为 `6`。
+- **项目文件格式**：`.plot3d`，保存完整应用状态（数据集、图表配置、主题、语言），当前版本号为 `9`。
 
 ## 2. 技术栈
 
@@ -99,7 +99,7 @@ src/
 │   ├── fitExport.ts           # 拟合结果导出（CSV / LaTeX / 剪贴板）
 │   ├── exportLayout.ts        # 整图（figure 网格）PNG/SVG 导出
 │   ├── matplotlibExporter.ts  # 生成 matplotlib Python 复现脚本
-│   ├── projectFile.ts         # .plot3d 项目文件序列化/反序列化/版本迁移（PROJECT_VERSION = 6）
+│   ├── projectFile.ts         # .plot3d 项目文件序列化/反序列化/版本迁移（PROJECT_VERSION = 9）
 │   ├── projectFileV6.ts       # v6 格式：稳定键序、内容哈希 ID
 │   ├── shareLink.ts           # 分享链接：FigureConfig ↔ URL fragment 编解码
 │   ├── sampleData.ts          # 示例数据生成与 uid 工具
@@ -256,11 +256,11 @@ CI（`.github/workflows/ci.yml`，push/PR 到 main 触发）依次执行：`npm 
 
 ### 5.7 项目文件兼容性
 
-- `.plot3d` 文件格式版本由 `src/utils/projectFile.ts` 中的 `PROJECT_VERSION` 控制，**当前为 `6`**。
+- `.plot3d` 文件格式版本由 `src/utils/projectFile.ts` 中的 `PROJECT_VERSION` 控制，**当前为 `9`**。
 - 修改持久化数据结构时，需要：
   1. 更新 `PROJECT_VERSION`；
   2. 在 `loadProjectFile` 中增加旧版本的迁移分支（现有 v1→v6 的逐级 bump 示例），并在 `sanitizeProjectFile` 中兼容旧字段。
-- 已有迁移链：v1→v2 删除 `scene3D` 字段；v2→v3 新增图表类型与 `yAxisRight`（可选，直接 bump）；v3→v4 `scene3D` 变为可选；v4→v5 标注模型扩展；v5→v6 由 `chartConfig` 迁移为 `figure`（sanitizer 会把旧 `chartConfig` 包装成 1×1 figure）。v6 另见 `projectFileV6.ts`（稳定键序、内容哈希 ID）。
+- 已有迁移链：v1→v2 删除 `scene3D` 字段；v2→v3 新增图表类型与 `yAxisRight`（可选，直接 bump）；v3→v4 `scene3D` 变为可选；v4→v5 标注模型扩展；v5→v6 由 `chartConfig` 迁移为 `figure`（sanitizer 会把旧 `chartConfig` 包装成 1×1 figure）；v6→v7 `ChartConfig` 新增可选 `surfaceMesh`（可选，直接 bump）；v7→v8 `ChartConfig` 新增可选 `contourProjection`（可选，直接 bump）；v8→v9 `contour3d`（曲面投影）图表类型并入 `surface3d`（sanitizer 把旧类型映射为 `surface3d` + `contourProjection: {floor:true, walls:true}`，直接 bump）。v6 另见 `projectFileV6.ts`（稳定键序、内容哈希 ID）。
 - 单个项目文件大小限制为 **50 MB**（`MAX_PROJECT_FILE_BYTES`），超过会被拒绝加载。
 
 ## 6. 代码风格规范

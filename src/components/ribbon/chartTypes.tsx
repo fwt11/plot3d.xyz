@@ -1,6 +1,6 @@
 import {
   LineChart, BarChart3, ScatterChart, AreaChart, PieChart,
-  Box, Rotate3D, Mountain, Binary, Compass, BarChart2, Grid3x3,
+  Box, Rotate3D, Mountain, Compass, BarChart2, Grid3x3,
   Activity, Layers,
 } from 'lucide-react';
 import type { ChartType } from '@/types';
@@ -18,7 +18,6 @@ export const getChartTypes = (t: (key: string) => string): { type: ChartType; la
   { type: 'heatmap', label: t('chartTypes.heatmap'), icon: <Grid3x3 size={15} />, group: 'stat' },
   { type: 'surface3d', label: t('chartTypes.surface3d'), icon: <Mountain size={15} />, group: '3d' },
   { type: 'scatter3d', label: t('chartTypes.scatter3d'), icon: <Rotate3D size={15} />, group: '3d' },
-  { type: 'contour3d', label: t('chartTypes.contour3d'), icon: <Binary size={15} />, group: '3d' },
   { type: 'bar3d', label: t('chartTypes.bar3d'), icon: <Box size={15} />, group: '3d' },
   { type: 'isosurface3d', label: t('chartTypes.isosurface3d'), icon: <Layers size={15} />, group: '3d' },
   { type: 'volume3d', label: t('chartTypes.volume3d'), icon: <Box size={15} />, group: '3d' },

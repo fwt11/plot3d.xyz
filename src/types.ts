@@ -251,7 +251,7 @@ export interface Annotation {
   imageSize?: { w: number; h: number };
 }
 
-export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'contour3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap' | 'violin' | 'isosurface3d' | 'volume3d';
+export type ChartType = 'line' | 'scatter' | 'bar' | 'area' | 'pie' | 'polar' | 'surface3d' | 'scatter3d' | 'bar3d' | 'box' | 'histogram' | 'heatmap' | 'violin' | 'isosurface3d' | 'volume3d';
 
 export type ExportBackground = 'transparent' | 'white' | 'theme';
 
@@ -278,6 +278,16 @@ export interface ChartConfig {
   zAxis?: AxisConfig;
   /** 3D scene configuration (aspect ratio and projection). */
   scene3D?: Scene3DConfig;
+  /** Overlay a wireframe mesh on surface3d charts (grid lines along x and y). */
+  surfaceMesh?: boolean;
+  /**
+   * Contour projection planes for surface3d charts ("surface projection"
+   * style). `floor` projects z-contours onto the base plane; `walls` projects
+   * x/y contours onto the side walls. Undefined means no projections (wall
+   * projections duplicate the color encoding and read as clutter, so they
+   * stay opt-in).
+   */
+  contourProjection?: { floor: boolean; walls: boolean };
   legend: LegendConfig;
   colorMap: ColorMapName;
   layers: LayerConfig[];

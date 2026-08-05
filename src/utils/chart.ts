@@ -5,7 +5,7 @@ export const colorMapNames: ColorMapName[] = ['jet', 'viridis', 'hot', 'coolwarm
 
 /** Check if a chart type is 3D */
 export function is3DChart(type: ChartType): boolean {
-  return type === 'surface3d' || type === 'scatter3d' || type === 'contour3d' || type === 'bar3d' || type === 'isosurface3d' || type === 'volume3d';
+  return type === 'surface3d' || type === 'scatter3d' || type === 'bar3d' || type === 'isosurface3d' || type === 'volume3d';
 }
 
 /** Check if a chart type uses a color map (color scale).
@@ -13,7 +13,6 @@ export function is3DChart(type: ChartType): boolean {
 export function usesColorMap(type: ChartType): boolean {
   return (
     type === 'surface3d' ||
-    type === 'contour3d' ||
     type === 'isosurface3d' ||
     type === 'volume3d' ||
     type === 'heatmap'

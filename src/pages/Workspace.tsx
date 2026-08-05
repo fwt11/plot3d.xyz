@@ -358,7 +358,7 @@ export default function Workspace() {
       // Ctrl+1~9: Switch chart type
       if (isCtrl && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
-        const chartTypes: ChartType[] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d', 'contour3d'];
+        const chartTypes: ChartType[] = ['line', 'scatter', 'bar', 'area', 'pie', 'polar', 'surface3d', 'scatter3d'];
         const idx = parseInt(e.key, 10) - 1;
         if (idx < chartTypes.length) {
           useChartStore.getState().setChartType(chartTypes[idx]);
