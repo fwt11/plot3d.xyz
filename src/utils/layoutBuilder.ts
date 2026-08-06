@@ -145,7 +145,9 @@ export function buildLayout(
       },
       bgcolor: 'transparent',
       camera: {
-        eye: { x: 1.5, y: 1.5, z: 1.5 },
+        // Slightly closer than the previous 1.5 so the scene fills more of the
+        // canvas (less dead space around the plot at the default view).
+        eye: { x: 1.35, y: 1.35, z: 1.35 },
         projection: { type: chartConfig.scene3D?.projection ?? 'orthographic' },
       },
       aspectmode: chartConfig.scene3D?.aspectMode ?? 'cube',

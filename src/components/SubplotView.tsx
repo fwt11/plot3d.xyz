@@ -476,6 +476,16 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
   // --- Build Plotly traces (memoized) ---
   const traces = useMemo<Record<string, unknown>[]>(() => {
     if (is3DType) {
+      // 3D hover tooltip: label lines with the configured axis labels (consistent
+      // casing with the axis titles), round to 4 significant digits, and use
+      // <extra></extra> to drop the trace-name tag Plotly appends by default.
+      const hoverX = chartConfig.xAxis.label || 'X';
+      const hoverY = chartConfig.yAxis.label || 'Y';
+      const hoverZ = chartConfig.zAxis?.label || 'Z';
+      const hover3D = `${hoverX}: %{x:.4g}<br>${hoverY}: %{y:.4g}<br>${hoverZ}: %{z:.4g}<extra></extra>`;
+      // The colorbar duplicates the Z axis title when one is set — keep the
+      // column name as a fallback only when the axis has no label.
+      const colorbarTitle = (zName: string) => (chartConfig.zAxis?.label ? '' : zName);
       return expandedDatasets.flatMap((entry) => {
         const { label, xCol, yCol, zCol, color, layer } = entry;
         const xValues = colToXValues(xCol);
@@ -500,17 +510,20 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
             colorscale: colorScale,
             opacity: layer.fill ? 0.8 : 1,
             showscale: true,
+            hovertemplate: hover3D,
             colorbar: {
-              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              title: { text: colorbarTitle(zCol.name), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
               tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
             },
             contours: {
-              x: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', project: { x: projection.walls } },
-              y: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', project: { y: projection.walls } },
+              // highlightwidth 1 keeps the white hover highlight thin — the
+              // default reads as heavy white strokes over the surface gradient.
+              x: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', highlightwidth: 1, project: { x: projection.walls } },
+              y: { show: projection.walls, usecolormap: true, highlightcolor: '#fff', highlightwidth: 1, project: { y: projection.walls } },
               // Mesh overlay replaces the z-contour rings (they serve the same
               // shape-reading purpose and look cluttered when combined) unless
               // the floor projection needs them.
-              z: { show: !chartConfig.surfaceMesh || projection.floor, usecolormap: true, highlightcolor: '#fff', project: { z: projection.floor } },
+              z: { show: !chartConfig.surfaceMesh || projection.floor, usecolormap: true, highlightcolor: '#fff', highlightwidth: 1, project: { z: projection.floor } },
             },
             lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5, fresnel: 0.2 },
             lightposition: { x: 1000, y: 1000, z: 1000 },
@@ -542,6 +555,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
             type: 'scatter3d',
             mode: showPoints ? 'markers' : 'lines',
             name: label,
+            hovertemplate: hover3D,
             x: indices.map((i) => xValues[i]),
             y: indices.map((i) => yValues[i]),
             z: indices.map((i) => zValues[i]),
@@ -567,6 +581,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
             type: 'scatter3d',
             mode: 'markers',
             name: label,
+            hovertemplate: hover3D,
             x: indices.map((i) => xValues[i]),
             y: indices.map((i) => yValues[i]),
             z: indices.map((i) => zValues[i]),
@@ -589,6 +604,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
           return {
             type: 'isosurface',
             name: label,
+            hovertemplate: hover3D,
             x: indices.map((i) => xValues[i]),
             y: indices.map((i) => yValues[i]),
             z: indices.map((i) => zValues[i]),
@@ -600,7 +616,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
             colorscale: colorScale,
             showscale: true,
             colorbar: {
-              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              title: { text: colorbarTitle(zCol.name), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
               tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
             },
             opacity: layer.fill ? 0.8 : 1,
@@ -620,6 +636,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
           return {
             type: 'volume',
             name: label,
+            hovertemplate: hover3D,
             x: indices.map((i) => xValues[i]),
             y: indices.map((i) => yValues[i]),
             z: indices.map((i) => zValues[i]),
@@ -631,7 +648,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
             colorscale: colorScale,
             showscale: true,
             colorbar: {
-              title: { text: chartConfig.zAxis?.label || zCol.name, font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
+              title: { text: colorbarTitle(zCol.name), font: { size: chartConfig.fontSize, color: cssVars.textSecondary } },
               tickfont: { size: chartConfig.fontSize - 1, color: cssVars.textMuted },
             },
             lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.3, roughness: 0.5 },
@@ -643,6 +660,7 @@ export default function SubplotView({ subplotIndex }: { subplotIndex: number }) 
           type: 'scatter3d',
           mode: 'markers',
           name: label,
+          hovertemplate: hover3D,
           x: colToXValues(xCol),
           y: colToNumbers(yCol),
           z: zCol ? colToNumbers(zCol) : colToNumbers(yCol),
